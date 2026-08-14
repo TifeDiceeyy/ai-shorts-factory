@@ -11,7 +11,11 @@ rule says don't make that paid call until approved, so it isn't wired yet.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import json
+import re
 from typing import Any
+
+import requests
 
 from ..cost_tracker import CostTracker
 
@@ -117,12 +121,118 @@ class StubLLMProvider(LLMProvider):
         return script
 
 
-def get_llm_provider(provider_name: str) -> LLMProvider:
-    if provider_name.strip().lower() in ("", "stub"):
-        return StubLLMProvider()
-    raise NotImplementedError(
-        f"LLM provider {provider_name!r} is not wired up yet — Phase 0 only "
-        "implements the stub provider until a real provider/model is approved "
-        "and a credential is supplied. See CLAUDE.md §0 rule: no paid calls "
-        "without approval."
+def _json_object(text: str) -> dict[str, Any]:
+    """Decode a provider response without accepting prose around the object."""
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
+    value = json.loads(cleaned)
+    if not isinstance(value, dict):
+        raise ValueError("LLM response must be a JSON object")
+    return value
+
+
+def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> str:
+    return (
+        "Create a factual YouTube Short script lasting 40-50 seconds. Return JSON only. "
+        "Use only the supplied claims; do not add factual claims. Make the first scene a strong hook. "
+        "Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
+        "visual_prompt, source_claim_id, camera, and sfx (string or null). The top-level object must "
+        "contain topic, language, visual_style, and scenes. Preserve claim IDs exactly. "
+        f"Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
     )
+
+
+class AnthropicLLMProvider(LLMProvider):
+    name = "anthropic"
+
+    def __init__(self, api_key: str, model: str, cost_per_script_usd: float):
+        if not api_key or not model:
+            raise ValueError("Anthropic requires ANTHROPIC_API_KEY and LLM_MODEL")
+        if cost_per_script_usd <= 0:
+            raise ValueError("Set LLM_COST_PER_SCRIPT_USD to a conservative positive estimate")
+        self.api_key = api_key
+        self.model = model
+        self.cost = cost_per_script_usd
+
+    def generate_script(self, brief, language, visual_style, cost_tracker):
+        operation = "llm.generate_script"
+        cost_tracker.check_budget(operation, self.cost)
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": self.model,
+                "max_tokens": 2500,
+                "temperature": 0.4,
+                "messages": [{"role": "user", "content": _script_prompt(brief, language, visual_style)}],
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        blocks = response.json().get("content", [])
+        text = "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
+        script = _json_object(text)
+        cost_tracker.record(self.name, operation, self.cost, self.cost, is_stub=False)
+        return script
+
+
+class FalLLMProvider(LLMProvider):
+    """Routes through fal.ai's OpenRouter endpoint (openrouter/router) —
+    fal-native schema, not fal-ai/any-llm (confirmed deprecated 2026-08-14,
+    do not use). model is an OpenRouter-style id, e.g. "anthropic/claude-3.5-sonnet".
+    The response echoes real per-call cost (usage.cost), so the ACTUAL spend
+    recorded is the real figure, not just the pre-call estimate — the
+    estimate is still required up front only because check_budget() has to
+    run before we know the real price."""
+
+    name = "fal"
+
+    def __init__(self, api_key: str, model: str, cost_per_script_usd: float):
+        if not api_key or not model:
+            raise ValueError("fal requires FAL_KEY and LLM_MODEL (e.g. 'anthropic/claude-3.5-sonnet')")
+        if cost_per_script_usd <= 0:
+            raise ValueError("Set LLM_COST_PER_SCRIPT_USD to a conservative positive pre-call estimate")
+        self.api_key = api_key
+        self.model = model
+        self.estimate = cost_per_script_usd
+
+    def generate_script(self, brief, language, visual_style, cost_tracker):
+        operation = "llm.generate_script"
+        cost_tracker.check_budget(operation, self.estimate)
+        response = requests.post(
+            "https://fal.run/openrouter/router",
+            headers={"Authorization": f"Key {self.api_key}", "content-type": "application/json"},
+            json={
+                "model": self.model,
+                "prompt": _script_prompt(brief, language, visual_style),
+                "temperature": 0.4,
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("error"):
+            raise RuntimeError(f"fal openrouter error: {data['error']}")
+        script = _json_object(data["output"])
+        actual_cost = data.get("usage", {}).get("cost", self.estimate)
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
+        return script
+
+
+def get_llm_provider(
+    provider_name: str,
+    api_key: str = "",
+    model: str = "",
+    cost_per_script_usd: float = 0.0,
+) -> LLMProvider:
+    name = provider_name.strip().lower()
+    if name in ("", "stub"):
+        return StubLLMProvider()
+    if name == "anthropic":
+        return AnthropicLLMProvider(api_key, model, cost_per_script_usd)
+    if name == "fal":
+        return FalLLMProvider(api_key, model, cost_per_script_usd)
+    raise NotImplementedError(f"Unsupported LLM provider {provider_name!r}; use 'stub', 'anthropic', or 'fal'")

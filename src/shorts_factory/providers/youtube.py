@@ -43,6 +43,11 @@ class DisclosureNotConfirmed(Exception):
     requested — CLAUDE.md requires this be CONFIRMED from the response, not
     assumed from the request succeeding."""
 
+    def __init__(self, message: str, video_id: str = "", raw_response: dict | None = None):
+        self.video_id = video_id
+        self.raw_response = raw_response or {}
+        super().__init__(message)
+
 
 @dataclass
 class UploadResult:
@@ -131,16 +136,21 @@ class YouTubeUploadProvider:
         request = service.videos().insert(part="snippet,status", body=body, media_body=media)
         response = request.execute()
 
-        actual_flag = response.get("status", {}).get("containsSyntheticMedia")
+        video_id = response["id"]
+        confirmation = service.videos().list(part="status", id=video_id).execute()
+        items = confirmation.get("items") or []
+        actual_flag = items[0].get("status", {}).get("containsSyntheticMedia") if items else None
         if actual_flag != contains_synthetic_media:
             raise DisclosureNotConfirmed(
                 f"requested containsSyntheticMedia={contains_synthetic_media}, but the API "
                 f"response reports {actual_flag!r} — upload succeeded but disclosure is NOT "
-                f"confirmed. Do not treat this video as compliantly disclosed."
+                f"confirmed. Do not treat this video as compliantly disclosed.",
+                video_id=video_id,
+                raw_response={"insert": response, "confirmation": confirmation},
             )
 
         return UploadResult(
-            video_id=response["id"],
+            video_id=video_id,
             privacy_status=response.get("status", {}).get("privacyStatus", "unknown"),
             contains_synthetic_media=actual_flag,
             raw_response=response,

@@ -1,11 +1,39 @@
 """Phase 4: dashboard route tests via FastAPI's TestClient — real HTTP
 request/response cycle against the actual app, not a mock."""
+import json
+import pytest
 from fastapi.testclient import TestClient
 from shorts_factory.dashboard.app import app
+from shorts_factory.dashboard import app as dashboard_app
 from shorts_factory.dashboard import review_state
-from shorts_factory.pipeline import REPO_ROOT
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolated_artifacts(tmp_path, monkeypatch):
+    root = tmp_path / "artifacts"
+    for topic in ("soap", "charcoal"):
+        topic_dir = root / topic
+        topic_dir.mkdir(parents=True)
+        (topic_dir / f"{topic}.script.json").write_text(json.dumps({
+            "topic": topic,
+            "language": "English",
+            "visual_style": "test style",
+            "scenes": [{
+                "narration": "Saponification turns fats and alkali into soap.",
+                "caption": "Saponification turns fats and alkali into soap.",
+                "duration": 7.6,
+                "visual_prompt": "a workshop scene",
+                "source_claim_id": "claim-01",
+                "camera": "static wide shot",
+                "sfx": None,
+            }]
+        }))
+        (topic_dir / f"{topic}.mp4").write_bytes(b"test-video")
+        (topic_dir / "verification-report.json").write_text(json.dumps({"overall_pass": True, "checks": []}))
+    monkeypatch.setattr(dashboard_app, "ARTIFACTS_ROOT", root)
+    yield root
 
 
 def test_index_lists_known_topics():
@@ -38,8 +66,8 @@ def test_media_route_rejects_path_traversal():
     assert resp.status_code in (404, 400)
 
 
-def test_approve_reject_schedule_flow():
-    artifacts_dir = REPO_ROOT / "artifacts" / "soap"
+def test_approve_reject_schedule_flow(isolated_artifacts):
+    artifacts_dir = isolated_artifacts / "soap"
     review_state.reset_to_pending(artifacts_dir)  # clean slate for this test
 
     resp = client.post("/video/soap/schedule", data={"notes": "too early"})

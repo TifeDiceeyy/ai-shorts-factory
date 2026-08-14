@@ -75,7 +75,8 @@ def analyze_caption_region(frame_path: Path, box: dict[str, int]) -> dict[str, A
     stat = ImageStat.Stat(crop)
     stddev = stat.stddev[0]
 
-    pixels = list(crop.getdata())
+    get_pixels = getattr(crop, "get_flattened_data", crop.getdata)
+    pixels = list(get_pixels())
     near_white_count = sum(1 for p in pixels if p >= NEAR_WHITE_THRESHOLD)
     near_white_fraction = near_white_count / len(pixels) if pixels else 0.0
 

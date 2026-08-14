@@ -278,6 +278,7 @@ def run_retrieval_for_topic(
     topic: str,
     search_provider: SearchProvider,
     cost_tracker: CostTracker,
+    book_file: str = "",
 ) -> dict:
     """The real, end-to-end Phase 1 pipeline for one topic: retrieve -> extract
     -> verify -> store. Requires a real, keyed search_provider — see
@@ -288,6 +289,19 @@ def run_retrieval_for_topic(
     keywords = TOPIC_KEYWORDS.get(topic)
     if not queries or not keywords:
         raise ValueError(f"no configured queries/keywords for topic {topic!r} — add to topics.py first")
+
+    queries = list(queries)
+    book_refs: list[str] = []
+    if book_file:
+        from .book_ingest import build_private_index, research_terms, retrieve_private_chunks
+
+        index_path = REPO_ROOT / "data" / "private" / "book-index.json"
+        index = build_private_index(Path(book_file), index_path)
+        private_chunks = retrieve_private_chunks(index, topic)
+        book_refs = [chunk["id"] for chunk in private_chunks]
+        terms = research_terms(private_chunks, topic)
+        if terms:
+            queries.append(f"{topic} {' '.join(terms)} reliable source")
 
     chunks = retrieve_for_topic(topic, queries, search_provider, cost_tracker)
     claims = extract_candidate_claims(chunks, topic, keywords)
@@ -301,7 +315,10 @@ def run_retrieval_for_topic(
         "claim_count": len(claims),
         "queries_used": queries,
         "output_path": str(out_path),
+        "private_book_chunk_ids": book_refs,
+        "book_text_exposed": False,
     }
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
 
 
@@ -332,7 +349,7 @@ def main(argv: list[str]) -> int:
     search_provider = get_search_provider(settings.search.provider, settings.search_api_key)
     cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
 
-    result = run_retrieval_for_topic(topic, search_provider, cost_tracker)
+    result = run_retrieval_for_topic(topic, search_provider, cost_tracker, book_file=settings.book_file)
 
     cost_report_path = REPO_ROOT / "data" / topic.replace(" ", "_") / "retrieval-cost-report.json"
     cost_tracker.write_report(cost_report_path)

@@ -18,7 +18,7 @@ from .cost_tracker import CostTracker
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
-from .safety import TopicBlocked, caution_line, enforce_not_blocked
+from .safety import TopicBlocked, caution_caption, caution_line, enforce_not_blocked
 from .schema_validate import ValidationError, validate_brief, validate_script_against_brief
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -73,9 +73,26 @@ def run_pipeline(topic: str) -> PipelineResult:
 
     cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
 
-    # --- Brief (hand-authored for Phase 0, no retrieval) ---
-    brief_path = REPO_ROOT / "data" / topic / f"{topic}.brief.json"
-    brief = json.loads(brief_path.read_text(encoding="utf-8"))
+    # Real runs must consume a verified citation store. Hand-authored briefs
+    # remain available only to the zero-cost Phase 0 renderer test.
+    citation_path = REPO_ROOT / "data" / topic.replace(" ", "_") / f"{topic.replace(' ', '_')}.citations.json"
+    if settings.any_provider_is_real:
+        if not citation_path.exists():
+            raise FileNotFoundError(
+                f"real generation requires verified citations at {citation_path}; run retrieve.sh first"
+            )
+        from .brief_builder import build_brief_from_citations
+
+        citation_store = json.loads(citation_path.read_text(encoding="utf-8"))
+        brief = build_brief_from_citations(
+            topic,
+            citation_store,
+            safety_class.value,
+            caution=caution_line(topic),
+        )
+    else:
+        brief_path = REPO_ROOT / "data" / topic / f"{topic}.brief.json"
+        brief = json.loads(brief_path.read_text(encoding="utf-8"))
     validate_brief(brief)
     if brief["safety_class"] != safety_class.value:
         raise ValidationError(
@@ -84,8 +101,16 @@ def run_pipeline(topic: str) -> PipelineResult:
         )
 
     # --- Script generation (LLM provider, stub by default) ---
-    llm = get_llm_provider(settings.llm.provider)
+    llm = get_llm_provider(
+        settings.llm.provider,
+        settings.credential_for(settings.llm),
+        settings.llm.model_or_voice,
+        settings.llm_cost_per_script_usd,
+    )
     script = llm.generate_script(brief, settings.output_language, settings.visual_style, cost_tracker)
+    warning = caution_caption(topic)
+    if warning and script.get("scenes"):
+        script["scenes"][-1]["caption"] = warning
     validate_script_against_brief(script, brief)
     result.script = script
 
@@ -101,7 +126,12 @@ def run_pipeline(topic: str) -> PipelineResult:
     # exactly. Everything downstream (video segments, captions, the
     # verification target duration) is driven by the measured value so
     # nothing can drift out of sync with what's actually on the timeline. ---
-    tts = get_tts_provider(settings.tts.provider)
+    tts = get_tts_provider(
+        settings.tts.provider,
+        settings.credential_for(settings.tts),
+        settings.tts.model_or_voice,
+        settings.tts_cost_per_1k_chars_usd,
+    )
     scene_audio = assembly.synthesize_scenes(tts, script["scenes"], workdir / "audio", cost_tracker)
     actual_durations = [a.duration for a in scene_audio]
     scripted_durations = [a.scripted_duration for a in scene_audio]
@@ -129,7 +159,12 @@ def run_pipeline(topic: str) -> PipelineResult:
 
     # --- Stage 2: swap in generated images (stub image provider stands in
     # until a real one is approved) — this produces the final soap.mp4. ---
-    image_provider = get_image_provider(settings.image.provider)
+    image_provider = get_image_provider(
+        settings.image.provider,
+        settings.credential_for(settings.image),
+        settings.image.model_or_voice,
+        settings.image_cost_per_image_usd,
+    )
     generated_dir = workdir / "generated"
     final_mp4 = artifacts_dir / f"{topic}.mp4"
 
@@ -234,12 +269,22 @@ def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = N
     audio_dir = workdir / "audio"
     generated_dir = workdir / "generated"
 
-    tts = get_tts_provider(settings.tts.provider)
+    tts = get_tts_provider(
+        settings.tts.provider,
+        settings.credential_for(settings.tts),
+        settings.tts.model_or_voice,
+        settings.tts_cost_per_1k_chars_usd,
+    )
     scene = scenes[scene_index]
     new_audio_path = assembly.build_scene_audio(tts, scene, scene_index, audio_dir, cost_tracker)
     new_duration = assembly.probe_duration(new_audio_path)
 
-    image_provider = get_image_provider(settings.image.provider)
+    image_provider = get_image_provider(
+        settings.image.provider,
+        settings.credential_for(settings.image),
+        settings.image.model_or_voice,
+        settings.image_cost_per_image_usd,
+    )
     raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
     image_provider.generate_scene_image(scene, scene_index, raw_path, cost_tracker)
     base_image = Image.open(raw_path).convert("RGB")

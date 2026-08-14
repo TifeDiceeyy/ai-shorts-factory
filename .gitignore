@@ -5,6 +5,11 @@
 *.key
 credentials.json
 .youtube_token.json
+data/private/
+data/publish-ledger.json
+data/publish-ledger.json.lock
+data/experiment_ledger.json
+data/idea_history.json
 *client_secret*.json
 
 # python

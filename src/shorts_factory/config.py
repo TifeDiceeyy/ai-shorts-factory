@@ -43,8 +43,19 @@ class Settings:
     search: ProviderConfig
     search_api_key: str
 
+    anthropic_api_key: str
+    openai_api_key: str
+    elevenlabs_api_key: str
+    fal_key: str
+    llm_cost_per_script_usd: float
+    tts_cost_per_1k_chars_usd: float
+    image_cost_per_image_usd: float
+
     youtube_client_secrets_file: str
     youtube_token_file: str
+
+    telegram_bot_token: str
+    telegram_allowed_user_ids: tuple[int, ...]
 
     stub_fields: list[str] = field(default_factory=list)
 
@@ -55,6 +66,24 @@ class Settings:
     @property
     def any_provider_is_real(self) -> bool:
         return not (self.llm.is_stub and self.tts.is_stub and self.image.is_stub and self.search.is_stub)
+
+    def credential_for(self, provider_config: ProviderConfig) -> str:
+        """The right credential for whichever provider name is actually
+        configured for this kind — fal.ai can serve as the real provider for
+        llm/tts/image alike, so this can't just be one hardcoded field per
+        kind (that was a real bug: pipeline.py used to always pass
+        anthropic_api_key/elevenlabs_api_key regardless of what was selected,
+        which would silently break e.g. LLM_PROVIDER=fal)."""
+        name = provider_config.provider.strip().lower()
+        table = {
+            ("llm", "anthropic"): self.anthropic_api_key,
+            ("llm", "openai"): self.openai_api_key,
+            ("llm", "fal"): self.fal_key,
+            ("tts", "elevenlabs"): self.elevenlabs_api_key,
+            ("tts", "fal"): self.fal_key,
+            ("image", "fal"): self.fal_key,
+        }
+        return table.get((provider_config.kind, name), "")
 
 
 class BudgetApprovalRequired(Exception):
@@ -137,6 +166,21 @@ def load_settings() -> Settings:
     if not youtube_client_secrets_file:
         stub_fields.append("YOUTUBE_CLIENT_SECRETS_FILE (Phase 5 upload not configured)")
 
+    def money(name: str) -> float:
+        raw = _env(name, "0")
+        try:
+            value = float(raw)
+        except ValueError as exc:
+            raise ValueError(f"{name} must be a non-negative number") from exc
+        if value < 0:
+            raise ValueError(f"{name} must be a non-negative number")
+        return value
+
+    telegram_ids: list[int] = []
+    for raw_id in _env("TELEGRAM_ALLOWED_USER_IDS").split(","):
+        if raw_id.strip():
+            telegram_ids.append(int(raw_id.strip()))
+
     return Settings(
         book_file=book_file,
         output_language=output_language,
@@ -149,7 +193,16 @@ def load_settings() -> Settings:
         image=image,
         search=search,
         search_api_key=search_api_key,
+        anthropic_api_key=_env("ANTHROPIC_API_KEY"),
+        openai_api_key=_env("OPENAI_API_KEY"),
+        elevenlabs_api_key=_env("ELEVENLABS_API_KEY"),
+        fal_key=_env("FAL_KEY"),
+        llm_cost_per_script_usd=money("LLM_COST_PER_SCRIPT_USD"),
+        tts_cost_per_1k_chars_usd=money("TTS_COST_PER_1K_CHARS_USD"),
+        image_cost_per_image_usd=money("IMAGE_COST_PER_IMAGE_USD"),
         youtube_client_secrets_file=youtube_client_secrets_file,
         youtube_token_file=youtube_token_file,
+        telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
+        telegram_allowed_user_ids=tuple(telegram_ids),
         stub_fields=stub_fields,
     )

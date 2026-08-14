@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .config import load_settings
 from .dashboard import review_state
+from .daily_publish import DailyPublishLedger
+from .experiment_ledger import record_publish
 from .providers.youtube import DisclosureNotConfirmed, YouTubeNotConfigured, get_youtube_provider
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -52,13 +54,33 @@ def publish_to_youtube(topic: str, privacy_status: str = "private") -> dict:
     description += "\n\nAI-generated content. Sources available on request."
 
     provider = get_youtube_provider(settings.youtube_client_secrets_file, settings.youtube_token_file)
-    result = provider.upload_video(
-        mp4_path=mp4_path,
-        title=title,
-        description=description,
-        privacy_status=privacy_status,
-        contains_synthetic_media=True,
-    )
+    ledger = DailyPublishLedger(REPO_ROOT / "data" / "publish-ledger.json")
+    reservation = ledger.reserve(topic)
+    try:
+        result = provider.upload_video(
+            mp4_path=mp4_path,
+            title=title,
+            description=description,
+            privacy_status=privacy_status,
+            contains_synthetic_media=True,
+        )
+    except DisclosureNotConfirmed as exc:
+        # Upload may already exist. Persist the ID so an operator can inspect
+        # or remove the private orphan instead of silently losing track of it.
+        failure = {
+            "video_id": exc.video_id,
+            "privacy_status_requested": privacy_status,
+            "contains_synthetic_media_confirmed": False,
+            "error": str(exc),
+        }
+        (artifacts_dir / "youtube-upload-failed-verification.json").write_text(
+            json.dumps(failure, indent=2), encoding="utf-8"
+        )
+        ledger.mark_failed(reservation, str(exc))
+        raise
+    except Exception as exc:
+        ledger.mark_failed(reservation, str(exc))
+        raise
 
     upload_record = {
         "video_id": result.video_id,
@@ -67,6 +89,14 @@ def publish_to_youtube(topic: str, privacy_status: str = "private") -> dict:
     }
     (artifacts_dir / "youtube-upload-result.json").write_text(json.dumps(upload_record, indent=2), encoding="utf-8")
 
+    ledger.mark_published(reservation, result.video_id)
+    record_publish(
+        topic=topic,
+        video_id=result.video_id,
+        concept=title,
+        hook_variant_index=1,
+        series="reinvent-it",
+    )
     review_state.schedule(artifacts_dir, notes=f"uploaded as {result.video_id}")
 
     return upload_record

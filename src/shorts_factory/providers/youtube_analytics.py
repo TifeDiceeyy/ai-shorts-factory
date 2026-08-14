@@ -7,7 +7,7 @@ point is real data landing per video.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .youtube import API_VERSION, YouTubeNotConfigured, get_credentials
@@ -37,6 +37,7 @@ class VideoMetrics:
     subscribers_gained: int
     subscribers_lost: int
     raw_response: dict[str, Any]
+    retention_curve: list[dict[str, float]] = field(default_factory=list)
 
 
 class YouTubeAnalyticsProvider:
@@ -74,6 +75,20 @@ class YouTubeAnalyticsProvider:
             row = rows[0]
         values = dict(zip(METRICS, row))
 
+        retention_response = service.reports().query(
+            ids="channel==MINE",
+            startDate=start_date,
+            endDate=end_date,
+            dimensions="elapsedVideoTimeRatio",
+            metrics="audienceWatchRatio",
+            filters=f"video=={video_id}",
+            sort="elapsedVideoTimeRatio",
+        ).execute()
+        retention_curve = [
+            {"elapsed_video_time_ratio": float(point[0]), "audience_watch_ratio": float(point[1])}
+            for point in (retention_response.get("rows") or [])
+        ]
+
         return VideoMetrics(
             video_id=video_id,
             start_date=start_date,
@@ -85,6 +100,7 @@ class YouTubeAnalyticsProvider:
             subscribers_gained=int(values.get("subscribersGained", 0)),
             subscribers_lost=int(values.get("subscribersLost", 0)),
             raw_response=response,
+            retention_curve=retention_curve,
         )
 
 

@@ -18,8 +18,17 @@ def _settings(*, llm="stub", tts="stub", image="stub", search="stub", budget_is_
         image=ProviderConfig(kind="image", provider=image, model_or_voice=""),
         search=ProviderConfig(kind="search", provider=search, model_or_voice=""),
         search_api_key="",
+        anthropic_api_key="",
+        openai_api_key="",
+        elevenlabs_api_key="",
+        fal_key="",
+        llm_cost_per_script_usd=0,
+        tts_cost_per_1k_chars_usd=0,
+        image_cost_per_image_usd=0,
         youtube_client_secrets_file="",
         youtube_token_file="",
+        telegram_bot_token="",
+        telegram_allowed_user_ids=(),
     )
 
 

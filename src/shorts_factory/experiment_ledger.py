@@ -90,6 +90,7 @@ def ingest_metrics(video_id: str, metrics: VideoMetrics) -> dict:
                 "average_view_percentage": metrics.average_view_percentage,
                 "subscribers_gained": metrics.subscribers_gained,
                 "subscribers_lost": metrics.subscribers_lost,
+                "retention_curve": metrics.retention_curve,
             }
             entry["score"] = compute_score(metrics)
             _save(entries)

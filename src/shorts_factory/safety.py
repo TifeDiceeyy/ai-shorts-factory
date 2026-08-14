@@ -48,6 +48,14 @@ YELLOW_CAUTION = {
         "and eyes on contact and releases irritating fumes when dissolved. "
         "Handle only with eye protection, gloves, and ventilation."
     ),
+    "furnaces": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation.",
+    "furnace": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation.",
+    "electricity": "Caution: electrical work can cause shock, fire, or death. Use qualified guidance and proper protection.",
+    "food preservation": "Caution: unsafe preservation can cause severe foodborne illness. Follow current public-health guidance.",
+    "apple cider vinegar": "Caution: fermentation can be contaminated. Follow tested food-safety guidance.",
+    "charcoal": "Caution: charcoal production creates fire and carbon-monoxide hazards. Never attempt it indoors.",
+    "simple mechanical water pump": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately.",
+    "water pump": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately.",
 }
 
 
@@ -93,3 +101,9 @@ def enforce_not_blocked(topic: str) -> SafetyClass:
 
 def caution_line(topic: str) -> str | None:
     return YELLOW_CAUTION.get(_normalize(topic))
+
+
+def caution_caption(topic: str) -> str | None:
+    if classify_topic(topic) != SafetyClass.YELLOW:
+        return None
+    return "CAUTION: Educational overview — follow current expert safety guidance."
