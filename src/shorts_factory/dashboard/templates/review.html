@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ topic }}{% endblock %}
+{% block content %}
+<a class="back-link" href="/">&larr; Queue</a>
+
+<div class="review-shell">
+  <aside class="review-rail">
+    <h1 class="video-title">{{ topic }}</h1>
+    <span class="status-badge status-badge--{{ state.status }} status-badge--lg">{{ state.status }}</span>
+
+    <section class="rail-section">
+      <h2 class="rail-heading">Pipeline</h2>
+      <ol class="stage-list">
+        {% for s in ['script', 'render', 'verify', 'ready'] %}
+        <li class="stage-item stage-item--{{ 'done' if (['script','render','verify','ready'].index(stage) > loop.index0 or stage == 'ready') else ('active' if stage == s else 'pending') }}{{ ' stage-item--fail' if stage == 'verify-failed' and s == 'verify' else '' }}">
+          {{ s }}
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    {% if verification %}
+    <section class="rail-section">
+      <h2 class="rail-heading">Verification <span class="mono">{{ verification.checks|selectattr('passed')|list|length }}/{{ verification.checks|length }}</span></h2>
+      <ul class="check-list">
+        {% for c in verification.checks %}
+        <li class="check-item check-item--{{ 'pass' if c.passed else 'fail' }}">
+          <span class="check-mark">{{ '✓' if c.passed else '✕' }}</span> {{ c.criterion }}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if cost %}
+    <section class="rail-section">
+      <h2 class="rail-heading">Cost</h2>
+      <p class="mono cost-figure">${{ "%.4f"|format(cost.total_spent_usd) }} <span class="muted">/ ${{ "%.2f"|format(cost.budget_cap_usd) }} cap</span></p>
+      <p class="muted small">{{ cost.entries|length }} provider call{{ 's' if cost.entries|length != 1 else '' }}</p>
+    </section>
+    {% endif %}
+
+    <section class="rail-section">
+      <h2 class="rail-heading">Decision</h2>
+      <form method="post" action="/video/{{ topic }}/approve" class="decision-form">
+        <input type="text" name="notes" placeholder="notes (optional)" class="text-input">
+        <button type="submit" class="btn btn--approve">Approve</button>
+      </form>
+      <form method="post" action="/video/{{ topic }}/reject" class="decision-form">
+        <input type="text" name="notes" placeholder="notes (optional)" class="text-input">
+        <button type="submit" class="btn btn--reject">Reject</button>
+      </form>
+      <form method="post" action="/video/{{ topic }}/schedule" class="decision-form">
+        <input type="text" name="notes" placeholder="notes (optional)" class="text-input">
+        <button type="submit" class="btn btn--schedule" {{ 'disabled' if state.status != 'approved' else '' }}>
+          Schedule
+        </button>
+      </form>
+      {% if state.status != 'approved' %}
+      <p class="muted small">Schedule unlocks once approved. Note: this marks scheduling intent only — real YouTube upload (Phase 5) isn't connected yet.</p>
+      {% endif %}
+    </section>
+  </aside>
+
+  <section class="review-main">
+    {% if has_video %}
+    <video class="preview" src="/video/{{ topic }}/media/{{ topic }}.mp4" controls playsinline></video>
+    {% else %}
+    <div class="empty-state">No render yet.</div>
+    {% endif %}
+
+    {% if script %}
+    <section>
+      <h2 class="section-heading">Scenes</h2>
+      <div class="scene-list">
+        {% for scene in script.scenes %}
+        <article class="scene-card">
+          <header class="scene-card-header">
+            <span class="mono scene-index">#{{ loop.index0 }}</span>
+            <span class="scene-duration mono">{{ "%.1f"|format(scene.duration) }}s</span>
+            {% if scene.camera %}<span class="scene-camera">{{ scene.camera }}</span>{% endif %}
+            <span class="scene-source mono">{{ scene.source_claim_id }}</span>
+          </header>
+          <form method="post" action="/video/{{ topic }}/scene/{{ loop.index0 }}/regenerate" class="scene-form">
+            <textarea name="narration" class="scene-textarea" rows="2">{{ scene.narration }}</textarea>
+            <div class="scene-form-footer">
+              <span class="muted small">Caption: {{ scene.caption }}</span>
+              <button type="submit" class="btn btn--regen">Regenerate this scene</button>
+            </div>
+          </form>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if citations %}
+    <section>
+      <h2 class="section-heading">Sources <span class="mono muted">{{ citations.verified_count }}/{{ citations.citation_count }} verified</span></h2>
+      <div class="citation-list">
+        {% for c in citations.citations %}
+        <details class="citation-item">
+          <summary>
+            <span class="verified-badge verified-badge--{{ 'yes' if c.verified else 'no' }}">{{ 'verified' if c.verified else 'unverified' }}</span>
+            <span class="mono">conf {{ c.confidence }}</span>
+            {{ c.claim_text[:90] }}{{ '…' if c.claim_text|length > 90 else '' }}
+          </summary>
+          <ul class="source-sublist">
+            {% for s in c.sources %}
+            <li><a href="{{ s.url }}" target="_blank" rel="noopener noreferrer">{{ s.title or s.domain }}</a> <span class="muted small">({{ s.domain }})</span></li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+    {% elif brief %}
+    <section>
+      <h2 class="section-heading">Sources (hand-authored brief)</h2>
+      <div class="citation-list">
+        {% for claim in brief.claims %}
+        <details class="citation-item">
+          <summary><span class="mono">{{ claim.id }}</span> {{ claim.claim[:90] }}{{ '…' if claim.claim|length > 90 else '' }}</summary>
+          <p class="muted small source-text">{{ claim.source }}</p>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

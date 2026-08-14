@@ -1,0 +1,155 @@
+"""Resolves CLAUDE.md §1 inputs from the environment (.env), stubbing anything
+unset. Every field reports whether it's a real, approved value or a stub —
+callers use that to decide whether a step is allowed to make a paid call.
+"""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+load_dotenv(REPO_ROOT / ".env")
+
+STUB = "stub"
+
+
+@dataclass(frozen=True)
+class ProviderConfig:
+    kind: str  # "llm" | "tts" | "image"
+    provider: str
+    model_or_voice: str
+
+    @property
+    def is_stub(self) -> bool:
+        return self.provider.strip().lower() in ("", STUB)
+
+
+@dataclass(frozen=True)
+class Settings:
+    book_file: str
+    output_language: str
+    visual_style: str
+    budget_cap_usd: float
+    budget_cap_is_stub: bool
+    music_sfx_source: str
+
+    llm: ProviderConfig
+    tts: ProviderConfig
+    image: ProviderConfig
+    search: ProviderConfig
+    search_api_key: str
+
+    youtube_client_secrets_file: str
+    youtube_token_file: str
+
+    stub_fields: list[str] = field(default_factory=list)
+
+    @property
+    def youtube_configured(self) -> bool:
+        return bool(self.youtube_client_secrets_file)
+
+    @property
+    def any_provider_is_real(self) -> bool:
+        return not (self.llm.is_stub and self.tts.is_stub and self.image.is_stub and self.search.is_stub)
+
+
+class BudgetApprovalRequired(Exception):
+    """Raised when a real (non-stub) provider is configured but no explicit
+    BUDGET_CAP_USD was ever set — a real paid call must never run against a
+    silently-defaulted budget. CLAUDE.md §0: 'Do not make paid API calls
+    until I approve the providers and budget.' The $2.00 default in
+    load_settings() exists only so the free stub pipeline has a cap to test
+    against; it is not an approval."""
+
+    def __init__(self, real_providers: list[str]):
+        self.real_providers = real_providers
+        super().__init__(
+            f"Refusing to run: {', '.join(real_providers)} are configured as real "
+            "(non-stub) providers, but BUDGET_CAP_USD was never explicitly set — "
+            "the pipeline would silently fall back to the $2.00 stub default instead "
+            "of requiring your explicit budget approval. Set BUDGET_CAP_USD in .env "
+            "before connecting any real provider."
+        )
+
+
+def require_budget_approval_if_paid(settings: Settings) -> None:
+    if not settings.any_provider_is_real:
+        return  # everything is stub — zero cost, nothing to approve
+    if settings.budget_cap_is_stub:
+        real = [p.kind.upper() for p in (settings.llm, settings.tts, settings.image, settings.search) if not p.is_stub]
+        raise BudgetApprovalRequired(real)
+
+
+def _env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
+def load_settings() -> Settings:
+    stub_fields: list[str] = []
+
+    book_file = _env("BOOK_FILE")
+    if not book_file:
+        stub_fields.append("BOOK_FILE (not needed until Phase 1 retrieval)")
+
+    output_language = _env("OUTPUT_LANGUAGE", "English")
+
+    visual_style = _env(
+        "VISUAL_STYLE",
+        "illustrated realism, diagram-forward, post-collapse workshop aesthetic",
+    )
+
+    budget_raw = _env("BUDGET_CAP_USD")
+    budget_cap_is_stub = not budget_raw
+    if budget_cap_is_stub:
+        stub_fields.append("BUDGET_CAP_USD (defaulted to $2.00 stub — needs real approval before any paid run)")
+    try:
+        budget_cap_usd = float(budget_raw) if budget_raw else 2.00
+    except ValueError:
+        budget_cap_usd = 2.00
+        budget_cap_is_stub = True
+
+    music_sfx_source = _env("MUSIC_SFX_SOURCE")
+    if not music_sfx_source:
+        stub_fields.append("MUSIC_SFX_SOURCE (optional for Phase 0 — no music/SFX track in the skeleton)")
+
+    def provider_cfg(kind: str, provider_var: str, model_var: str) -> ProviderConfig:
+        provider = _env(provider_var, STUB)
+        model = _env(model_var)
+        if provider.lower() in ("", STUB):
+            stub_fields.append(f"{provider_var} (using local stub provider — zero network, zero cost)")
+        return ProviderConfig(kind=kind, provider=provider, model_or_voice=model)
+
+    llm = provider_cfg("llm", "LLM_PROVIDER", "LLM_MODEL")
+    tts = provider_cfg("tts", "TTS_PROVIDER", "TTS_VOICE")
+    image = provider_cfg("image", "IMAGE_PROVIDER", "IMAGE_MODEL")
+    search = provider_cfg("search", "SEARCH_PROVIDER", "SEARCH_MODEL")
+
+    search_api_key = _env("SEARCH_API_KEY") or _env("TAVILY_API_KEY")
+    if not search.is_stub and not search_api_key:
+        stub_fields.append("SEARCH_API_KEY (SEARCH_PROVIDER is set but no key was provided)")
+
+    youtube_client_secrets_file = _env("YOUTUBE_CLIENT_SECRETS_FILE")
+    youtube_token_file = _env("YOUTUBE_TOKEN_FILE", str(REPO_ROOT / ".youtube_token.json"))
+    if not youtube_client_secrets_file:
+        stub_fields.append("YOUTUBE_CLIENT_SECRETS_FILE (Phase 5 upload not configured)")
+
+    return Settings(
+        book_file=book_file,
+        output_language=output_language,
+        visual_style=visual_style,
+        budget_cap_usd=budget_cap_usd,
+        budget_cap_is_stub=budget_cap_is_stub,
+        music_sfx_source=music_sfx_source,
+        llm=llm,
+        tts=tts,
+        image=image,
+        search=search,
+        search_api_key=search_api_key,
+        youtube_client_secrets_file=youtube_client_secrets_file,
+        youtube_token_file=youtube_token_file,
+        stub_fields=stub_fields,
+    )

@@ -1,0 +1,37 @@
+{
+  "topic": "soap",
+  "safety_class": "yellow",
+  "caution": "Lye (sodium/potassium hydroxide) is caustic. It burns skin and eyes on contact and releases irritating fumes when dissolved. Handle only with eye protection, gloves, and ventilation.",
+  "claims": [
+    {
+      "id": "claim-01",
+      "claim": "Soap is formed by saponification: a fat or oil reacts with an alkali (lye) to split into soap and glycerol.",
+      "source": "General chemistry — saponification is a standard reaction documented across independent chemistry references. BOOK_FILE not provided; this claim does not derive from any book text."
+    },
+    {
+      "id": "claim-02",
+      "claim": "Before manufactured lye existed, people commonly made an alkaline lye solution by leaching wood ash with water.",
+      "source": "General historical-chemistry knowledge (potash/lye production from wood ash), independently documented across multiple traditional-craft and chemistry-history references, not book-derived."
+    },
+    {
+      "id": "claim-03",
+      "claim": "Rendered animal fat (tallow), especially from cattle or sheep, was one of the most common traditional soap-making fats because it was a byproduct already available after butchering.",
+      "source": "General historical-craft knowledge on traditional soap-making fats; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-04",
+      "claim": "Without lab equipment, the strength of a wood-ash lye solution was traditionally estimated with a simple buoyancy test, such as checking whether a fresh egg or small potato floats at the right level in the liquid.",
+      "source": "General historical-craft knowledge (folk lye-testing methods); independently documented across traditional soap-making references, not book-derived."
+    },
+    {
+      "id": "claim-05",
+      "claim": "Making soap means combining melted fat with a lye solution and stirring until the mixture thickens to \"trace,\" the point at which saponification has progressed enough for the mixture to hold its shape.",
+      "source": "General chemistry/craft knowledge on the saponification process; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-06",
+      "claim": "Because raw lye is caustic and can cause serious chemical burns, it must be handled with eye protection, gloves, and ventilation, with any splash rinsed immediately with plenty of water.",
+      "source": "General chemical-safety knowledge for handling caustic alkalis (sodium/potassium hydroxide); independently documented, not book-derived."
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Queue{% endblock %}
+{% block content %}
+<h1 class="page-title">Review Queue</h1>
+<p class="page-sub">{{ videos|length }} video{{ 's' if videos|length != 1 else '' }} in the pipeline.</p>
+
+{% if not videos %}
+<div class="empty-state">
+  <p>No videos yet. Run <code>./run.sh &lt;topic&gt;</code> to produce one.</p>
+</div>
+{% else %}
+<div class="queue">
+  {% for v in videos %}
+  <a class="queue-row" href="/video/{{ v.topic }}">
+    <div class="queue-row-main">
+      <span class="queue-topic">{{ v.topic }}</span>
+      <span class="stage-strip" aria-label="pipeline stage: {{ v.stage }}">
+        {% for s in ['script', 'render', 'verify', 'ready'] %}
+        <span class="stage-dot stage-dot--{{ 'done' if (['script','render','verify','ready'].index(v.stage) > loop.index0 or v.stage == 'ready') else ('active' if v.stage == s else 'pending') }}{{ ' stage-dot--fail' if v.stage == 'verify-failed' and s == 'verify' else '' }}"></span>
+        {% endfor %}
+        <span class="stage-label">{{ v.stage }}</span>
+      </span>
+    </div>
+    <div class="queue-row-meta">
+      <span class="status-badge status-badge--{{ v.status }}">{{ v.status }}</span>
+      {% if v.cost is not none %}
+      <span class="cost-tag">${{ "%.4f"|format(v.cost) }}</span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

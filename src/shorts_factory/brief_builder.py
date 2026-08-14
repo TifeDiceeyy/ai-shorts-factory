@@ -1,0 +1,64 @@
+"""Phase 2: build a brief from Phase 1's citation store instead of a
+hand-written JSON file. Output is the same shape schema_validate.py already
+validates (brief.schema.json) — StubLLMProvider.generate_script() doesn't
+need to change at all to consume it; this is the one piece that changes
+upstream of it.
+
+Only VERIFIED citations at or above min_confidence are eligible. This is
+where Phase 1's verification actually pays off: an unverified or fabricated
+claim can't reach a script just because it was extracted — it has to have
+cleared the independent-corroboration bar first.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+DEFAULT_MIN_CONFIDENCE = 0.5
+MIN_CLAIMS_FOR_BRIEF = 4
+MAX_CLAIMS_FOR_BRIEF = 6
+
+
+class InsufficientVerifiedClaims(Exception):
+    def __init__(self, topic: str, verified_count: int, needed: int):
+        self.topic = topic
+        self.verified_count = verified_count
+        self.needed = needed
+        super().__init__(
+            f"topic {topic!r} has only {verified_count} verified claim(s) at or above "
+            f"the confidence bar — need at least {needed} to build a brief. Run more "
+            "retrieval queries or lower the confidence bar deliberately (not silently)."
+        )
+
+
+def build_brief_from_citations(
+    topic: str,
+    citation_store: dict[str, Any],
+    safety_class: str,
+    caution: str | None = None,
+    min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+) -> dict[str, Any]:
+    verified = [
+        c for c in citation_store.get("citations", [])
+        if c.get("verified") and c.get("confidence", 0) >= min_confidence
+    ]
+    if len(verified) < MIN_CLAIMS_FOR_BRIEF:
+        raise InsufficientVerifiedClaims(topic, len(verified), MIN_CLAIMS_FOR_BRIEF)
+
+    verified.sort(key=lambda c: c.get("confidence", 0), reverse=True)
+    selected = verified[:MAX_CLAIMS_FOR_BRIEF]
+
+    claims = []
+    for i, c in enumerate(selected, start=1):
+        source_desc = "; ".join(
+            f"{s.get('title') or s.get('domain')} ({s.get('url')})" for s in c.get("sources", [])
+        )
+        claims.append({
+            "id": f"claim-{i:02d}",
+            "claim": c["claim_text"],
+            "source": source_desc or "source unavailable",
+        })
+
+    brief: dict[str, Any] = {"topic": topic, "safety_class": safety_class, "claims": claims}
+    if caution:
+        brief["caution"] = caution
+    return brief

@@ -1,0 +1,37 @@
+{
+  "topic": "charcoal",
+  "safety_class": "yellow",
+  "caution": "Charcoal production releases carbon monoxide, an invisible, odorless, toxic gas. Always burn outdoors with good airflow, never in an enclosed or poorly ventilated space.",
+  "claims": [
+    {
+      "id": "claim-01",
+      "claim": "Charcoal is made by heating wood in a low-oxygen environment, a process called pyrolysis, which drives off water and volatile compounds and leaves behind mostly carbon.",
+      "source": "General chemistry/materials knowledge on pyrolysis and charcoal production; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-02",
+      "claim": "Traditional charcoal burners built earth-covered mounds of wood that smoldered slowly for days, using small vents to carefully limit the amount of air reaching the fire.",
+      "source": "General historical-craft knowledge of traditional charcoal-mound (kiln/pit) burning; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-03",
+      "claim": "Because ordinary burning wood needs oxygen, the mound has to be sealed with earth, turf, or clay so the fire smolders instead of fully combusting into ash.",
+      "source": "General chemistry/craft knowledge on controlled-oxygen combustion; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-04",
+      "claim": "Finished charcoal burns hotter and cleaner than raw wood because much of the water, tar, and volatile gas has already been driven off during the burn.",
+      "source": "General materials-science knowledge on charcoal versus raw wood combustion; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-05",
+      "claim": "Charcoal burning produces carbon monoxide, an invisible and odorless toxic gas, so it must always be done outdoors with good ventilation and never inside an enclosed space.",
+      "source": "General chemical-safety knowledge on carbon monoxide from incomplete combustion; independently documented, not book-derived."
+    },
+    {
+      "id": "claim-06",
+      "claim": "Charcoal burners traditionally judged progress by smoke color: thick white smoke means water and volatiles are still cooking off, while thin blue smoke signals the burn is nearly done and the mound should be sealed to smother it.",
+      "source": "General historical-craft knowledge of traditional charcoal-burning technique; independently documented, not book-derived."
+    }
+  ]
+}

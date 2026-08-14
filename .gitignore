@@ -1,0 +1,22 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.key
+credentials.json
+.youtube_token.json
+*client_secret*.json
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# generated artifacts (rendered media, per-run outputs — not source)
+artifacts/*
+!artifacts/.gitkeep
+logs/*.log
+
+# OS
+.DS_Store
