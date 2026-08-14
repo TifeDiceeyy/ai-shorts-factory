@@ -16,10 +16,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-import requests
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from ..cost_tracker import CostTracker
+from .fal import FalGateway, media_url
 
 WIDTH = 1080
 HEIGHT = 1920
@@ -88,33 +88,26 @@ class StubImageProvider(ImageProvider):
 class FalImageProvider(ImageProvider):
     name = "fal"
 
-    def __init__(self, api_key: str, model: str, cost_per_image_usd: float):
-        if not api_key or not model:
-            raise ValueError("fal requires FAL_KEY and IMAGE_MODEL")
+    def __init__(self, gateway: FalGateway, model: str, cost_per_image_usd: float):
+        if not model:
+            raise ValueError("fal image generation requires IMAGE_MODEL")
         if cost_per_image_usd <= 0:
             raise ValueError("Set IMAGE_COST_PER_IMAGE_USD to a conservative positive estimate")
-        self.api_key = api_key
+        self.gateway = gateway
         self.model = model.strip("/")
         self.cost = cost_per_image_usd
 
     def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
         operation = f"image.generate_scene_image[{scene_index}]"
         cost_tracker.check_budget(operation, self.cost)
-        response = requests.post(
-            f"https://fal.run/{self.model}",
-            headers={"Authorization": f"Key {self.api_key}", "content-type": "application/json"},
-            json={"prompt": scene["visual_prompt"], "image_size": "portrait_16_9", "num_images": 1},
-            timeout=180,
+        data = self.gateway.run(
+            self.model,
+            {"prompt": scene["visual_prompt"], "image_size": "portrait_16_9", "num_images": 1},
         )
-        response.raise_for_status()
-        images = response.json().get("images") or []
-        if not images or not images[0].get("url"):
-            raise ValueError("fal response did not contain images[0].url")
-        downloaded = requests.get(images[0]["url"], timeout=120)
-        downloaded.raise_for_status()
+        image_url = media_url(data, "images", "0", "url")
         from io import BytesIO
-        image = Image.open(BytesIO(downloaded.content)).convert("RGB")
-        image = image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+        image = Image.open(BytesIO(self.gateway.download(image_url))).convert("RGB")
+        image = ImageOps.fit(image, (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         image.save(out_path)
         cost_tracker.record(self.name, operation, self.cost, self.cost, is_stub=False)
@@ -126,9 +119,10 @@ def get_image_provider(
     api_key: str = "",
     model: str = "",
     cost_per_image_usd: float = 0.0,
+    gateway: FalGateway | None = None,
 ) -> ImageProvider:
     if provider_name.strip().lower() in ("", "stub"):
         return StubImageProvider()
     if provider_name.strip().lower() == "fal":
-        return FalImageProvider(api_key, model, cost_per_image_usd)
+        return FalImageProvider(gateway or FalGateway(api_key), model, cost_per_image_usd)
     raise NotImplementedError(f"Unsupported image provider {provider_name!r}; use 'stub' or 'fal'")

@@ -15,9 +15,8 @@ import json
 import re
 from typing import Any
 
-import requests
-
 from ..cost_tracker import CostTracker
+from .fal import FalGateway
 
 TARGET_TOTAL_SECONDS = 45.0
 MIN_SCENE_SECONDS = 3.0
@@ -141,44 +140,6 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
     )
 
 
-class AnthropicLLMProvider(LLMProvider):
-    name = "anthropic"
-
-    def __init__(self, api_key: str, model: str, cost_per_script_usd: float):
-        if not api_key or not model:
-            raise ValueError("Anthropic requires ANTHROPIC_API_KEY and LLM_MODEL")
-        if cost_per_script_usd <= 0:
-            raise ValueError("Set LLM_COST_PER_SCRIPT_USD to a conservative positive estimate")
-        self.api_key = api_key
-        self.model = model
-        self.cost = cost_per_script_usd
-
-    def generate_script(self, brief, language, visual_style, cost_tracker):
-        operation = "llm.generate_script"
-        cost_tracker.check_budget(operation, self.cost)
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": self.model,
-                "max_tokens": 2500,
-                "temperature": 0.4,
-                "messages": [{"role": "user", "content": _script_prompt(brief, language, visual_style)}],
-            },
-            timeout=120,
-        )
-        response.raise_for_status()
-        blocks = response.json().get("content", [])
-        text = "".join(block.get("text", "") for block in blocks if block.get("type") == "text")
-        script = _json_object(text)
-        cost_tracker.record(self.name, operation, self.cost, self.cost, is_stub=False)
-        return script
-
-
 class FalLLMProvider(LLMProvider):
     """Routes through fal.ai's OpenRouter endpoint (openrouter/router) —
     fal-native schema, not fal-ai/any-llm (confirmed deprecated 2026-08-14,
@@ -190,34 +151,30 @@ class FalLLMProvider(LLMProvider):
 
     name = "fal"
 
-    def __init__(self, api_key: str, model: str, cost_per_script_usd: float):
-        if not api_key or not model:
-            raise ValueError("fal requires FAL_KEY and LLM_MODEL (e.g. 'anthropic/claude-3.5-sonnet')")
+    def __init__(self, gateway: FalGateway, model: str, cost_per_script_usd: float, endpoint: str = "openrouter/router"):
+        if not model:
+            raise ValueError("fal LLM requires LLM_MODEL (for example 'google/gemini-2.5-flash')")
         if cost_per_script_usd <= 0:
             raise ValueError("Set LLM_COST_PER_SCRIPT_USD to a conservative positive pre-call estimate")
-        self.api_key = api_key
+        self.gateway = gateway
+        self.endpoint = endpoint
         self.model = model
         self.estimate = cost_per_script_usd
 
     def generate_script(self, brief, language, visual_style, cost_tracker):
         operation = "llm.generate_script"
         cost_tracker.check_budget(operation, self.estimate)
-        response = requests.post(
-            "https://fal.run/openrouter/router",
-            headers={"Authorization": f"Key {self.api_key}", "content-type": "application/json"},
-            json={
+        data = self.gateway.run(
+            self.endpoint,
+            {
                 "model": self.model,
                 "prompt": _script_prompt(brief, language, visual_style),
                 "temperature": 0.4,
+                "max_tokens": 2500,
             },
-            timeout=120,
         )
-        response.raise_for_status()
-        data = response.json()
-        if data.get("error"):
-            raise RuntimeError(f"fal openrouter error: {data['error']}")
         script = _json_object(data["output"])
-        actual_cost = data.get("usage", {}).get("cost", self.estimate)
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
         cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         return script
 
@@ -227,12 +184,12 @@ def get_llm_provider(
     api_key: str = "",
     model: str = "",
     cost_per_script_usd: float = 0.0,
+    gateway: FalGateway | None = None,
+    endpoint: str = "openrouter/router",
 ) -> LLMProvider:
     name = provider_name.strip().lower()
     if name in ("", "stub"):
         return StubLLMProvider()
-    if name == "anthropic":
-        return AnthropicLLMProvider(api_key, model, cost_per_script_usd)
     if name == "fal":
-        return FalLLMProvider(api_key, model, cost_per_script_usd)
-    raise NotImplementedError(f"Unsupported LLM provider {provider_name!r}; use 'stub', 'anthropic', or 'fal'")
+        return FalLLMProvider(gateway or FalGateway(api_key), model, cost_per_script_usd, endpoint)
+    raise NotImplementedError(f"Unsupported LLM provider {provider_name!r}; use 'stub' or 'fal'")

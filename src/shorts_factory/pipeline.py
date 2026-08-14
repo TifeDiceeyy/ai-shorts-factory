@@ -18,6 +18,7 @@ from .cost_tracker import CostTracker
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
+from .providers.fal import FalGateway
 from .safety import TopicBlocked, caution_caption, caution_line, enforce_not_blocked
 from .schema_validate import ValidationError, validate_brief, validate_script_against_brief
 
@@ -72,6 +73,8 @@ def run_pipeline(topic: str) -> PipelineResult:
     result.artifacts_dir = artifacts_dir
 
     cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
+    uses_fal = any(p.provider.strip().lower() == "fal" for p in (settings.llm, settings.tts, settings.image))
+    fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
 
     # Real runs must consume a verified citation store. Hand-authored briefs
     # remain available only to the zero-cost Phase 0 renderer test.
@@ -106,6 +109,8 @@ def run_pipeline(topic: str) -> PipelineResult:
         settings.credential_for(settings.llm),
         settings.llm.model_or_voice,
         settings.llm_cost_per_script_usd,
+        gateway=fal_gateway,
+        endpoint=settings.fal_llm_endpoint,
     )
     script = llm.generate_script(brief, settings.output_language, settings.visual_style, cost_tracker)
     warning = caution_caption(topic)
@@ -130,7 +135,9 @@ def run_pipeline(topic: str) -> PipelineResult:
         settings.tts.provider,
         settings.credential_for(settings.tts),
         settings.tts.model_or_voice,
+        settings.tts_voice,
         settings.tts_cost_per_1k_chars_usd,
+        gateway=fal_gateway,
     )
     scene_audio = assembly.synthesize_scenes(tts, script["scenes"], workdir / "audio", cost_tracker)
     actual_durations = [a.duration for a in scene_audio]
@@ -164,6 +171,7 @@ def run_pipeline(topic: str) -> PipelineResult:
         settings.credential_for(settings.image),
         settings.image.model_or_voice,
         settings.image_cost_per_image_usd,
+        gateway=fal_gateway,
     )
     generated_dir = workdir / "generated"
     final_mp4 = artifacts_dir / f"{topic}.mp4"
@@ -268,12 +276,16 @@ def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = N
 
     audio_dir = workdir / "audio"
     generated_dir = workdir / "generated"
+    uses_fal = any(p.provider.strip().lower() == "fal" for p in (settings.tts, settings.image))
+    fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
 
     tts = get_tts_provider(
         settings.tts.provider,
         settings.credential_for(settings.tts),
         settings.tts.model_or_voice,
+        settings.tts_voice,
         settings.tts_cost_per_1k_chars_usd,
+        gateway=fal_gateway,
     )
     scene = scenes[scene_index]
     new_audio_path = assembly.build_scene_audio(tts, scene, scene_index, audio_dir, cost_tracker)
@@ -284,6 +296,7 @@ def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = N
         settings.credential_for(settings.image),
         settings.image.model_or_voice,
         settings.image_cost_per_image_usd,
+        gateway=fal_gateway,
     )
     raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
     image_provider.generate_scene_image(scene, scene_index, raw_path, cost_tracker)

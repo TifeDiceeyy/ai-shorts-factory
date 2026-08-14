@@ -19,11 +19,12 @@ script or shown in the dashboard.
 ## Providers
 
 The free deterministic mode uses `stub` providers. A publishable run currently
-supports:
+supports one generation gateway:
 
-- `LLM_PROVIDER=anthropic`, with `ANTHROPIC_API_KEY` and `LLM_MODEL`
-- `TTS_PROVIDER=elevenlabs`, with `ELEVENLABS_API_KEY` and `TTS_VOICE`
-- `IMAGE_PROVIDER=fal`, with `FAL_KEY` and `IMAGE_MODEL`
+- `LLM_PROVIDER=fal`, with `FAL_LLM_ENDPOINT` and `LLM_MODEL`
+- `TTS_PROVIDER=fal`, with `TTS_MODEL` and `TTS_VOICE`
+- `IMAGE_PROVIDER=fal`, with `IMAGE_MODEL`
+- One `FAL_KEY` authenticates all three generation adapters
 - `SEARCH_PROVIDER=tavily`, with `SEARCH_API_KEY`
 
 Before enabling any paid provider, set `BUDGET_CAP_USD` and conservative values
@@ -48,7 +49,7 @@ reads back YouTube's synthetic-media disclosure, and permits only one successful
 upload per UTC day. A failed upload is recorded and can be retried. Uploads are
 added to the experiment ledger automatically.
 
-Telegram requires `TELEGRAM_BOT_TOKEN` and a comma-separated numeric
+Telegram runs on aiogram 3 and requires `TELEGRAM_BOT_TOKEN` and a comma-separated numeric
 `TELEGRAM_ALLOWED_USER_IDS` allowlist. It supports `/status`, `/video`,
 `/approve`, `/reject`, and explicit `/publish`. It has no generation command.
 

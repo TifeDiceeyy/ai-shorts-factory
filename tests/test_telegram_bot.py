@@ -3,11 +3,7 @@ import json
 import pytest
 
 from shorts_factory.dashboard import review_state
-from shorts_factory.telegram_bot import TelegramBot, TelegramNotConfigured
-
-
-def update(user_id, text):
-    return {"message": {"chat": {"id": 99}, "from": {"id": user_id}, "text": text}}
+from shorts_factory.telegram_bot import TelegramController, TelegramNotConfigured, create_dispatcher
 
 
 def make_artifacts(tmp_path):
@@ -18,32 +14,33 @@ def make_artifacts(tmp_path):
     return topic
 
 
-def test_bot_requires_allowlist():
+def test_controller_requires_allowlist():
     with pytest.raises(TelegramNotConfigured):
-        TelegramBot("token", ())
+        TelegramController(())
 
 
-def test_unauthorized_user_cannot_approve(tmp_path, monkeypatch):
+def test_unauthorized_user_cannot_approve(tmp_path):
     topic = make_artifacts(tmp_path)
-    bot = TelegramBot("token", (1,), tmp_path)
-    sent = []
-    monkeypatch.setattr(bot, "send_message", lambda chat, text: sent.append(text))
-    bot.handle_update(update(2, "/approve soap"))
+    controller = TelegramController((1,), tmp_path)
+    assert controller.authorized(2) is False
     assert review_state.load(topic).status == "pending"
-    assert sent == ["Unauthorized."]
 
 
-def test_authorized_approval_is_explicit_and_does_not_publish(tmp_path, monkeypatch):
+def test_authorized_approval_is_explicit_and_does_not_publish(tmp_path):
     topic = make_artifacts(tmp_path)
-    bot = TelegramBot("token", (1,), tmp_path)
-    sent = []
-    monkeypatch.setattr(bot, "send_message", lambda chat, text: sent.append(text))
-    bot.handle_update(update(1, "/approve soap"))
+    controller = TelegramController((1,), tmp_path)
+    reply = controller.approve("soap", 1)
     assert review_state.load(topic).status == "approved"
-    assert "not been published" in sent[-1]
+    assert "not been published" in reply
 
 
 def test_topic_path_traversal_is_rejected(tmp_path):
-    bot = TelegramBot("token", (1,), tmp_path)
+    controller = TelegramController((1,), tmp_path)
     with pytest.raises(ValueError):
-        bot._topic_dir("../../etc")
+        controller.topic_dir("../../etc")
+
+
+def test_aiogram_dispatcher_registers_message_handler(tmp_path):
+    make_artifacts(tmp_path)
+    dispatcher = create_dispatcher(TelegramController((1,), tmp_path))
+    assert "message" in dispatcher.resolve_used_update_types()

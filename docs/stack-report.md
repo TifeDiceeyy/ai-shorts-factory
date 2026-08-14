@@ -54,8 +54,8 @@ routed through the exact same `CostTracker.check_budget()` / `.record()`
 calls a real provider will use. This means:
 
 - The full pipeline runs today, for free, and is fully tested.
-- Swapping in a real provider later is a new class + a config value
-  (`LLM_PROVIDER=anthropic`, etc.) — no changes to `pipeline.py` or `assembly.py`.
+- Paid generation routes through one shared fal.ai gateway selected with
+  `LLM_PROVIDER=fal`, `TTS_PROVIDER=fal`, and `IMAGE_PROVIDER=fal`.
 - The budget-guard code path is exercised now (tests/test_budget.py), not
   left untested until a real paid provider exists.
 

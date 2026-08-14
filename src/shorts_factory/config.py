@@ -43,10 +43,9 @@ class Settings:
     search: ProviderConfig
     search_api_key: str
 
-    anthropic_api_key: str
-    openai_api_key: str
-    elevenlabs_api_key: str
     fal_key: str
+    fal_llm_endpoint: str
+    tts_voice: str
     llm_cost_per_script_usd: float
     tts_cost_per_1k_chars_usd: float
     image_cost_per_image_usd: float
@@ -69,21 +68,10 @@ class Settings:
 
     def credential_for(self, provider_config: ProviderConfig) -> str:
         """The right credential for whichever provider name is actually
-        configured for this kind — fal.ai can serve as the real provider for
-        llm/tts/image alike, so this can't just be one hardcoded field per
-        kind (that was a real bug: pipeline.py used to always pass
-        anthropic_api_key/elevenlabs_api_key regardless of what was selected,
-        which would silently break e.g. LLM_PROVIDER=fal)."""
+        configured for this kind. fal.ai is the only paid generation gateway;
+        search retains its separate Tavily credential."""
         name = provider_config.provider.strip().lower()
-        table = {
-            ("llm", "anthropic"): self.anthropic_api_key,
-            ("llm", "openai"): self.openai_api_key,
-            ("llm", "fal"): self.fal_key,
-            ("tts", "elevenlabs"): self.elevenlabs_api_key,
-            ("tts", "fal"): self.fal_key,
-            ("image", "fal"): self.fal_key,
-        }
-        return table.get((provider_config.kind, name), "")
+        return self.fal_key if name == "fal" and provider_config.kind in ("llm", "tts", "image") else ""
 
 
 class BudgetApprovalRequired(Exception):
@@ -153,7 +141,7 @@ def load_settings() -> Settings:
         return ProviderConfig(kind=kind, provider=provider, model_or_voice=model)
 
     llm = provider_cfg("llm", "LLM_PROVIDER", "LLM_MODEL")
-    tts = provider_cfg("tts", "TTS_PROVIDER", "TTS_VOICE")
+    tts = provider_cfg("tts", "TTS_PROVIDER", "TTS_MODEL")
     image = provider_cfg("image", "IMAGE_PROVIDER", "IMAGE_MODEL")
     search = provider_cfg("search", "SEARCH_PROVIDER", "SEARCH_MODEL")
 
@@ -193,10 +181,9 @@ def load_settings() -> Settings:
         image=image,
         search=search,
         search_api_key=search_api_key,
-        anthropic_api_key=_env("ANTHROPIC_API_KEY"),
-        openai_api_key=_env("OPENAI_API_KEY"),
-        elevenlabs_api_key=_env("ELEVENLABS_API_KEY"),
         fal_key=_env("FAL_KEY"),
+        fal_llm_endpoint=_env("FAL_LLM_ENDPOINT", "openrouter/router"),
+        tts_voice=_env("TTS_VOICE", "Rachel"),
         llm_cost_per_script_usd=money("LLM_COST_PER_SCRIPT_USD"),
         tts_cost_per_1k_chars_usd=money("TTS_COST_PER_1K_CHARS_USD"),
         image_cost_per_image_usd=money("IMAGE_COST_PER_IMAGE_USD"),
