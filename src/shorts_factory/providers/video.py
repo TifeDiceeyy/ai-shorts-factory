@@ -30,6 +30,12 @@ HAILUO_CLIP_SECONDS = 6.0
 KLING_CLIP_SECONDS = 5.0
 LUMA_CLIP_SECONDS = 5.0
 
+# A real Kling 1.5 Pro call was timed at ~8-9 minutes per 5s clip (confirmed
+# live, 2026-08-20) — the previous 600s (10min) timeout was too tight and a
+# real generation crashed on it after 3 clips had already been paid for.
+# Generous margin above the slowest observed model.
+VIDEO_GEN_TIMEOUT_S = 1200
+
 
 def get_video_model_config(model: str) -> tuple[float, dict[str, Any]]:
     """Returns (clip_duration_seconds, extra_arguments_dict) for a given video model."""
@@ -130,7 +136,7 @@ class FalVideoProvider(VideoProvider):
         data = self.gateway.run(
             self.model,
             arguments,
-            timeout=600,
+            timeout=VIDEO_GEN_TIMEOUT_S,
         )
         video_url = extract_video_url(data)
         out_path.parent.mkdir(parents=True, exist_ok=True)
