@@ -43,7 +43,7 @@ from .providers.llm import get_llm_provider
 from .providers.search import get_search_provider
 from .publish import publish_to_youtube
 from .retrieval import run_retrieval_for_topic
-from .safety import RED_KEYWORDS, RED_TOPICS
+from .safety import is_explicitly_red
 from .topic_registry import get_topic, load_registry, normalize_topic, register_topic
 
 TOPIC_RE = re.compile(r"^[a-z0-9][a-z0-9 _-]{0,79}$", re.IGNORECASE)
@@ -145,7 +145,7 @@ class TelegramController:
         entry = get_topic(normalized)
         if entry and entry.get("queries") and entry.get("keywords"):
             return {"state": "registered", "topic": normalized, "safety_class": entry["safety_class"]}
-        if normalized in RED_TOPICS or any(kw in normalized for kw in RED_KEYWORDS):
+        if is_explicitly_red(normalized):
             return {"state": "red", "topic": normalized}
         return {"state": "unknown", "topic": normalized}
 
@@ -154,7 +154,7 @@ class TelegramController:
         safety class + Phase 1 retrieval config for an unregistered topic.
         Raises BudgetApprovalRequired if a real provider needs approval first.
         Never trusted alone for RED: the result is re-checked against
-        RED_TOPICS/RED_KEYWORDS here, and confirm_new_topic() below refuses
+        is_explicitly_red() here, and confirm_new_topic() below refuses
         to persist anything not classified green/yellow."""
         settings = load_settings()
         require_budget_approval_if_paid(settings)
@@ -172,7 +172,7 @@ class TelegramController:
         proposal = llm.propose_topic(topic, cost_tracker)
         normalized = normalize_topic(topic)
         proposal["topic"] = normalized
-        if normalized in RED_TOPICS or any(kw in normalized for kw in RED_KEYWORDS):
+        if is_explicitly_red(normalized):
             proposal["safety_class"] = "red"
         return proposal
 

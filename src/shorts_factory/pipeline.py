@@ -253,8 +253,6 @@ def run_pipeline(
             )
 
             hero_path = generated_dir / "hero.png"
-            hero_path.parent.mkdir(parents=True, exist_ok=True)
-            image_provider.generate_scene_image({"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker)
 
             def clip_source(i: int, scene: dict[str, Any]) -> Path:
                 stype = scene.get("scene_type", "mascot")
@@ -265,6 +263,15 @@ def run_pipeline(
                     image_provider.generate_scene_image({"visual_prompt": scene_prompt}, i, scene_frame_path, cost_tracker)
                     base_image_path = scene_frame_path
                 else:
+                    # Generated lazily, once, on first mascot scene — a script
+                    # made entirely of ingredient_grid/process_action scenes
+                    # never touches this and shouldn't pay for a wasted hero
+                    # image (matches regenerate_scene's equivalent guard).
+                    if not hero_path.exists():
+                        hero_path.parent.mkdir(parents=True, exist_ok=True)
+                        image_provider.generate_scene_image(
+                            {"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker
+                        )
                     base_image_path = hero_path
 
                 tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
@@ -456,8 +463,9 @@ def regenerate_scene(
             tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
             clip_path = video_provider.generate_scene_video(scene, base_image_path, scene_index, tmp_clip_path, cost_tracker)
             overlay_png, new_box = assembly.caption_overlay_png(scene["caption"])
-            new_seg_path = generated_dir / "segments" / f"seg_{scene_index:02d}.mp4"
-            assembly.burn_caption_into_clip(clip_path, overlay_png, new_duration, new_seg_path)
+            new_seg_path = assembly.build_scene_video_segment_from_clip(
+                clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
+            )
         else:
             scene_prompt = get_scene_image_prompt(scene, mascot)
             raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"

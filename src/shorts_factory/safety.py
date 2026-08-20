@@ -36,10 +36,20 @@ RED_KEYWORDS = (
 )
 
 
+def is_explicitly_red(topic: str) -> bool:
+    """The keyword/exact-match half of the red check only — deliberately
+    separate from classify_topic()'s fail-closed "unrecognized == red" rule,
+    so callers that need to ask "does this name itself look dangerous?"
+    (e.g. topic_registry.register_topic, before the topic is registered)
+    don't get a false positive just because it isn't registered yet."""
+    t = normalize_topic(topic)
+    return t in RED_TOPICS or any(kw in t for kw in RED_KEYWORDS)
+
+
 def classify_topic(topic: str) -> SafetyClass:
     t = normalize_topic(topic)
 
-    if t in RED_TOPICS or any(kw in t for kw in RED_KEYWORDS):
+    if is_explicitly_red(t):
         return SafetyClass.RED
 
     entry = get_topic(t)

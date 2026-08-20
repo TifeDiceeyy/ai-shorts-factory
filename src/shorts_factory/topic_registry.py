@@ -175,10 +175,13 @@ def register_topic(
 ) -> None:
     """Persist a new green/yellow topic. Refuses "red" — see module docstring."""
     name = normalize_topic(topic)
-    
-    # 1. Red check: Refuse red topic or red keywords
-    from .safety import RED_KEYWORDS, RED_TOPICS
-    if name in RED_TOPICS or any(kw in name for kw in RED_KEYWORDS):
+
+    # 1. Red check: refuse red topic or red keywords. Delegates to safety.py's
+    # is_explicitly_red() so this stays the one place that decision is made —
+    # duplicating the RED_TOPICS/RED_KEYWORDS check here would silently drift
+    # if that logic is ever extended.
+    from .safety import is_explicitly_red
+    if is_explicitly_red(name):
         raise ValueError(f"refusing to register red/dangerous topic {name!r}")
 
     # 2. Yellow check: If the topic overlaps with any known yellow topic or keywords,

@@ -138,3 +138,83 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         # Default soap scenes are mascot scenes, so they all reuse hero.png
         assert hero_name == "hero.png"
 
+
+def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
+    """Regression test: regenerate_scene()'s animate branch used to call
+    assembly.burn_caption_into_clip(), a function that has never existed
+    (the real one is assembly.build_scene_video_segment_from_clip) — any
+    real regenerate call with VIDEO_PROVIDER set would crash with
+    AttributeError after already paying for TTS/image/video. Unlike the
+    test above, assemble_animated/build_scene_video_segment_from_clip are
+    NOT mocked here — real ffmpeg runs against real (tiny) media files, so
+    this actually exercises the code path that was broken."""
+    import subprocess
+
+    from shorts_factory import pipeline
+    from shorts_factory.config import ProviderConfig, Settings
+    from shorts_factory.providers.image import ImageProvider
+    from shorts_factory.providers.video import VideoProvider
+
+    class FakeImageProvider(ImageProvider):
+        name = "fake_img"
+
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (60, 90, 140)).save(out_path)
+            return out_path
+
+    class FakeVideoProvider(VideoProvider):
+        name = "fake_vid"
+
+        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=6",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ],
+                check=True,
+            )
+            return out_path
+
+    monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
+    monkeypatch.setattr(pipeline, "get_video_provider", lambda *a, **k: FakeVideoProvider())
+
+    test_settings = Settings(
+        book_file="stub",
+        output_language="English",
+        visual_style="stub",
+        budget_cap_usd=5.0,
+        budget_cap_is_stub=False,
+        music_sfx_source="stub",
+        llm=ProviderConfig("llm", "stub", "stub"),
+        tts=ProviderConfig("tts", "stub", "stub"),
+        image=ProviderConfig("image", "fal", "fal-ai/imagen3"),
+        video=ProviderConfig("video", "fal", "fal-ai/kling-video/v1.5/pro/image-to-video"),
+        search=ProviderConfig("search", "stub", "stub"),
+        search_api_key="",
+        fal_key="fake_key",
+        fal_llm_endpoint="",
+        tts_voice="",
+        image_style="",
+        llm_cost_per_script_usd=0.0,
+        tts_cost_per_1k_chars_usd=0.0,
+        image_cost_per_image_usd=0.0,
+        video_cost_per_second_usd=0.05,
+        youtube_client_secrets_file="",
+        youtube_token_file="",
+        telegram_bot_token="",
+        telegram_allowed_user_ids=(),
+    )
+    monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
+
+    full = pipeline.run_pipeline("soap", artifacts_root=tmp_path)
+    assert full.verification is not None
+
+    # This call is what used to raise AttributeError.
+    result = pipeline.regenerate_scene("soap", 0, artifacts_root=tmp_path)
+    assert result.verification is not None
+    final_mp4 = tmp_path / "soap" / "soap.mp4"
+    assert final_mp4.exists()
+
