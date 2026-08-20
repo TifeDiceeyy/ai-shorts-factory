@@ -61,6 +61,18 @@ def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
     return scene.get("visual_prompt", mascot.hero_prompt)
 
 
+def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, cost_tracker: CostTracker) -> Path:
+    """Generates the shared hero character image once and reuses it on every
+    later call (within or across run_pipeline/regenerate_scene) — this is
+    what keeps the mascot's appearance consistent across every animated
+    scene. Lazy: a script made entirely of ingredient_grid/process_action
+    scenes never calls this and never pays for a hero image it wouldn't use."""
+    if not hero_path.exists():
+        hero_path.parent.mkdir(parents=True, exist_ok=True)
+        image_provider.generate_scene_image({"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker)
+    return hero_path
+
+
 def run_pipeline(
     topic: str,
     idea: dict[str, Any] | None = None,
@@ -263,16 +275,7 @@ def run_pipeline(
                     image_provider.generate_scene_image({"visual_prompt": scene_prompt}, i, scene_frame_path, cost_tracker)
                     base_image_path = scene_frame_path
                 else:
-                    # Generated lazily, once, on first mascot scene — a script
-                    # made entirely of ingredient_grid/process_action scenes
-                    # never touches this and shouldn't pay for a wasted hero
-                    # image (matches regenerate_scene's equivalent guard).
-                    if not hero_path.exists():
-                        hero_path.parent.mkdir(parents=True, exist_ok=True)
-                        image_provider.generate_scene_image(
-                            {"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker
-                        )
-                    base_image_path = hero_path
+                    base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
 
                 tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
                 return video_provider.generate_scene_video(scene, base_image_path, i, tmp_clip_path, cost_tracker)
@@ -455,10 +458,7 @@ def regenerate_scene(
                 base_image_path = raw_path
             else:
                 hero_path = generated_dir / "hero.png"
-                if not hero_path.exists():
-                    hero_path.parent.mkdir(parents=True, exist_ok=True)
-                    image_provider.generate_scene_image({"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker)
-                base_image_path = hero_path
+                base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
 
             tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
             clip_path = video_provider.generate_scene_video(scene, base_image_path, scene_index, tmp_clip_path, cost_tracker)
