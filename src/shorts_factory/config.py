@@ -58,6 +58,7 @@ class Settings:
 
     telegram_bot_token: str
     telegram_allowed_user_ids: tuple[int, ...]
+    default_mascot_id: str = "mascot_4"
 
     stub_fields: list[str] = field(default_factory=list)
 
@@ -212,5 +213,6 @@ def load_settings() -> Settings:
         youtube_token_file=youtube_token_file,
         telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
         telegram_allowed_user_ids=tuple(telegram_ids),
+        default_mascot_id=_env("DEFAULT_MASCOT", "mascot_4"),
         stub_fields=stub_fields,
     )

@@ -15,6 +15,7 @@ from typing import Any
 from . import assembly, verify
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import CostTracker
+from .mascots import get_mascot
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
@@ -30,6 +31,7 @@ class PipelineResult:
     def __init__(self):
         self.topic: str | None = None
         self.safety_class: str | None = None
+        self.mascot_id: str | None = None
         self.blocked: bool = False
         self.block_reason: str | None = None
         self.budget_approval_blocked: bool = False
@@ -42,7 +44,10 @@ class PipelineResult:
 
 
 def run_pipeline(
-    topic: str, idea: dict[str, Any] | None = None, artifacts_root: Path | None = None
+    topic: str,
+    idea: dict[str, Any] | None = None,
+    artifacts_root: Path | None = None,
+    mascot_id: str | None = None,
 ) -> PipelineResult:
     """idea, if given, is the concept/angle/hook the human picked during
     /plan's ideation step (as a dict, see ideation.ideas_to_dicts) — it
@@ -80,6 +85,10 @@ def run_pipeline(
         result.block_reason = str(e)
         return result
     result.safety_class = safety_class.value
+
+    selected_mascot_id = mascot_id or (idea.get("mascot_id") if idea else None) or settings.default_mascot_id
+    mascot = get_mascot(selected_mascot_id)
+    result.mascot_id = mascot.id
 
     artifacts_dir = (artifacts_root or REPO_ROOT / "artifacts") / topic
     workdir = artifacts_dir / "_work"
@@ -136,7 +145,11 @@ def run_pipeline(
         gateway=fal_gateway,
         endpoint=settings.fal_llm_endpoint,
     )
-    script = llm.generate_script(brief, settings.output_language, settings.visual_style, cost_tracker)
+    effective_visual_style = (
+        f"{mascot.name} Template. Style DNA: {mascot.visual_style}. "
+        f"Scene Adaptive Direction: {mascot.scene_role_template}"
+    )
+    script = llm.generate_script(brief, settings.output_language, effective_visual_style, cost_tracker)
     warning = caution_caption(topic)
     if warning and script.get("scenes"):
         script["scenes"][-1]["caption"] = warning
@@ -201,7 +214,7 @@ def run_pipeline(
         settings.image.model_or_voice,
         settings.image_cost_per_image_usd,
         gateway=fal_gateway,
-        visual_style=settings.visual_style,
+        visual_style=mascot.visual_style if mascot else settings.visual_style,
         style_preset=settings.image_style,
     )
     generated_dir = workdir / "generated"
@@ -217,15 +230,7 @@ def run_pipeline(
         )
         hero_path = generated_dir / "hero.png"
         hero_scene = {
-            "visual_prompt": (
-                "The character stands in a plain room, mid-gesture, one hand raised as if "
-                "about to explain something, facing slightly toward camera. The character "
-                "MUST be fully clothed exactly as described in the required art style below — "
-                "wearing the apron/tunic, goggles, and boots — with no bare skin visible "
-                "except hands, forearms, and face; do not depict the character shirtless, "
-                "topless, or undressed under any circumstance. Plain uncluttered background, "
-                "nothing else in frame."
-            )
+            "visual_prompt": mascot.hero_prompt
         }
         image_provider.generate_scene_image(hero_scene, "hero", hero_path, cost_tracker)
 

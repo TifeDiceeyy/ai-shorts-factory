@@ -36,6 +36,7 @@ from .config import load_settings, require_budget_approval_if_paid
 from .cost_tracker import CostTracker
 from .dashboard import review_state
 from .ideation import Hook, Idea, generate_ideas, ideas_to_dicts, record_idea_chosen
+from .mascots import get_mascot, list_mascots
 from .pipeline import REPO_ROOT, PipelineResult, run_pipeline
 from .providers.fal import FalGateway
 from .providers.llm import get_llm_provider
@@ -56,6 +57,7 @@ class PlanningStates(StatesGroup):
     choosing_topic = State()
     confirming_new_topic = State()
     choosing_idea = State()
+    choosing_mascot = State()
     confirming_retrieval = State()
     confirming_generate = State()
 
@@ -217,12 +219,21 @@ class TelegramController:
         cost_tracker.write_report(cost_report_path)
         return {"result": result, "spent": cost_tracker.total_spent_usd, "cap": settings.budget_cap_usd}
 
-    def run_generate(self, topic: str, idea: dict | None = None) -> PipelineResult:
-        return run_pipeline(topic, idea=idea)
+    def mascots_text(self) -> str:
+        lines = ["🎭 Selectable Mascots:"]
+        for m in list_mascots():
+            lines.append(f"• {m.name}: {m.short_desc}")
+        return "\n".join(lines)
+
+    def run_generate(
+        self, topic: str, idea: dict | None = None, mascot_id: str | None = None
+    ) -> PipelineResult:
+        return run_pipeline(topic, idea=idea, mascot_id=mascot_id)
 
 
 HELP = (
-    "/plan — pick or propose a topic, get ideas, generate a video\n"
+    "/plan — pick or propose a topic, choose mascot, get ideas, generate a video\n"
+    "/mascots — view and preview available character mascots (1 to 5)\n"
     "/cancel — abort the current /plan flow\n"
     "/status\n/video <topic>\n/approve <topic>\n"
     "/reject <topic> | <reason>\n/publish <topic>\n\n"
@@ -237,6 +248,13 @@ def _confirm_cancel_kb(prefix: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Cancel", callback_data=f"{prefix}_cancel"),
         ]]
     )
+
+
+def _mascot_kb() -> InlineKeyboardMarkup:
+    rows = []
+    for m in list_mascots():
+        rows.append([InlineKeyboardButton(text=m.name, callback_data=f"mascot_{m.id}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _idea_kb(idea_dicts: list[dict]) -> InlineKeyboardMarkup:
@@ -290,11 +308,22 @@ def build_router(controller: TelegramController) -> Router:
             lines.append(f"{i + 1}. {idea['concept']} — \"{hook}\"")
         await message.answer("\n".join(lines), reply_markup=_idea_kb(idea_dicts))
 
+    async def enter_mascot_selection(message: Message, state: FSMContext, topic: str) -> None:
+        await state.set_state(PlanningStates.choosing_mascot)
+        await state.update_data(topic=topic)
+        await message.answer(
+            "🎭 Choose a character mascot for this video (Mascot 1 to 5):",
+            reply_markup=_mascot_kb(),
+        )
+
     async def enter_generate_confirm(message: Message, state: FSMContext, topic: str) -> None:
         await state.set_state(PlanningStates.confirming_generate)
         await state.update_data(topic=topic)
+        stored = await state.get_data()
+        mascot_id = stored.get("chosen_mascot_id")
+        mascot = get_mascot(mascot_id)
         await message.answer(
-            f"Ready to generate {topic!r}. Real cost is ~$0.30/video once real providers are "
+            f"Ready to generate {topic!r} using {mascot.name}. Real cost is ~$0.30/video once real providers are "
             "configured (stub providers cost $0) — enforced against BUDGET_CAP_USD either way. Generate now?",
             reply_markup=_confirm_cancel_kb("generate"),
         )
@@ -380,11 +409,12 @@ def build_router(controller: TelegramController) -> Router:
             return
         stored = await state.get_data()
         chosen_idea = stored.get("chosen_idea")
+        chosen_mascot_id = stored.get("chosen_mascot_id")
         async with job_lock:
             job_state.topic = f"generate:{topic}"
             await message.answer(f"Generating {topic!r}… this can take a few minutes.")
             try:
-                result = await asyncio.to_thread(controller.run_generate, topic, chosen_idea)
+                result = await asyncio.to_thread(controller.run_generate, topic, chosen_idea, chosen_mascot_id)
             except Exception as exc:
                 await message.answer(f"Refused: {exc}")
                 await state.clear()
@@ -430,6 +460,9 @@ def build_router(controller: TelegramController) -> Router:
             if command in ("/start", "/help"):
                 reply = HELP
                 reply_markup = _main_kb()
+            elif command in ("/mascot", "/mascots"):
+                reply = controller.mascots_text()
+                reply_markup = _mascot_kb()
             elif command == "/plan":
                 await state.set_state(PlanningStates.choosing_topic)
                 known = ", ".join(controller.known_topics()) or "none yet"
@@ -493,6 +526,15 @@ def build_router(controller: TelegramController) -> Router:
                     reply = controller.choose_idea(chosen_idea)
                     await message.answer(reply)
                     await state.update_data(chosen_idea=chosen_idea)
+                    await enter_mascot_selection(message, state, topic)
+            elif current_state == PlanningStates.choosing_mascot.state:
+                stored = await state.get_data()
+                topic = stored.get("topic")
+                if data.startswith("mascot_"):
+                    mascot_id = data.replace("mascot_", "", 1)
+                    mascot = get_mascot(mascot_id)
+                    await state.update_data(chosen_mascot_id=mascot.id)
+                    await message.answer(f"Selected {mascot.name}.")
                     await enter_retrieval_or_generate(message, state, topic)
             elif current_state == PlanningStates.confirming_retrieval.state:
                 stored = await state.get_data()
@@ -510,6 +552,10 @@ def build_router(controller: TelegramController) -> Router:
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")
                     await state.clear()
+            elif data.startswith("mascot_"):
+                mascot_id = data.replace("mascot_", "", 1)
+                mascot = get_mascot(mascot_id)
+                await message.answer(f"🎭 {mascot.name}\n{mascot.short_desc}\n\nStyle Description:\n{mascot.visual_style}")
         except Exception as exc:
             await message.answer(f"Refused: {exc}")
         await callback.answer()

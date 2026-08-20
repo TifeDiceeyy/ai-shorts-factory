@@ -23,7 +23,10 @@
           "visual_prompt": { "type": "string", "minLength": 1 },
           "source_claim_id": { "type": "string", "pattern": "^claim-[0-9]{2}$" },
           "camera": { "type": "string", "minLength": 1 },
-          "sfx": { "type": ["string", "null"] }
+          "sfx": { "type": ["string", "null"] },
+          "mascot_role": { "type": "string" },
+          "mascot_emotion": { "type": "string" },
+          "props": { "type": "string" }
         }
       }
     }

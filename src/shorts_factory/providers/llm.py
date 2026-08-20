@@ -258,13 +258,19 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "rephrase for how it sounds spoken, never add or soften the underlying fact."
     )
     visual_instruction = (
-        " Every scene's visual_prompt is a MOTION/ACTION description for an illustrated character animating "
-        "against a fixed reference image, not a fresh scene composition — describe what the character DOES "
-        "and what concrete, tangible thing from the claim is shown (the actual soap, oil, lye crystals, "
-        "beaker, bar, bubbles — whatever the claim is literally about), never just an abstract diagram or "
-        "the character standing there. Do not describe or request any text, words, letters, labels, or "
-        "signs appearing in the image — captions are added separately; asking for on-screen text produces "
-        "garbled, broken text and must never be part of visual_prompt."
+        " SCENE-ADAPTIVE MASCOT SYSTEM: The video follows a single unified Mascot Template / Art Style DNA "
+        "(3D CGI animated cartoon character, expressive features, centered ~60% vertical height, "
+        "stark pure solid white background #FFFFFF only, zero scenery/floors, sticker framing). "
+        "For EACH SCENE, adapt the mascot's narrative role, facial expression, and handheld props to directly act out "
+        "that scene's storyline beat while adhering to the mascot template: "
+        "1) Hook/Problem beat: Mascot in surprise/intrigue reacting to the problem or mystery (e.g. wide eyes, shocked gasp). "
+        "2) Origin/Discovery beat: Mascot in historical or scavenger gear discovering the raw materials. "
+        "3) Chemical/Process beat: Mascot in workshop/alchemist attire stirring, heating, or reacting components with bubbling/steam. "
+        "4) Mechanism/Challenge beat: Mascot molding, hammering, pouring, or assembling with safety gloves/tools. "
+        "5) Payoff/Triumph beat: Mascot proudly holding the final sparkling creation with a celebratory victory smile. "
+        "Every scene's visual_prompt must describe what the mascot DOES, their EMOTION, and the concrete physical prop/item shown. "
+        "Do not describe or request any text, words, letters, labels, or signs in visual_prompt — captions are added separately. "
+        "Include sfx (e.g. 'pop', 'whoosh', 'sizzle', 'ding', 'bubbling', or null) for the audio beat."
     )
     return (
         "Create a factual YouTube Short script lasting 40-50 seconds. Return JSON only. "
@@ -274,7 +280,8 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         + order_instruction
         + tone_instruction
         + " Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
-        "visual_prompt, source_claim_id, camera, and sfx (string or null). The top-level object must "
+        "visual_prompt, source_claim_id, camera, sfx (string or null), mascot_role (string), "
+        "mascot_emotion (string), and props (string or null). The top-level object must "
         "contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
         + visual_instruction
         + f" Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
