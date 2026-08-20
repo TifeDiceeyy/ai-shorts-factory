@@ -134,14 +134,20 @@ class FalImageProvider(ImageProvider):
         # will sometimes turn descriptive language into on-screen lettering.
         # Our own captions are the only text that belongs in frame.
         prompt = f"{prompt}{no_text_instruction}"
+        arguments: dict[str, Any] = {
+            "prompt": prompt,
+            "num_images": 1,
+        }
+        if "imagen" in self.model.lower():
+            arguments["aspect_ratio"] = "9:16"
+        else:
+            arguments["image_size"] = "portrait_16_9"
+            if self.style_preset:
+                arguments["style"] = self.style_preset
+
         data = self.gateway.run(
             self.model,
-            {
-                "prompt": prompt,
-                "image_size": "portrait_16_9",
-                "num_images": 1,
-                "style": self.style_preset,
-            },
+            arguments,
         )
         image_url = media_url(data, "images", "0", "url")
         from io import BytesIO

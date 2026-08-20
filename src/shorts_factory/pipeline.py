@@ -228,16 +228,13 @@ def run_pipeline(
             settings.video_cost_per_second_usd,
             gateway=fal_gateway,
         )
-        hero_path = generated_dir / "hero.png"
-        hero_scene = {
-            "visual_prompt": mascot.hero_prompt
-        }
-        image_provider.generate_scene_image(hero_scene, "hero", hero_path, cost_tracker)
 
         def clip_source(i: int, scene: dict[str, Any]) -> Path:
-            tmp_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
-            tmp_path.parent.mkdir(parents=True, exist_ok=True)
-            return video_provider.generate_scene_video(scene, hero_path, i, tmp_path, cost_tracker)
+            scene_frame_path = generated_dir / "raw" / f"raw_{i:02d}.png"
+            scene_frame_path.parent.mkdir(parents=True, exist_ok=True)
+            image_provider.generate_scene_image(scene, i, scene_frame_path, cost_tracker)
+            tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
+            return video_provider.generate_scene_video(scene, scene_frame_path, i, tmp_clip_path, cost_tracker)
 
         generated_result = assembly.assemble_animated(
             scenes=script["scenes"],

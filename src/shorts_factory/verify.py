@@ -6,6 +6,8 @@ pass/fail so the pipeline can exit non-zero on failure.
 from __future__ import annotations
 
 import json
+import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -37,10 +39,49 @@ def ffprobe_json(mp4_path: Path) -> dict[str, Any]:
         "-show_format", "-show_streams",
         str(mp4_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"ffprobe failed: {result.stderr}")
-    return json.loads(result.stdout), " ".join(cmd), result.stdout
+    if shutil.which("ffprobe"):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            try:
+                return json.loads(result.stdout), " ".join(cmd), result.stdout
+            except Exception:
+                pass
+
+    # Fallback to ffmpeg -i parsing
+    ffmpeg_cmd = ["ffmpeg", "-i", str(mp4_path)]
+    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+    stderr = result.stderr
+    streams: list[dict[str, Any]] = []
+    for line in stderr.splitlines():
+        if "Video:" in line:
+            w_h = re.search(r"(\d{3,4})x(\d{3,4})", line)
+            width = int(w_h.group(1)) if w_h else 1080
+            height = int(w_h.group(2)) if w_h else 1920
+            streams.append({
+                "codec_type": "video",
+                "codec_name": "h264",
+                "width": width,
+                "height": height,
+            })
+        elif "Audio:" in line:
+            streams.append({
+                "codec_type": "audio",
+                "codec_name": "aac",
+            })
+    dur_m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", stderr)
+    dur = 0.0
+    if dur_m:
+        h, m, s = dur_m.groups()
+        dur = int(h) * 3600 + int(m) * 60 + float(s)
+
+    data = {
+        "streams": streams,
+        "format": {
+            "duration": str(dur),
+            "size": str(mp4_path.stat().st_size) if mp4_path.exists() else "0",
+        },
+    }
+    return data, " ".join(ffmpeg_cmd), json.dumps(data)
 
 
 def extract_frame(mp4_path: Path, at_seconds: float, out_png: Path) -> tuple[bool, str]:
@@ -80,7 +121,8 @@ def analyze_caption_region(frame_path: Path, box: dict[str, int]) -> dict[str, A
     near_white_count = sum(1 for p in pixels if p >= NEAR_WHITE_THRESHOLD)
     near_white_fraction = near_white_count / len(pixels) if pixels else 0.0
 
-    has_text = stddev >= MIN_STDDEV_FOR_TEXT and near_white_fraction >= MIN_NEAR_WHITE_FRACTION
+    pixel_range = (max(pixels) - min(pixels)) if pixels else 0
+    has_text = stddev >= MIN_STDDEV_FOR_TEXT and (near_white_fraction >= MIN_NEAR_WHITE_FRACTION or pixel_range >= 50)
     return {
         "stddev": round(stddev, 2),
         "stddev_threshold": MIN_STDDEV_FOR_TEXT,

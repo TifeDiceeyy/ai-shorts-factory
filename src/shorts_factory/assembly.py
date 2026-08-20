@@ -10,6 +10,8 @@ tests/test_determinism.py, which hashes two independent runs.
 from __future__ import annotations
 
 import json
+import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,16 +44,30 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
 
 
 def probe_duration(path: Path) -> float:
-    """Actual duration of a media file, via ffprobe — never trust a
+    """Actual duration of a media file, via ffprobe / ffmpeg — never trust a
     provider's requested/nominal duration, measure what it actually produced."""
-    cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1",
-        str(path),
-    ]
-    result = _run(cmd)
-    return float(result.stdout.strip())
+    if shutil.which("ffprobe"):
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            try:
+                return float(result.stdout.strip())
+            except ValueError:
+                pass
+
+    # Fallback to ffmpeg -i parsing if ffprobe is unavailable
+    cmd = ["ffmpeg", "-i", str(path)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", result.stderr)
+    if m:
+        hours, mins, secs = m.groups()
+        return int(hours) * 3600 + int(mins) * 60 + float(secs)
+    raise RuntimeError(f"Could not probe duration for {path}:\n{result.stderr}")
 
 
 def solid_color_frame(index: int) -> Image.Image:

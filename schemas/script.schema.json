@@ -26,7 +26,10 @@
           "sfx": { "type": ["string", "null"] },
           "mascot_role": { "type": "string" },
           "mascot_emotion": { "type": "string" },
-          "props": { "type": "string" }
+          "props": { "type": "string" },
+          "layout": { "type": "string" },
+          "scene_type": { "type": "string" },
+          "fx": { "type": ["string", "null"] }
         }
       }
     }

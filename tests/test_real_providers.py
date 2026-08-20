@@ -109,6 +109,23 @@ def test_fal_image_prompt_is_truncated_under_recrafts_1000_char_limit(tmp_path):
     assert len(prompt) <= 990
 
 
+def test_fal_image_imagen3_uses_9_16_aspect_ratio(tmp_path):
+    small_png = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(small_png, format="PNG")
+    fal = gateway({"images": [{"url": "https://example.test/image.png"}]})
+    fal.download = lambda url: small_png.getvalue()
+    provider = FalImageProvider(fal, "fal-ai/imagen3", 0.04, visual_style="3D sticker on pure white")
+
+    provider.generate_scene_image(
+        {"visual_prompt": "Dwarf mascot pointing up at limestone"}, 0, tmp_path / "out.png", CostTracker(1)
+    )
+
+    args = fal.client.calls[0][1]["arguments"]
+    assert args["aspect_ratio"] == "9:16"
+    assert "style" not in args
+    assert "3D sticker on pure white" in args["prompt"]
+
+
 def test_fal_llm_script_prompt_carries_the_chosen_idea():
     """A human's /plan idea pick must actually steer the real LLM's script,
     not just get logged — the prompt sent to fal.ai must say so."""
@@ -202,6 +219,25 @@ def test_fal_video_uploads_hero_image_and_animates_it(tmp_path):
     assert args["duration"] == "6"
     # 6 seconds at $0.045/s, flat — Hailuo has no variable usage.cost field
     assert tracker.total_spent_usd == pytest.approx(0.27)
+
+
+def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):
+    hero_path = tmp_path / "hero.png"
+    hero_path.write_bytes(b"fake png bytes")
+    fal = gateway({"video": {"url": "https://example.test/kling.mp4"}})
+    fal.download = lambda url: b"fake kling mp4 bytes"
+    provider = FalVideoProvider(fal, "fal-ai/kling-video/v1.5/pro/image-to-video", 0.05)
+    tracker = CostTracker(1)
+
+    out = provider.generate_scene_video(
+        {"visual_prompt": "dwarf mascot smiles and points staff up"}, hero_path, 0, tmp_path / "clip.mp4", tracker
+    )
+
+    assert out.read_bytes() == b"fake kling mp4 bytes"
+    args = fal.client.calls[0][1]["arguments"]
+    assert args["aspect_ratio"] == "9:16"
+    assert args["duration"] == "5"
+    assert args["prompt"] == "dwarf mascot smiles and points staff up"
 
 
 def test_fal_video_budget_refuses_before_gateway_call(tmp_path):

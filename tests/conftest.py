@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -6,6 +7,17 @@ import pytest
 SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+
+try:
+    import imageio_ffmpeg
+    ffmpeg_dir = str(Path(imageio_ffmpeg.get_ffmpeg_exe()).parent)
+    if ffmpeg_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    scripts_dir = str(Path(sys.prefix) / "Scripts")
+    if scripts_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = scripts_dir + os.pathsep + os.environ.get("PATH", "")
+except Exception:
+    pass
 
 # Real-provider env vars that must never leak into a test run. config.py's
 # load_settings() reads these straight from os.environ every call — once the

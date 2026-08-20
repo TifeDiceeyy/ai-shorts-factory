@@ -117,6 +117,53 @@ def test_telegram_controller_mascots_text(tmp_path):
     assert "Mascot 5" in text
 
 
+    def test_mascot_build_scene_prompt_split_canvas_and_centered():
+        m = get_mascot("mascot_4")
+
+        # Explainer with prop -> split canvas
+        prompt_split = m.build_scene_prompt(
+            scene_role="Chemical Artisan",
+            action="stirring wood ash lye",
+            emotion="wide curious eyes",
+            props="bubbling glass beaker with amber lye",
+            layout="split_bottom_left",
+        )
+        assert "Split-canvas" in prompt_split
+        assert "bottom-left" in prompt_split
+        assert "upper-right" in prompt_split
+        assert "bubbling glass beaker" in prompt_split
+        assert "white background" in prompt_split.lower()
+
+        # Hook with hazard FX
+        prompt_fx = m.build_scene_prompt(
+            scene_role="Shocked Survivor",
+            action="reacting in horror to caustic splash",
+            emotion="wide eyes and open mouth",
+            fx="green toxic chemical smoke",
+            layout="centered",
+            scene_type="mascot",
+        )
+        assert "green toxic chemical smoke" in prompt_fx
+        assert "centered vertically in frame" in prompt_fx
+
+        # Ingredient grid
+        prompt_grid = m.build_scene_prompt(
+            scene_type="ingredient_grid",
+            grid_items=["Limestone rock", "Volcanic ash", "Water in bronze pot", "Crushed gravel"],
+        )
+        assert "ingredient recipe grid" in prompt_grid
+        assert "Limestone rock" in prompt_grid
+        assert "Volcanic ash" in prompt_grid
+
+        # Process action
+        prompt_action = m.build_scene_prompt(
+            scene_type="process_action",
+            action="pouring thick grey slurry from a clay bowl directly into a clamped wooden mold with rebar",
+        )
+        assert "process demonstration" in prompt_action
+        assert "clamped wooden mold" in prompt_action
+
+
 def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     # Mock assembly.assemble to avoid needing external ffmpeg in quick unit tests
     from shorts_factory import assembly

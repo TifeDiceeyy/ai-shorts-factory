@@ -258,19 +258,24 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "rephrase for how it sounds spoken, never add or soften the underlying fact."
     )
     visual_instruction = (
-        " SCENE-ADAPTIVE MASCOT SYSTEM: The video follows a single unified Mascot Template / Art Style DNA "
-        "(3D CGI animated cartoon character, expressive features, centered ~60% vertical height, "
+        " SCENE-ADAPTIVE 3D MASCOT & STORYBOARD ENGINE: "
+        "The video follows a single unified Mascot Template & 3D Sticker Art Style "
+        "(3D CGI animated cartoon character, expressive features, "
         "stark pure solid white background #FFFFFF only, zero scenery/floors, sticker framing). "
-        "For EACH SCENE, adapt the mascot's narrative role, facial expression, and handheld props to directly act out "
-        "that scene's storyline beat while adhering to the mascot template: "
-        "1) Hook/Problem beat: Mascot in surprise/intrigue reacting to the problem or mystery (e.g. wide eyes, shocked gasp). "
-        "2) Origin/Discovery beat: Mascot in historical or scavenger gear discovering the raw materials. "
-        "3) Chemical/Process beat: Mascot in workshop/alchemist attire stirring, heating, or reacting components with bubbling/steam. "
-        "4) Mechanism/Challenge beat: Mascot molding, hammering, pouring, or assembling with safety gloves/tools. "
-        "5) Payoff/Triumph beat: Mascot proudly holding the final sparkling creation with a celebratory victory smile. "
-        "Every scene's visual_prompt must describe what the mascot DOES, their EMOTION, and the concrete physical prop/item shown. "
+        "Each scene in the script should use one of the 4 core scene archetypes: "
+        "1) Mascot Reaction / Hazard (scene_type='mascot_reaction', layout='centered'): "
+        "Mascot is CENTERED vertically (~55-60% height) with extreme facial reaction (alarm, shock, gasp, caution) "
+        "and contextual visual FX (e.g., green toxic chemical smoke billowing, steam, electric sparks, flames). "
+        "2) Ingredient / Recipe Breakdown Grid (scene_type='ingredient_grid', layout='centered'): "
+        "Clean 2x2 or 3-item grid displaying the raw ingredients as isolated 3D tactile stickers on pure white "
+        "(e.g., Limestone rock, Volcanic Ash powder, Water in bronze pot, Gravel pile). "
+        "3) Dynamic Process Action (scene_type='process_action', layout='centered'): "
+        "Close-up demonstration of the physical step in action (e.g. clay bowl pouring thick wet slurry into a clamped wooden casting mold, paddle stirring cauldron). "
+        "4) Split-Canvas Explainer (scene_type='split_canvas', layout='split_bottom_left' or 'split_bottom_right'): "
+        "Mascot scales down to ~35-40% height in bottom corner, pointing enthusiastically UP at a large floating 3D prop/diagram in the opposite top quadrant. "
+        "Every scene's visual_prompt must describe what is on screen, the exact action, emotions, and visual FX. "
         "Do not describe or request any text, words, letters, labels, or signs in visual_prompt — captions are added separately. "
-        "Include sfx (e.g. 'pop', 'whoosh', 'sizzle', 'ding', 'bubbling', or null) for the audio beat."
+        "Include sfx (e.g. 'pop', 'whoosh', 'sizzle', 'ding', 'bubbling', 'splash', or null) for the audio beat."
     )
     return (
         "Create a factual YouTube Short script lasting 40-50 seconds. Return JSON only. "
@@ -281,8 +286,9 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         + tone_instruction
         + " Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
         "visual_prompt, source_claim_id, camera, sfx (string or null), mascot_role (string), "
-        "mascot_emotion (string), and props (string or null). The top-level object must "
-        "contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
+        "mascot_emotion (string), props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
+        "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), and fx (string or null). "
+        "The top-level object must contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
         + visual_instruction
         + f" Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
     )

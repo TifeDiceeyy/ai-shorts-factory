@@ -83,19 +83,42 @@ class FalVideoProvider(VideoProvider):
         image_url = self.gateway.upload(hero_image_path)
         # Video generation routinely takes several minutes — confirmed live
         # 2026-08-17: the shared FalGateway.run() default of 180s (fine for
-        # LLM/TTS/image calls) timed out on a real Hailuo call before it
-        # finished rendering.
-        data = self.gateway.run(
-            self.model,
-            {
+        # LLM/TTS/image calls) timed out on a real call before it finished rendering.
+        prompt = scene["visual_prompt"]
+        if "kling" in self.model.lower():
+            arguments = {
                 "image_url": image_url,
-                "prompt": scene["visual_prompt"],
+                "prompt": prompt,
+                "duration": "5",
+                "aspect_ratio": "9:16",
+            }
+        elif "luma" in self.model.lower():
+            arguments = {
+                "image_url": image_url,
+                "prompt": prompt,
+                "aspect_ratio": "9:16",
+            }
+        else:
+            # MiniMax / Hailuo default
+            arguments = {
+                "image_url": image_url,
+                "prompt": prompt,
                 "duration": "6",
                 "resolution": "768P",
-            },
+            }
+
+        data = self.gateway.run(
+            self.model,
+            arguments,
             timeout=600,
         )
-        video_url = media_url(data, "video", "url")
+        try:
+            video_url = media_url(data, "video", "url")
+        except Exception:
+            try:
+                video_url = media_url(data, "video")
+            except Exception:
+                video_url = media_url(data, "output", "url")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(self.gateway.download(video_url))
         cost_tracker.record(self.name, operation, self.cost, self.cost, is_stub=False)

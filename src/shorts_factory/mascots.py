@@ -35,6 +35,76 @@ class Mascot:
             "scene_role_template": self.scene_role_template,
         }
 
+    def build_scene_prompt(
+        self,
+        scene_role: str = "",
+        action: str = "",
+        emotion: str = "",
+        props: str | None = None,
+        layout: str = "auto",
+        scene_type: str = "mascot",
+        fx: str | None = None,
+        grid_items: list[str] | None = None,
+    ) -> str:
+        """Builds a scene visual prompt adhering to the video's 3 core scene archetypes."""
+        if scene_type == "ingredient_grid" or (grid_items and len(grid_items) >= 2):
+            items_str = ", ".join(grid_items) if grid_items else (props or "raw ingredients")
+            return (
+                f"Multi-item 2x2 ingredient recipe grid breakdown on a stark pure solid white background (#FFFFFF). "
+                f"Clean isolated 3D tactile artifact stickers displaying: {items_str}. "
+                f"Each item is cleanly isolated with rich realistic textures and subtle ambient contact occlusion. "
+                f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
+                f"No text or labels rendered directly on the image."
+            )
+
+        if scene_type == "process_action":
+            return (
+                f"Dynamic 3D process demonstration action scene on a stark pure solid white background (#FFFFFF). "
+                f"Close-up isolated physical action: {action or props or 'pouring mixture into mold'}. "
+                f"Tactile materials, realistic liquid flow/physics, and crisp lighting. "
+                f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, clean sticker framing. "
+                f"No text or labels rendered directly on the image."
+            )
+
+        # Mascot scenes (reaction, hazard, or split-canvas)
+        if layout == "auto":
+            layout = "split_bottom_left" if (props and not fx) else "centered"
+
+        if layout in ("split_bottom_left", "split_bottom_right"):
+            corner = "bottom-left" if layout == "split_bottom_left" else "bottom-right"
+            opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
+            prompt_parts = [
+                "Split-canvas 3D explainer composition on a stark pure solid white background (#FFFFFF).",
+                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying 35-40% of vertical height) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+            ]
+            if props:
+                prompt_parts.append(
+                    f"In the {opp_corner} quadrant, a large floating 3D object sticker shows {props} with crisp tactile textures."
+                )
+            if fx:
+                prompt_parts.append(f"Visual FX: {fx}.")
+            if action:
+                prompt_parts.append(f"Action: {action}.")
+            prompt_parts.append(
+                f"Style: {self.visual_style}. Pure solid white background only, zero scenery, zero shadows, sticker framing. No text or labels."
+            )
+            return " ".join(prompt_parts)
+        else:
+            prompt_parts = [
+                f"Full-body {self.name} mascot centered vertically in frame (occupying 55-60% of vertical height) on a stark pure solid white background (#FFFFFF).",
+                f"Role: {scene_role or 'explainer'}. Emotion: {emotion or 'friendly enthusiastic expression'}.",
+            ]
+            if action:
+                prompt_parts.append(f"Action: {action}.")
+            if props:
+                prompt_parts.append(f"Holding: {props}.")
+            if fx:
+                prompt_parts.append(f"Contextual Visual FX: {fx} actively billowing around or interacting with the character.")
+            prompt_parts.append(
+                f"Style: {self.visual_style}. Pure solid white background only, zero background scenery, zero floor shadows, sticker framing. No text or labels."
+            )
+            return " ".join(prompt_parts)
+
 
 MASCOT_1 = Mascot(
     id="mascot_1",
@@ -136,35 +206,38 @@ MASCOT_3 = Mascot(
 
 MASCOT_4 = Mascot(
     id="mascot_4",
-    name="Mascot 4: Master Tinkerer (Acorn Engineer)",
-    short_desc="Original acorn-head survival engineer with brass loupe, quilted navy coat, and compass cane",
+    name="Mascot 4: Bearded Dwarf Scavenger Explorer (Main Mascot)",
+    short_desc="Charming stylized 3D human dwarf/halfling explorer with neat brown beard, weathered leather duster coat, burlap scarf, iron kettle helmet, and walking staff",
     hero_prompt=(
-        "Full-body 3D animated original character mascot: an eccentric post-collapse master survival engineer. "
+        "Full-body 3D CGI cartoon character mascot: a stylized human dwarf / halfling scavenger explorer. "
         "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
-        "Original acorn-pod head with warm golden-amber skin, animated expressive cartoon eyes, groomed copper mustache, "
-        "wearing an asymmetrical brass jeweler loupe monocle flipped above one eye. "
-        "The character is fully clothed: wearing a quilted navy blue canvas coat with cognac leather trim, "
-        "a cross-body leather bandolier holding brass measuring tools and small glass vials, leather work gloves, "
-        "and brass-toed adventurer boots, holding an ornate brass compass cane in one hand and gesturing with the other open hand. "
-        "High-end 3D CGI animation render, Pixar / Dreamworks quality with rich tactile materials. "
+        "Charming expressive facial features with tousled wavy brown hair, warm expressive animated eyes, "
+        "a neatly-groomed rugged full brown dwarf beard and mustache, and a friendly engaging smile. "
+        "Wearing an antique metal skull-cap / iron kettle helmet, a frayed burlap cowl scarf draped around his neck, "
+        "a weathered brown leather scavenger duster coat with frayed tattered hem, utility belt with pouches and brass buckles, "
+        "leather work gloves, and sturdy strapped adventurer boots, holding a tall wooden walking staff in one hand and gesturing forward with open palm. "
+        "High-end 3D CGI animation render, Pixar / Dreamworks quality with rich tactile leather, metal, and cloth textures. "
         "Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "High-end 3D CGI animation render of an original acorn tinkerer survival mascot, expressive 3D cartoon eyes, "
-        "rich tactile quilted canvas, polished brass, and oiled leather textures, cinematic lighting. "
-        "Pure solid white background (#FFFFFF) with zero scenery, zero shadows. Do not render any text, words, letters, labels, or signs."
+        "High-end 3D CGI cartoon animation render of a stylized human dwarf explorer mascot with a neat brown beard, "
+        "expressive 3D cartoon face with wavy brown hair, antique kettle helmet, frayed burlap scarf, and weathered brown leather duster coat. "
+        "Stark pure solid white background (#FFFFFF) with zero scenery, zero shadows, clean sticker framing. "
+        "Do not render any text, words, letters, labels, or signs in the base image."
     ),
     motion_instruction=(
-        "For every scene's `visual_prompt`, describe the 3D Tinkerer Mascot's dynamic ACTION and EMOTIONS for Hailuo-02 "
-        "(e.g. '3D acorn character flips down his brass loupe to inspect closely with wide excited eyes, tapping his compass cane', "
-        "or '3D acorn character scratches his mustache in confusion, tilting head with question mark expression, gesturing with open hand'). "
-        "Keep the character centered against the clean solid white background."
+        "For every scene's `visual_prompt`, describe the Bearded Dwarf Explorer mascot's dynamic ACTION, EMOTIONS, and GESTURES for Hailuo-02 "
+        "(e.g. 'Bearded dwarf explorer points his wooden staff up and widens eyes with an amazed smile at the floating discovery', "
+        "or 'Bearded dwarf explorer strokes his beard thoughtfully, gesturing with open hand with curious expression'). "
+        "Keep the character isolated against the stark solid white background."
     ),
     scene_role_template=(
-        "Cast the Master Tinkerer mascot into a narrative role suited to each scene beat while preserving the acorn head, brass loupe, and quilted navy coat DNA: "
-        "Hook=tinkerer lowering brass loupe in astonishment; Discovery=tinkerer measuring raw mineral powders with brass balance scale; "
-        "Process=tinkerer synthesizing chemical reaction with bubbling glass retort; Challenge=tinkerer calibrating mold mechanism with compass cane; "
-        "Payoff=triumphant tinkerer presenting polished finished invention with a confident nod and warm smile."
+        "Cast the Bearded Dwarf Scavenger Explorer mascot into narrative roles across the story beats while preserving his beard, kettle helmet, burlap scarf, and leather duster coat DNA: "
+        "Hook=curious bearded dwarf explorer discovering an ancient relic with raised wooden staff; "
+        "Discovery=bearded dwarf scholar examining raw minerals with magnifying glass; "
+        "Process=bearded dwarf craftsman boiling and mixing ingredients in rustic cauldron; "
+        "Challenge=bearded dwarf builder pressing hot casting molds with leather gloves; "
+        "Payoff=triumphant bearded dwarf explorer stroking beard and presenting the finished invention with a proud victory grin."
     ),
 )
 
