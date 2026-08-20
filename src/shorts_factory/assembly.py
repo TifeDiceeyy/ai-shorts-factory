@@ -26,6 +26,10 @@ FPS = 30
 LOUDNORM_TARGET_I = -14.0
 LOUDNORM_TARGET_TP = -1.5
 LOUDNORM_TARGET_LRA = 11.0
+# verify.py's actual gate is +/-1.0 LU on the FINAL .mp4. Correct proactively
+# at a tighter internal margin so a single post-mux correction pass reliably
+# lands inside that gate rather than skating its edge.
+LOUDNORM_CORRECTION_MARGIN_LU = 0.5
 
 # Flat placeholder palette (step 5) — deliberately distinct from
 # providers/image.py's gradient palette so the two pipeline stages are
@@ -443,11 +447,39 @@ def concat_and_mux(
 
     mux_final(video_only, narration_normalized, out_mp4)
 
+    # The WAV lands within ~0.05 LU of target after the two-pass normalize
+    # above, but mux_final's AAC re-encode (lossy, 160kbps) can shift the
+    # audio's MEASURED integrated loudness by up to ~1.3 LU relative to the
+    # source WAV — confirmed in practice: a WAV measured exactly -14.00
+    # LUFS produced a final .mp4 measuring -15.08 to -15.29. verify.py (and
+    # any real platform) measures the final container's audio, not the
+    # pre-encode WAV, so that's what must be corrected against. A single
+    # linear-gain nudge is enough since the residual is small and AAC's
+    # further shift on a re-encode at a slightly different level is noise-level.
+    final_stats = loudnorm_measure(out_mp4)
+    final_measured_i = float(final_stats["input_i"])
+    if abs(final_measured_i - LOUDNORM_TARGET_I) > LOUDNORM_CORRECTION_MARGIN_LU:
+        correction_db = LOUDNORM_TARGET_I - final_measured_i
+        narration_corrected = workdir / "narration_corrected.wav"
+        _run([
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", str(narration_normalized),
+            "-af", f"volume={correction_db:.3f}dB",
+            "-ar", "48000",
+            "-fflags", "+bitexact", "-flags:a", "+bitexact",
+            str(narration_corrected),
+        ])
+        mux_final(video_only, narration_corrected, out_mp4)
+        narration_normalized = narration_corrected
+        final_stats = loudnorm_measure(out_mp4)
+        final_measured_i = float(final_stats["input_i"])
+
     return {
         "audio_paths": audio_paths,
         "video_only": video_only,
         "narration_raw": narration_raw,
         "narration_normalized": narration_normalized,
         "loudnorm_measure_pass1": loudnorm_stats_pass1,
+        "final_loudness_i": final_measured_i,
         "out_mp4": out_mp4,
     }
