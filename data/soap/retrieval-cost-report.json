@@ -1,0 +1,23 @@
+{
+  "budget_cap_usd": 20.0,
+  "total_spent_usd": 0.016,
+  "under_cap": true,
+  "entries": [
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['how is soap made saponification chemistry']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1786982487.4968698
+    },
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['history of soap making wood ash lye tallow']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1786982489.33968
+    }
+  ]
+}

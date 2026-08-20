@@ -18,6 +18,7 @@ from .cost_tracker import CostTracker
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
+from .providers.video import get_video_provider
 from .providers.fal import FalGateway
 from .safety import TopicBlocked, caution_caption, caution_line, enforce_not_blocked
 from .schema_validate import ValidationError, validate_brief, validate_script_against_brief
@@ -40,7 +41,20 @@ class PipelineResult:
         self.error: str | None = None
 
 
-def run_pipeline(topic: str) -> PipelineResult:
+def run_pipeline(
+    topic: str, idea: dict[str, Any] | None = None, artifacts_root: Path | None = None
+) -> PipelineResult:
+    """idea, if given, is the concept/angle/hook the human picked during
+    /plan's ideation step (as a dict, see ideation.ideas_to_dicts) — it
+    steers script framing (brief_builder.build_brief_from_citations),
+    never facts. None preserves the old topic-only behavior.
+
+    artifacts_root, if given, overrides where output is written (default
+    REPO_ROOT / "artifacts") — tests MUST pass a tmp_path here. Without
+    this, a test run and a real production run for the same topic write to
+    the exact same directory and silently clobber each other (confirmed:
+    this happened for real 2026-08-17, a stub test run overwrote a $1.72
+    real animated video with a free demo one)."""
     result = PipelineResult()
     result.topic = topic
 
@@ -67,13 +81,22 @@ def run_pipeline(topic: str) -> PipelineResult:
         return result
     result.safety_class = safety_class.value
 
-    artifacts_dir = REPO_ROOT / "artifacts" / topic
+    artifacts_dir = (artifacts_root or REPO_ROOT / "artifacts") / topic
     workdir = artifacts_dir / "_work"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     result.artifacts_dir = artifacts_dir
 
+    animate = not settings.video.is_stub
+    if animate and settings.image.is_stub:
+        raise ValueError(
+            "VIDEO_PROVIDER is real but IMAGE_PROVIDER is stub — animation needs a real "
+            "hero image to animate; set IMAGE_PROVIDER=fal too"
+        )
+
     cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
-    uses_fal = any(p.provider.strip().lower() == "fal" for p in (settings.llm, settings.tts, settings.image))
+    uses_fal = any(
+        p.provider.strip().lower() == "fal" for p in (settings.llm, settings.tts, settings.image, settings.video)
+    )
     fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
 
     # Real runs must consume a verified citation store. Hand-authored briefs
@@ -92,6 +115,7 @@ def run_pipeline(topic: str) -> PipelineResult:
             citation_store,
             safety_class.value,
             caution=caution_line(topic),
+            idea=idea,
         )
     else:
         brief_path = REPO_ROOT / "data" / topic / f"{topic}.brief.json"
@@ -165,31 +189,74 @@ def run_pipeline(topic: str) -> PipelineResult:
     )
 
     # --- Stage 2: swap in generated images (stub image provider stands in
-    # until a real one is approved) — this produces the final soap.mp4. ---
+    # until a real one is approved) — this produces the final soap.mp4.
+    # If VIDEO_PROVIDER is real, every scene is animated instead (see
+    # providers/video.py): ONE hero character image is generated once and
+    # reused as the source for every scene's image-to-video call — that
+    # shared source is what keeps the character consistent across scenes,
+    # which independent per-scene image generation could never guarantee. ---
     image_provider = get_image_provider(
         settings.image.provider,
         settings.credential_for(settings.image),
         settings.image.model_or_voice,
         settings.image_cost_per_image_usd,
         gateway=fal_gateway,
+        visual_style=settings.visual_style,
+        style_preset=settings.image_style,
     )
     generated_dir = workdir / "generated"
     final_mp4 = artifacts_dir / f"{topic}.mp4"
 
-    def image_frame_source(i: int, scene: dict[str, Any]):
-        tmp_path = generated_dir / "raw" / f"raw_{i:02d}.png"
-        tmp_path.parent.mkdir(parents=True, exist_ok=True)
-        image_provider.generate_scene_image(scene, i, tmp_path, cost_tracker)
-        from PIL import Image
-        return Image.open(tmp_path).convert("RGB")
+    if animate:
+        video_provider = get_video_provider(
+            settings.video.provider,
+            settings.credential_for(settings.video),
+            settings.video.model_or_voice,
+            settings.video_cost_per_second_usd,
+            gateway=fal_gateway,
+        )
+        hero_path = generated_dir / "hero.png"
+        hero_scene = {
+            "visual_prompt": (
+                "The character stands in a plain room, mid-gesture, one hand raised as if "
+                "about to explain something, facing slightly toward camera. The character "
+                "MUST be fully clothed exactly as described in the required art style below — "
+                "wearing the apron/tunic, goggles, and boots — with no bare skin visible "
+                "except hands, forearms, and face; do not depict the character shirtless, "
+                "topless, or undressed under any circumstance. Plain uncluttered background, "
+                "nothing else in frame."
+            )
+        }
+        image_provider.generate_scene_image(hero_scene, "hero", hero_path, cost_tracker)
 
-    generated_result = assembly.assemble(
-        scenes=script["scenes"],
-        frame_source=image_frame_source,
-        audio=scene_audio,
-        workdir=generated_dir,
-        out_mp4=final_mp4,
-    )
+        def clip_source(i: int, scene: dict[str, Any]) -> Path:
+            tmp_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
+            tmp_path.parent.mkdir(parents=True, exist_ok=True)
+            return video_provider.generate_scene_video(scene, hero_path, i, tmp_path, cost_tracker)
+
+        generated_result = assembly.assemble_animated(
+            scenes=script["scenes"],
+            clip_source=clip_source,
+            audio=scene_audio,
+            workdir=generated_dir,
+            out_mp4=final_mp4,
+        )
+    else:
+
+        def image_frame_source(i: int, scene: dict[str, Any]):
+            tmp_path = generated_dir / "raw" / f"raw_{i:02d}.png"
+            tmp_path.parent.mkdir(parents=True, exist_ok=True)
+            image_provider.generate_scene_image(scene, i, tmp_path, cost_tracker)
+            from PIL import Image
+            return Image.open(tmp_path).convert("RGB")
+
+        generated_result = assembly.assemble(
+            scenes=script["scenes"],
+            frame_source=image_frame_source,
+            audio=scene_audio,
+            workdir=generated_dir,
+            out_mp4=final_mp4,
+        )
     captions_meta = artifacts_dir / "captions.meta.json"
     assembly.write_captions_meta(
         script["scenes"], actual_durations, generated_result["caption_boxes"],
@@ -220,11 +287,14 @@ def run_pipeline(topic: str) -> PipelineResult:
     return result
 
 
-def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = None) -> PipelineResult:
+def regenerate_scene(
+    topic: str, scene_index: int, new_narration: str | None = None, artifacts_root: Path | None = None
+) -> PipelineResult:
     """Phase 4: regenerate ONE scene's expensive steps (TTS + image gen) and
     cheaply reassemble the final video, instead of re-rendering every scene.
     Requires a prior full run_pipeline(topic) — reuses its on-disk audio/
-    segment files for every scene except scene_index."""
+    segment files for every scene except scene_index. artifacts_root: see
+    run_pipeline's docstring — tests MUST pass a tmp_path here."""
     from PIL import Image
 
     from .providers.llm import MAX_SCENE_SECONDS, MIN_SCENE_SECONDS, _caption_from_claim
@@ -240,7 +310,7 @@ def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = N
         result.budget_approval_block_reason = str(e)
         return result
 
-    artifacts_dir = REPO_ROOT / "artifacts" / topic
+    artifacts_dir = (artifacts_root or REPO_ROOT / "artifacts") / topic
     workdir = artifacts_dir / "_work"
     script_path = artifacts_dir / f"{topic}.script.json"
     if not script_path.exists():
@@ -297,6 +367,8 @@ def regenerate_scene(topic: str, scene_index: int, new_narration: str | None = N
         settings.image.model_or_voice,
         settings.image_cost_per_image_usd,
         gateway=fal_gateway,
+        visual_style=settings.visual_style,
+        style_preset=settings.image_style,
     )
     raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
     image_provider.generate_scene_image(scene, scene_index, raw_path, cost_tracker)

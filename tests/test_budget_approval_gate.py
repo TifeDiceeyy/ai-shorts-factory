@@ -5,7 +5,7 @@ import pytest
 from shorts_factory.config import BudgetApprovalRequired, ProviderConfig, Settings, require_budget_approval_if_paid
 
 
-def _settings(*, llm="stub", tts="stub", image="stub", search="stub", budget_is_stub=True) -> Settings:
+def _settings(*, llm="stub", tts="stub", image="stub", video="stub", search="stub", budget_is_stub=True) -> Settings:
     return Settings(
         book_file="",
         output_language="English",
@@ -16,14 +16,17 @@ def _settings(*, llm="stub", tts="stub", image="stub", search="stub", budget_is_
         llm=ProviderConfig(kind="llm", provider=llm, model_or_voice=""),
         tts=ProviderConfig(kind="tts", provider=tts, model_or_voice=""),
         image=ProviderConfig(kind="image", provider=image, model_or_voice=""),
+        video=ProviderConfig(kind="video", provider=video, model_or_voice=""),
         search=ProviderConfig(kind="search", provider=search, model_or_voice=""),
         search_api_key="",
         fal_key="",
         fal_llm_endpoint="openrouter/router",
         tts_voice="Rachel",
+        image_style="digital_illustration/hand_drawn_outline",
         llm_cost_per_script_usd=0,
         tts_cost_per_1k_chars_usd=0,
         image_cost_per_image_usd=0,
+        video_cost_per_second_usd=0,
         youtube_client_secrets_file="",
         youtube_token_file="",
         telegram_bot_token="",
@@ -48,6 +51,11 @@ def test_real_tts_with_unset_budget_is_blocked():
 def test_real_image_with_unset_budget_is_blocked():
     with pytest.raises(BudgetApprovalRequired):
         require_budget_approval_if_paid(_settings(image="fal", budget_is_stub=True))
+
+
+def test_real_video_with_unset_budget_is_blocked():
+    with pytest.raises(BudgetApprovalRequired):
+        require_budget_approval_if_paid(_settings(video="fal", budget_is_stub=True))
 
 
 def test_real_search_with_unset_budget_is_blocked():

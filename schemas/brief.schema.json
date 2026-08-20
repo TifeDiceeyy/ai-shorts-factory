@@ -9,6 +9,10 @@
     "topic": { "type": "string", "minLength": 1 },
     "safety_class": { "type": "string", "enum": ["green", "yellow", "red"] },
     "caution": { "type": "string" },
+    "concept": { "type": "string" },
+    "angle": { "type": "string" },
+    "chosen_hook": { "type": "string" },
+    "payoff": { "type": "string" },
     "claims": {
       "type": "array",
       "minItems": 4,

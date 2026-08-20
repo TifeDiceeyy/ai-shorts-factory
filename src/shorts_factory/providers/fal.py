@@ -1,6 +1,7 @@
 """Single fal.ai gateway shared by every paid generation provider."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -18,12 +19,12 @@ class FalGateway:
             client = SyncClient(key=api_key, default_timeout=180)
         self.client = client
 
-    def run(self, endpoint: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    def run(self, endpoint: str, arguments: dict[str, Any], timeout: int = 180) -> dict[str, Any]:
         result = self.client.subscribe(
             endpoint.strip("/"),
             arguments=arguments,
             with_logs=False,
-            client_timeout=180,
+            client_timeout=timeout,
         )
         if not isinstance(result, dict):
             raise ValueError(f"fal endpoint {endpoint!r} returned a non-object response")
@@ -37,6 +38,12 @@ class FalGateway:
         response = requests.get(url, timeout=120)
         response.raise_for_status()
         return response.content
+
+    def upload(self, path: Path) -> str:
+        """Uploads a local file to fal's storage and returns its access URL —
+        needed to feed a locally-generated image into an endpoint (like
+        image-to-video) that only accepts a URL, not a local path."""
+        return self.client.upload_file(path)
 
 
 def media_url(result: dict[str, Any], *keys: str) -> str:

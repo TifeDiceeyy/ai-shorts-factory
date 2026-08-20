@@ -40,15 +40,18 @@ class Settings:
     llm: ProviderConfig
     tts: ProviderConfig
     image: ProviderConfig
+    video: ProviderConfig
     search: ProviderConfig
     search_api_key: str
 
     fal_key: str
     fal_llm_endpoint: str
     tts_voice: str
+    image_style: str
     llm_cost_per_script_usd: float
     tts_cost_per_1k_chars_usd: float
     image_cost_per_image_usd: float
+    video_cost_per_second_usd: float
 
     youtube_client_secrets_file: str
     youtube_token_file: str
@@ -64,14 +67,17 @@ class Settings:
 
     @property
     def any_provider_is_real(self) -> bool:
-        return not (self.llm.is_stub and self.tts.is_stub and self.image.is_stub and self.search.is_stub)
+        return not (
+            self.llm.is_stub and self.tts.is_stub and self.image.is_stub
+            and self.video.is_stub and self.search.is_stub
+        )
 
     def credential_for(self, provider_config: ProviderConfig) -> str:
         """The right credential for whichever provider name is actually
         configured for this kind. fal.ai is the only paid generation gateway;
         search retains its separate Tavily credential."""
         name = provider_config.provider.strip().lower()
-        return self.fal_key if name == "fal" and provider_config.kind in ("llm", "tts", "image") else ""
+        return self.fal_key if name == "fal" and provider_config.kind in ("llm", "tts", "image", "video") else ""
 
 
 class BudgetApprovalRequired(Exception):
@@ -97,7 +103,11 @@ def require_budget_approval_if_paid(settings: Settings) -> None:
     if not settings.any_provider_is_real:
         return  # everything is stub — zero cost, nothing to approve
     if settings.budget_cap_is_stub:
-        real = [p.kind.upper() for p in (settings.llm, settings.tts, settings.image, settings.search) if not p.is_stub]
+        real = [
+            p.kind.upper()
+            for p in (settings.llm, settings.tts, settings.image, settings.video, settings.search)
+            if not p.is_stub
+        ]
         raise BudgetApprovalRequired(real)
 
 
@@ -116,7 +126,14 @@ def load_settings() -> Settings:
 
     visual_style = _env(
         "VISUAL_STYLE",
-        "illustrated realism, diagram-forward, post-collapse workshop aesthetic",
+        "Flat 2D hand-inked explainer-cartoon style: thick, slightly uneven black outlines, flat "
+        "cel-shading with a light grainy paper texture, muted post-collapse workshop palette (rust "
+        "orange, clay red, moss green, bone white, charcoal) on a plain warm off-white background. "
+        "Naive, low-detail sticker aesthetic, tutorial/how-to composition centered on the subject. "
+        "Recurring mascot: a stocky, round-headed scavenger-tinkerer with simple black dot eyes and "
+        "one expressive brow line, wearing salvaged welding goggles pushed up on the forehead and a "
+        "patched leather work apron over a plain tunic, short stubby legs, rounded boots, holding a "
+        "charcoal marking-stick to point at diagrams.",
     )
 
     budget_raw = _env("BUDGET_CAP_USD")
@@ -143,6 +160,7 @@ def load_settings() -> Settings:
     llm = provider_cfg("llm", "LLM_PROVIDER", "LLM_MODEL")
     tts = provider_cfg("tts", "TTS_PROVIDER", "TTS_MODEL")
     image = provider_cfg("image", "IMAGE_PROVIDER", "IMAGE_MODEL")
+    video = provider_cfg("video", "VIDEO_PROVIDER", "VIDEO_MODEL")
     search = provider_cfg("search", "SEARCH_PROVIDER", "SEARCH_MODEL")
 
     search_api_key = _env("SEARCH_API_KEY") or _env("TAVILY_API_KEY")
@@ -179,14 +197,17 @@ def load_settings() -> Settings:
         llm=llm,
         tts=tts,
         image=image,
+        video=video,
         search=search,
         search_api_key=search_api_key,
         fal_key=_env("FAL_KEY"),
         fal_llm_endpoint=_env("FAL_LLM_ENDPOINT", "openrouter/router"),
         tts_voice=_env("TTS_VOICE", "Rachel"),
+        image_style=_env("IMAGE_STYLE", "digital_illustration/hand_drawn_outline"),
         llm_cost_per_script_usd=money("LLM_COST_PER_SCRIPT_USD"),
         tts_cost_per_1k_chars_usd=money("TTS_COST_PER_1K_CHARS_USD"),
         image_cost_per_image_usd=money("IMAGE_COST_PER_IMAGE_USD"),
+        video_cost_per_second_usd=money("VIDEO_COST_PER_SECOND_USD"),
         youtube_client_secrets_file=youtube_client_secrets_file,
         youtube_token_file=youtube_token_file,
         telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),

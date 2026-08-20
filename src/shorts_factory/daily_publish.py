@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import datetime as dt
-import fcntl
 import json
 import uuid
 from pathlib import Path
+
+import portalocker
 
 
 class DailyPublishLimitReached(Exception):
@@ -24,7 +25,7 @@ class DailyPublishLedger:
     def _locked_update(self, callback):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.lock_path.open("a+", encoding="utf-8") as lock:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            portalocker.lock(lock, portalocker.LockFlags.EXCLUSIVE)
             entries = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
             result = callback(entries)
             self.path.write_text(json.dumps(entries, indent=2), encoding="utf-8")

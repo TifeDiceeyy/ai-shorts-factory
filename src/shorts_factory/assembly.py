@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 from PIL import Image
 
-from .captions import FRAME_HEIGHT, FRAME_WIDTH, CaptionBox, draw_caption
+from .captions import FRAME_HEIGHT, FRAME_WIDTH, CaptionBox, caption_overlay_png, draw_caption
 from .cost_tracker import CostTracker
 from .providers.tts import TTSProvider
 
@@ -129,6 +129,45 @@ def build_scene_video_segment(frame_path: Path, duration: float, index: int, seg
     return out_path
 
 
+def build_scene_video_segment_from_clip(
+    clip_path: Path,
+    duration: float,
+    caption_overlay: Image.Image,
+    index: int,
+    segments_dir: Path,
+) -> Path:
+    """Same role as build_scene_video_segment(), for an animated clip
+    instead of a static frame: scales to frame size, composites the caption
+    overlay (see captions.caption_overlay_png — a transparent RGBA layer,
+    since there's no single base image to burn it into ahead of time), and
+    holds the last frame (tpad, generously over-padded then hard-trimmed by
+    -t) to reach the scene's actual scripted duration — image-to-video
+    models return a fixed clip length (e.g. Hailuo's 6s minimum) that will
+    essentially never match the scripted duration exactly."""
+    segments_dir.mkdir(parents=True, exist_ok=True)
+    overlay_path = segments_dir / f"caption_overlay_{index:02d}.png"
+    caption_overlay.save(overlay_path)
+    out_path = segments_dir / f"seg_{index:02d}.mp4"
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(clip_path),
+        "-loop", "1", "-i", str(overlay_path),
+        "-filter_complex",
+        f"[0:v]scale={FRAME_WIDTH}:{FRAME_HEIGHT},tpad=stop_mode=clone:stop_duration=15[base];"
+        "[base][1:v]overlay=0:0[out]",
+        "-map", "[out]",
+        "-t", f"{duration:.3f}",
+        "-r", str(FPS),
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "medium", "-threads", "1",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact",
+        "-metadata", "creation_time=1970-01-01T00:00:00Z",
+        str(out_path),
+    ]
+    _run(cmd)
+    return out_path
+
+
 def concat_video_segments(segment_paths: list[Path], workdir: Path, out_path: Path) -> Path:
     list_file = workdir / "segments.txt"
     with open(list_file, "w", encoding="utf-8") as f:
@@ -175,8 +214,19 @@ def loudnorm_measure(in_path: Path) -> dict:
     return json.loads(stderr[start:end + 1])
 
 
-def loudnorm_apply(in_path: Path, out_path: Path) -> None:
-    filt = f"loudnorm=I={LOUDNORM_TARGET_I}:TP={LOUDNORM_TARGET_TP}:LRA={LOUDNORM_TARGET_LRA}"
+def loudnorm_apply(in_path: Path, out_path: Path, measured: dict) -> None:
+    """Two-pass apply: measured is loudnorm_measure()'s pass-1 JSON stats fed
+    back in as measured_I/TP/LRA/thresh + offset with linear=true. ffmpeg's
+    own docs are explicit that single-pass loudnorm (the filter applied
+    without these) uses a dynamic compressor and is meaningfully less
+    accurate — confirmed in practice: a real run measured -16.24 LUFS
+    against a -14 +/-1 target using single-pass before this fix."""
+    filt = (
+        f"loudnorm=I={LOUDNORM_TARGET_I}:TP={LOUDNORM_TARGET_TP}:LRA={LOUDNORM_TARGET_LRA}:"
+        f"measured_I={measured['input_i']}:measured_TP={measured['input_tp']}:"
+        f"measured_LRA={measured['input_lra']}:measured_thresh={measured['input_thresh']}:"
+        f"offset={measured['target_offset']}:linear=true"
+    )
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-i", str(in_path),
@@ -345,6 +395,42 @@ def assemble(
     }
 
 
+def assemble_animated(
+    scenes: list[dict[str, Any]],
+    clip_source: Callable[[int, dict[str, Any]], Path],
+    audio: list[SceneAudio],
+    workdir: Path,
+    out_mp4: Path,
+) -> dict[str, Any]:
+    """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
+    a raw, uncaptioned, arbitrary-duration animated clip path for that scene
+    (see providers/video.py). Captioning and duration-fitting happen here —
+    same division of responsibility as assemble()'s frame_source, the caller
+    only supplies the per-scene visual content."""
+    segments_dir = workdir / "segments"
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    if len(audio) != len(scenes):
+        raise ValueError(f"expected {len(scenes)} audio entries, got {len(audio)}")
+
+    caption_boxes: list[CaptionBox] = []
+    segment_paths: list[Path] = []
+
+    for i, scene in enumerate(scenes):
+        clip_path = clip_source(i, scene)
+        overlay, box = caption_overlay_png(scene["caption"])
+        caption_boxes.append(box)
+
+        seg_path = build_scene_video_segment_from_clip(clip_path, audio[i].duration, overlay, i, segments_dir)
+        segment_paths.append(seg_path)
+
+    tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)
+    return {
+        "caption_boxes": caption_boxes,
+        **tail,
+    }
+
+
 def concat_and_mux(
     segment_paths: list[Path],
     audio_paths: list[Path],
@@ -365,7 +451,7 @@ def concat_and_mux(
     loudnorm_stats_pass1 = loudnorm_measure(narration_raw)
 
     narration_normalized = workdir / "narration_normalized.wav"
-    loudnorm_apply(narration_raw, narration_normalized)
+    loudnorm_apply(narration_raw, narration_normalized, measured=loudnorm_stats_pass1)
 
     mux_final(video_only, narration_normalized, out_mp4)
 

@@ -1,0 +1,242 @@
+{
+  "soap": {
+    "queries": [
+      "how is soap made saponification chemistry",
+      "history of soap making wood ash lye tallow"
+    ],
+    "keywords": [
+      "soap",
+      "saponification",
+      "lye",
+      "tallow",
+      "fat",
+      "alkali",
+      "glycerol"
+    ],
+    "safety_class": "yellow",
+    "caution": "Caution: lye (sodium/potassium hydroxide) is caustic. It burns skin and eyes on contact and releases irritating fumes when dissolved. Handle only with eye protection, gloves, and ventilation."
+  },
+  "roman concrete": {
+    "queries": [
+      "how was roman concrete made ingredients volcanic ash",
+      "why is roman concrete more durable than modern concrete"
+    ],
+    "keywords": [
+      "concrete",
+      "roman",
+      "pozzolan",
+      "pozzolana",
+      "lime",
+      "volcanic",
+      "mortar",
+      "cement"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "apple cider vinegar": {
+    "queries": [
+      "apple cider vinegar fermentation process acetic acid bacteria",
+      "history and chemistry of vinegar production reliable source"
+    ],
+    "keywords": [
+      "vinegar",
+      "apple",
+      "fermentation",
+      "acetic",
+      "bacteria",
+      "ethanol"
+    ],
+    "safety_class": "yellow",
+    "caution": "Caution: fermentation can be contaminated. Follow tested food-safety guidance."
+  },
+  "charcoal": {
+    "queries": [
+      "charcoal production pyrolysis wood chemistry historical",
+      "charcoal carbon monoxide safety authoritative"
+    ],
+    "keywords": [
+      "charcoal",
+      "pyrolysis",
+      "wood",
+      "carbon",
+      "oxygen",
+      "kiln"
+    ],
+    "safety_class": "yellow",
+    "caution": "Caution: charcoal production creates fire and carbon-monoxide hazards. Never attempt it indoors."
+  },
+  "pottery": {
+    "queries": [
+      "pottery clay firing process archaeology",
+      "ceramic firing clay transformation chemistry"
+    ],
+    "keywords": [
+      "pottery",
+      "clay",
+      "ceramic",
+      "firing",
+      "kiln",
+      "temper"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "rope": {
+    "queries": [
+      "traditional rope making plant fibers history",
+      "rope construction twist fibers tensile strength"
+    ],
+    "keywords": [
+      "rope",
+      "fiber",
+      "twist",
+      "cordage",
+      "strand",
+      "tensile"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "water filtration": {
+    "queries": [
+      "water filtration removes particles does not disinfect CDC",
+      "slow sand filtration history water treatment"
+    ],
+    "keywords": [
+      "filter",
+      "filtration",
+      "water",
+      "sand",
+      "pathogen",
+      "turbidity"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "basic compass": {
+    "queries": [
+      "magnetic compass needle earth magnetic field explanation",
+      "history of magnetic compass navigation"
+    ],
+    "keywords": [
+      "compass",
+      "magnetic",
+      "needle",
+      "north",
+      "navigation",
+      "field"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "food preservation": {
+    "queries": [
+      "food preservation drying salting fermentation science",
+      "food preservation safety USDA historical methods"
+    ],
+    "keywords": [
+      "preservation",
+      "food",
+      "drying",
+      "salting",
+      "fermentation",
+      "spoilage"
+    ],
+    "safety_class": "yellow",
+    "caution": "Caution: unsafe preservation can cause severe foodborne illness. Follow current public-health guidance."
+  },
+  "simple mechanical water pump": {
+    "queries": [
+      "history hand water pump piston check valve mechanics",
+      "positive displacement hand pump operation engineering"
+    ],
+    "keywords": [
+      "pump",
+      "water",
+      "piston",
+      "valve",
+      "suction",
+      "cylinder"
+    ],
+    "safety_class": "yellow",
+    "caution": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately."
+  },
+  "concrete": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "green",
+    "caution": null
+  },
+  "compass": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "green",
+    "caution": null
+  },
+  "crop rotation": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "green",
+    "caution": null
+  },
+  "furnaces": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "yellow",
+    "caution": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation."
+  },
+  "furnace": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "yellow",
+    "caution": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation."
+  },
+  "electricity": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "yellow",
+    "caution": "Caution: electrical work can cause shock, fire, or death. Use qualified guidance and proper protection."
+  },
+  "water pump": {
+    "queries": [],
+    "keywords": [],
+    "safety_class": "yellow",
+    "caution": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately."
+  },
+  "what would hapse \u0131f electricity dissappears tomotrow": {
+    "queries": [
+      "impact of global power outage",
+      "societal effects of electricity loss"
+    ],
+    "keywords": [
+      "electricity",
+      "power outage",
+      "blackout",
+      "grid failure",
+      "societal impact",
+      "infrastructure",
+      "modern life",
+      "collapse"
+    ],
+    "safety_class": "green",
+    "caution": null
+  },
+  "what would happen \u0131f electricity dissappears tomorrow": {
+    "queries": [
+      "impact of global power outage",
+      "societal collapse without electricity"
+    ],
+    "keywords": [
+      "electricity",
+      "disappears",
+      "tomorrow",
+      "power outage",
+      "blackout",
+      "grid failure",
+      "societal impact"
+    ],
+    "safety_class": "green",
+    "caution": null
+  }
+}

@@ -36,7 +36,12 @@ def build_brief_from_citations(
     safety_class: str,
     caution: str | None = None,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    idea: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """idea, if given, is the concept/angle/hook the human picked during
+    /plan's ideation step (ideation.Idea, as a dict — see ideas_to_dicts).
+    It steers HOW the script frames the (still citation-bound) facts below —
+    concept/angle/chosen_hook/payoff only, never a source of facts itself."""
     verified = [
         c for c in citation_store.get("citations", [])
         if c.get("verified") and c.get("confidence", 0) >= min_confidence
@@ -61,4 +66,13 @@ def build_brief_from_citations(
     brief: dict[str, Any] = {"topic": topic, "safety_class": safety_class, "claims": claims}
     if caution:
         brief["caution"] = caution
+    if idea:
+        if idea.get("concept"):
+            brief["concept"] = idea["concept"]
+        if idea.get("angle"):
+            brief["angle"] = idea["angle"]
+        if idea.get("hooks"):
+            brief["chosen_hook"] = idea["hooks"][0]["text"]
+        if idea.get("payoff"):
+            brief["payoff"] = idea["payoff"]
     return brief

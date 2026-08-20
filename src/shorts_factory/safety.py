@@ -2,13 +2,15 @@
 
 Phase 0 is intentionally simple and rule-based (a real per-claim classifier
 is Phase 1+ work, once retrieval/verification exists). The one property that
-must hold even at this simplicity: **fail closed**. A topic this table has
-never seen is treated as RED, not green — an unrecognized topic must never
-silently slip into the procedural pipeline.
+must hold even at this simplicity: **fail closed**. A topic the registry
+(topic_registry.py) has never seen is treated as RED, not green — an
+unrecognized topic must never silently slip into the procedural pipeline.
 """
 from __future__ import annotations
 
 from enum import Enum
+
+from .topic_registry import get_topic, normalize_topic
 
 
 class SafetyClass(str, Enum):
@@ -17,20 +19,11 @@ class SafetyClass(str, Enum):
     RED = "red"
 
 
-GREEN_TOPICS = {
-    "concrete", "roman concrete", "rope", "pottery", "water filtration",
-    "crop rotation", "basic compass", "compass",
-}
-
-YELLOW_TOPICS = {
-    "soap", "furnaces", "furnace", "electricity", "food preservation",
-    "apple cider vinegar", "charcoal", "simple mechanical water pump",
-    "water pump",
-}
-
 # Explicit red list (CLAUDE.md examples) plus keyword triggers, since red
 # topics are the ones most likely to be phrased in a way that isn't an exact
-# table match ("how to make gunpowder", "gunpowder recipe", etc).
+# table match ("how to make gunpowder", "gunpowder recipe", etc). Deliberately
+# NOT part of the registry — see topic_registry.py's docstring for why red
+# topics must stay unregistered rather than stored anywhere as "known".
 RED_TOPICS = {
     "weapons", "explosives", "explosive", "gunpowder", "gasoline",
     "fuel synthesis", "toxic chemistry", "unsafe medicine",
@@ -42,40 +35,21 @@ RED_KEYWORDS = (
     "molotov", "ammunition",
 )
 
-YELLOW_CAUTION = {
-    "soap": (
-        "Caution: lye (sodium/potassium hydroxide) is caustic. It burns skin "
-        "and eyes on contact and releases irritating fumes when dissolved. "
-        "Handle only with eye protection, gloves, and ventilation."
-    ),
-    "furnaces": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation.",
-    "furnace": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation.",
-    "electricity": "Caution: electrical work can cause shock, fire, or death. Use qualified guidance and proper protection.",
-    "food preservation": "Caution: unsafe preservation can cause severe foodborne illness. Follow current public-health guidance.",
-    "apple cider vinegar": "Caution: fermentation can be contaminated. Follow tested food-safety guidance.",
-    "charcoal": "Caution: charcoal production creates fire and carbon-monoxide hazards. Never attempt it indoors.",
-    "simple mechanical water pump": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately.",
-    "water pump": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately.",
-}
-
-
-def _normalize(topic: str) -> str:
-    return " ".join(topic.strip().lower().split())
-
 
 def classify_topic(topic: str) -> SafetyClass:
-    t = _normalize(topic)
+    t = normalize_topic(topic)
 
     if t in RED_TOPICS or any(kw in t for kw in RED_KEYWORDS):
         return SafetyClass.RED
 
-    if t in YELLOW_TOPICS:
-        return SafetyClass.YELLOW
+    entry = get_topic(t)
+    if entry is not None:
+        if entry.get("safety_class") == "yellow":
+            return SafetyClass.YELLOW
+        if entry.get("safety_class") == "green":
+            return SafetyClass.GREEN
 
-    if t in GREEN_TOPICS:
-        return SafetyClass.GREEN
-
-    # Fail closed: an unrecognized topic is not proven safe.
+    # Fail closed: an unrecognized (or malformed-entry) topic is not proven safe.
     return SafetyClass.RED
 
 
@@ -100,7 +74,8 @@ def enforce_not_blocked(topic: str) -> SafetyClass:
 
 
 def caution_line(topic: str) -> str | None:
-    return YELLOW_CAUTION.get(_normalize(topic))
+    entry = get_topic(topic)
+    return entry.get("caution") if entry else None
 
 
 def caution_caption(topic: str) -> str | None:

@@ -42,7 +42,7 @@ class ImageProvider(ABC):
     def generate_scene_image(
         self,
         scene: dict[str, Any],
-        scene_index: int,
+        scene_index: int | str,
         out_path: Path,
         cost_tracker: CostTracker,
     ) -> Path:
@@ -55,7 +55,7 @@ class StubImageProvider(ImageProvider):
     def generate_scene_image(
         self,
         scene: dict[str, Any],
-        scene_index: int,
+        scene_index: int | str,
         out_path: Path,
         cost_tracker: CostTracker,
     ) -> Path:
@@ -88,7 +88,14 @@ class StubImageProvider(ImageProvider):
 class FalImageProvider(ImageProvider):
     name = "fal"
 
-    def __init__(self, gateway: FalGateway, model: str, cost_per_image_usd: float):
+    def __init__(
+        self,
+        gateway: FalGateway,
+        model: str,
+        cost_per_image_usd: float,
+        visual_style: str = "",
+        style_preset: str = "digital_illustration/hand_drawn_outline",
+    ):
         if not model:
             raise ValueError("fal image generation requires IMAGE_MODEL")
         if cost_per_image_usd <= 0:
@@ -96,13 +103,45 @@ class FalImageProvider(ImageProvider):
         self.gateway = gateway
         self.model = model.strip("/")
         self.cost = cost_per_image_usd
+        self.visual_style = visual_style
+        self.style_preset = style_preset
 
     def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
         operation = f"image.generate_scene_image[{scene_index}]"
         cost_tracker.check_budget(operation, self.cost)
+        # Recraft-v3's "style" param defaults to "realistic_image" when
+        # omitted (confirmed live against fal.ai's docs 2026-08-17) — a
+        # prompt alone is not enough to keep it in illustration mode, and
+        # the per-scene visual_prompt (written by the script-generation LLM)
+        # is not reliable about restating the house style either. Both are
+        # enforced here, server-side, regardless of what the LLM wrote.
+        prompt = scene["visual_prompt"]
+        if self.visual_style:
+            prompt = f"{prompt}\n\nRequired art style, apply to every image without exception: {self.visual_style}"
+        # Recraft-v3 hard-rejects prompts over 1000 characters (confirmed via
+        # a real 422 error 2026-08-17: the LLM's own per-scene description
+        # plus the appended house style together went over the limit).
+        # Truncate from the end so the scene-specific content and the start
+        # of the style reminder survive; only the least-essential trailing
+        # style detail gets dropped. The no-text instruction below is added
+        # AFTER truncation so it always survives regardless.
+        no_text_instruction = "\n\nDo not render any text, words, letters, labels, or signs in the image."
+        max_prompt_chars = 990 - len(no_text_instruction)
+        if len(prompt) > max_prompt_chars:
+            prompt = prompt[: max_prompt_chars - 1].rsplit(" ", 1)[0] + "…"
+        # A real generation once rendered part of this character description
+        # as literal text on a held sign (confirmed 2026-08-17) — the model
+        # will sometimes turn descriptive language into on-screen lettering.
+        # Our own captions are the only text that belongs in frame.
+        prompt = f"{prompt}{no_text_instruction}"
         data = self.gateway.run(
             self.model,
-            {"prompt": scene["visual_prompt"], "image_size": "portrait_16_9", "num_images": 1},
+            {
+                "prompt": prompt,
+                "image_size": "portrait_16_9",
+                "num_images": 1,
+                "style": self.style_preset,
+            },
         )
         image_url = media_url(data, "images", "0", "url")
         from io import BytesIO
@@ -120,9 +159,13 @@ def get_image_provider(
     model: str = "",
     cost_per_image_usd: float = 0.0,
     gateway: FalGateway | None = None,
+    visual_style: str = "",
+    style_preset: str = "digital_illustration/hand_drawn_outline",
 ) -> ImageProvider:
     if provider_name.strip().lower() in ("", "stub"):
         return StubImageProvider()
     if provider_name.strip().lower() == "fal":
-        return FalImageProvider(gateway or FalGateway(api_key), model, cost_per_image_usd)
+        return FalImageProvider(
+            gateway or FalGateway(api_key), model, cost_per_image_usd, visual_style, style_preset
+        )
     raise NotImplementedError(f"Unsupported image provider {provider_name!r}; use 'stub' or 'fal'")

@@ -82,3 +82,46 @@ def test_citation_derived_brief_flows_through_existing_script_generation():
     for scene in script["scenes"]:
         assert "camera" in scene and scene["camera"]
         assert "sfx" in scene  # present (may be None)
+
+
+CHOSEN_IDEA = {
+    "concept": "The lost science behind soap",
+    "angle": "a myth-busting historical explainer",
+    "hooks": [{"text": "Everyone assumes soap needs a factory. Here's why that's wrong.", "variant_index": 1}],
+    "payoff": "Viewer walks away knowing the real, historically-grounded steps behind soap.",
+    "series": None,
+}
+
+
+def test_brief_embeds_chosen_idea_when_given():
+    store = _store(VERIFIED_CLAIMS)
+    brief = build_brief_from_citations("soap", store, safety_class="yellow", idea=CHOSEN_IDEA)
+    assert brief["concept"] == CHOSEN_IDEA["concept"]
+    assert brief["angle"] == CHOSEN_IDEA["angle"]
+    assert brief["chosen_hook"] == CHOSEN_IDEA["hooks"][0]["text"]
+    assert brief["payoff"] == CHOSEN_IDEA["payoff"]
+    validate_brief(brief)  # new fields must still pass schema
+
+
+def test_brief_omits_idea_fields_when_none_given():
+    store = _store(VERIFIED_CLAIMS)
+    brief = build_brief_from_citations("soap", store, safety_class="yellow")
+    assert "concept" not in brief and "chosen_hook" not in brief
+
+
+def test_chosen_hook_opens_scene_one_narration_and_duration_stays_in_window():
+    """The idea a human picked during /plan must not be theater — it has to
+    actually reach the generated script, not just get logged to history."""
+    store = _store(VERIFIED_CLAIMS)
+    brief = build_brief_from_citations("soap", store, safety_class="yellow", idea=CHOSEN_IDEA)
+
+    tracker = CostTracker(budget_cap_usd=2.00)
+    script = StubLLMProvider().generate_script(brief, "English", "illustrated realism", tracker)
+    validate_script_against_brief(script, brief)  # must not raise — still 40-50s total
+
+    hook_text = CHOSEN_IDEA["hooks"][0]["text"]
+    assert script["scenes"][0]["narration"].startswith(hook_text)
+    assert script["scenes"][0]["caption"] == hook_text  # short enough not to hit the 90-char truncation
+    # Every other scene's narration is untouched — the hook only opens scene 1.
+    for scene in script["scenes"][1:]:
+        assert not scene["narration"].startswith(hook_text)

@@ -4,37 +4,31 @@ N ranked concepts per topic, each with 5 hook variants, a payoff, a
 visual-potential score, safety class, source availability (from the Phase 1
 citation store), and novelty vs. recently-generated ideas.
 
-Rule-based/template, same as Phase 0's script stub and for the same reason:
-LLM_PROVIDER is still stub (no real provider approved), so this is honestly
-a template generator, not a creativity engine. It's disclosed as such rather
-than dressed up. Swapping in a real LLM later is a new provider class behind
-the same generate_ideas() call, same pattern as every other provider here.
+The creative part (concept/angle/hooks/payoff/series) comes from
+LLMProvider.propose_ideas() — stub by default (deterministic templates, zero
+cost, see providers/llm.py's CONCEPT_TEMPLATES/HOOK_TEMPLATES), a real LLM
+once LLM_PROVIDER is configured — same real/stub split every other provider
+in this codebase uses. The analytical part below (safety class,
+visual-potential score, source availability, novelty-vs-recent, rank_score)
+stays here regardless of which provider answered — it's scoring logic, not
+creative content, and it's what keeps a real LLM's ideas accountable to the
+same rules a template idea has to follow.
 """
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
+from .config import load_settings, require_budget_approval_if_paid
+from .cost_tracker import CostTracker
+from .providers.fal import FalGateway
+from .providers.llm import get_llm_provider
 from .safety import enforce_not_blocked
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 IDEA_HISTORY_PATH = REPO_ROOT / "data" / "idea_history.json"
-
-HOOK_TEMPLATES = [
-    "What if civilization collapsed tomorrow — could you make {topic} from scratch?",
-    "Everyone assumes {topic} needs a factory. Here's why that's wrong.",
-    "The one skill our ancestors had that most people have lost: {topic}.",
-    "Before you scroll past — this is how {topic} actually worked, and it's not what you think.",
-    "3 minutes from now, you'll know how to make {topic} with nothing but what's outside.",
-]
-
-CONCEPT_TEMPLATES = [
-    ("How to reinvent {topic} if civilization collapsed", "a from-scratch survival explainer"),
-    ("The lost science behind {topic}", "a myth-busting historical explainer"),
-    ("{topic}: what your ancestors knew that you don't", "a heritage-skills angle"),
-]
 
 WORD_RE = re.compile(r"[a-zA-Z][a-zA-Z'-]+")
 
@@ -126,16 +120,26 @@ def generate_ideas(topic: str, n: int = 3) -> list[Idea]:
     availability = load_source_availability(topic)
     history = load_idea_history()
 
-    claims_text = ""  # kept empty unless we later wire real citation text in
+    settings = load_settings()
+    require_budget_approval_if_paid(settings)
+    cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
+    uses_fal = settings.llm.provider.strip().lower() == "fal"
+    fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
+    llm = get_llm_provider(
+        settings.llm.provider,
+        settings.credential_for(settings.llm),
+        settings.llm.model_or_voice,
+        settings.llm_cost_per_script_usd,
+        gateway=fal_gateway,
+        endpoint=settings.fal_llm_endpoint,
+    )
+    raw_ideas = llm.propose_ideas(topic, n, cost_tracker)
 
     ideas: list[Idea] = []
-    for concept_template, angle in CONCEPT_TEMPLATES[:n]:
-        concept = concept_template.format(topic=topic)
-        hooks = [
-            Hook(text=t.format(topic=topic), variant_index=i)
-            for i, t in enumerate(HOOK_TEMPLATES, start=1)
-        ]
-        visual_score = _visual_potential_score(topic, claims_text)
+    for raw in raw_ideas:
+        concept = raw["concept"]
+        hooks = [Hook(text=t, variant_index=i) for i, t in enumerate(raw["hooks"], start=1)]
+        visual_score = _visual_potential_score(topic, "")
         similarity = _similarity_to_recent(concept, history)
 
         source_ratio = (
@@ -151,10 +155,11 @@ def generate_ideas(topic: str, n: int = 3) -> list[Idea]:
             Idea(
                 topic=topic,
                 concept=concept,
-                angle=angle,
+                angle=raw.get("angle", ""),
                 hooks=hooks,
-                payoff=f"Viewer walks away knowing the real, historically-grounded steps behind {topic}.",
-                series="reinvent-it" if "reinvent" in concept.lower() else None,
+                payoff=raw.get("payoff")
+                or f"Viewer walks away knowing the real, historically-grounded steps behind {topic}.",
+                series=raw.get("series"),
                 safety_class=safety_class.value,
                 visual_potential_score=visual_score,
                 source_availability=availability,

@@ -87,11 +87,13 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw: Im
     return lines
 
 
-def draw_caption(base: Image.Image, text: str) -> tuple[Image.Image, CaptionBox]:
-    """Returns a new RGB image with the caption composited, plus the exact
-    box it was drawn in (for the safe-margin assertion)."""
-    img = base.convert("RGBA")
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+def _build_caption_overlay(size: tuple[int, int], text: str) -> tuple[Image.Image, CaptionBox]:
+    """The caption card + text alone, on a transparent RGBA layer the same
+    size as a frame — shared by draw_caption() (composites it onto a static
+    image) and caption_overlay_png() (used as a standalone ffmpeg overlay
+    input on top of an animated video clip, which has no single base image
+    to composite onto ahead of time)."""
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     font = get_font()
 
@@ -134,6 +136,20 @@ def draw_caption(base: Image.Image, text: str) -> tuple[Image.Image, CaptionBox]
         draw.text((x, y), line, font=font, fill=TEXT_COLOR)
         y += lh + LINE_SPACING
 
-    composited = Image.alpha_composite(img, overlay).convert("RGB")
     box = CaptionBox(left=card_left, top=card_top, right=card_right, bottom=card_bottom)
+    return overlay, box
+
+
+def draw_caption(base: Image.Image, text: str) -> tuple[Image.Image, CaptionBox]:
+    """Returns a new RGB image with the caption composited, plus the exact
+    box it was drawn in (for the safe-margin assertion)."""
+    img = base.convert("RGBA")
+    overlay, box = _build_caption_overlay(img.size, text)
+    composited = Image.alpha_composite(img, overlay).convert("RGB")
     return composited, box
+
+
+def caption_overlay_png(text: str) -> tuple[Image.Image, CaptionBox]:
+    """Same caption card, as a standalone transparent RGBA image — for
+    compositing onto an animated video clip via ffmpeg's overlay filter."""
+    return _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text)

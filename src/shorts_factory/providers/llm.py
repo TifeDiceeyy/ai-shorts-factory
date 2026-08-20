@@ -33,6 +33,24 @@ CAMERA_TEMPLATES = [
     "handheld tracking shot",
 ]
 
+# StubLLMProvider.propose_ideas()'s deterministic content — moved here from
+# ideation.py so the stub/real split for ideation matches every other
+# provider in this file: ideation.generate_ideas() just calls
+# LLMProvider.propose_ideas() and doesn't know which implementation answered.
+HOOK_TEMPLATES = [
+    "What if civilization collapsed tomorrow — could you make {topic} from scratch?",
+    "Everyone assumes {topic} needs a factory. Here's why that's wrong.",
+    "The one skill our ancestors had that most people have lost: {topic}.",
+    "Before you scroll past — this is how {topic} actually worked, and it's not what you think.",
+    "3 minutes from now, you'll know how to make {topic} with nothing but what's outside.",
+]
+
+CONCEPT_TEMPLATES = [
+    ("How to reinvent {topic} if civilization collapsed", "a from-scratch survival explainer"),
+    ("The lost science behind {topic}", "a myth-busting historical explainer"),
+    ("{topic}: what your ancestors knew that you don't", "a heritage-skills angle"),
+]
+
 
 class LLMProvider(ABC):
     name: str
@@ -45,6 +63,29 @@ class LLMProvider(ABC):
         visual_style: str,
         cost_tracker: CostTracker,
     ) -> dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
+        """Propose a safety classification + Phase 1 retrieval config for a
+        brand-new topic name the registry (topic_registry.py) has never seen.
+        Returns {safety_class, reasoning, queries, keywords, caution}.
+
+        This is advisory only — never trusted alone. The caller (the
+        Telegram bot's new-topic flow) must still re-check the topic against
+        safety.RED_TOPICS/RED_KEYWORDS itself, require an explicit human
+        confirmation, and only then persist via topic_registry.register_topic
+        (which itself refuses to persist a "red" entry)."""
+        ...
+
+    @abstractmethod
+    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
+        """Propose up to n candidate video ideas for a topic already past the
+        safety gate. Each item: {concept, angle, hooks: [str, ...], payoff,
+        series}. This is the creative part only — the caller
+        (ideation.generate_ideas) applies safety_class, visual-potential
+        score, source availability, novelty-vs-recent, and rank_score on
+        top of whatever this returns, regardless of which provider answered."""
         ...
 
 
@@ -79,9 +120,13 @@ class StubLLMProvider(LLMProvider):
         cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
 
         claims = brief["claims"]
+        chosen_hook = (brief.get("chosen_hook") or "").strip()
+
         raw_durations = []
-        for c in claims:
+        for i, c in enumerate(claims):
             word_count = len(c["claim"].split())
+            if i == 0 and chosen_hook:
+                word_count += len(chosen_hook.split())
             raw = 2.5 + 0.35 * word_count
             raw_durations.append(max(MIN_SCENE_SECONDS, min(MAX_SCENE_SECONDS, raw)))
 
@@ -91,10 +136,19 @@ class StubLLMProvider(LLMProvider):
 
         scenes = []
         for i, (claim, duration) in enumerate(zip(claims, durations)):
+            narration = claim["claim"]
+            caption = _caption_from_claim(claim["claim"])
+            if i == 0 and chosen_hook:
+                # Honor the human's picked hook (from /plan's ideation step) as
+                # the opening line, without dropping the claim it's paired
+                # with — the extra words were already folded into this
+                # scene's duration above, before the total got scaled.
+                narration = f"{chosen_hook} {narration}"
+                caption = _caption_from_claim(chosen_hook)
             scenes.append(
                 {
-                    "narration": claim["claim"],
-                    "caption": _caption_from_claim(claim["claim"]),
+                    "narration": narration,
+                    "caption": caption,
                     "duration": duration,
                     "visual_prompt": _visual_prompt(claim["claim"], visual_style),
                     "source_claim_id": claim["id"],
@@ -119,6 +173,50 @@ class StubLLMProvider(LLMProvider):
         )
         return script
 
+    def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
+        operation = "llm.propose_topic"
+        cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
+        words = [w for w in re.findall(r"[a-zA-Z]+", topic.lower()) if len(w) > 2]
+        proposal = {
+            "safety_class": "green",
+            "reasoning": "Deterministic stub proposal — not a real safety assessment.",
+            "queries": [f"{topic} history and how it works", f"{topic} explained reliable source"],
+            "keywords": words[:8] or [topic.lower()],
+            "caution": None,
+        }
+        cost_tracker.record(
+            provider=self.name,
+            operation=operation,
+            estimated_cost_usd=0.0,
+            actual_cost_usd=0.0,
+            is_stub=True,
+        )
+        return proposal
+
+    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
+        operation = "llm.propose_ideas"
+        cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
+        ideas = []
+        for concept_template, angle in CONCEPT_TEMPLATES[:n]:
+            concept = concept_template.format(topic=topic)
+            ideas.append(
+                {
+                    "concept": concept,
+                    "angle": angle,
+                    "hooks": [t.format(topic=topic) for t in HOOK_TEMPLATES],
+                    "payoff": f"Viewer walks away knowing the real, historically-grounded steps behind {topic}.",
+                    "series": "reinvent-it" if "reinvent" in concept.lower() else None,
+                }
+            )
+        cost_tracker.record(
+            provider=self.name,
+            operation=operation,
+            estimated_cost_usd=0.0,
+            actual_cost_usd=0.0,
+            is_stub=True,
+        )
+        return ideas
+
 
 def _json_object(text: str) -> dict[str, Any]:
     """Decode a provider response without accepting prose around the object."""
@@ -130,13 +228,92 @@ def _json_object(text: str) -> dict[str, Any]:
 
 
 def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> str:
+    idea_instruction = ""
+    if brief.get("concept") or brief.get("chosen_hook"):
+        idea_instruction = (
+            " A human already picked a specific angle for this video during planning — honor it: "
+            f"concept={brief.get('concept', '')!r}, angle={brief.get('angle', '')!r}, "
+            f"payoff={brief.get('payoff', '')!r}. The first scene's narration must open with (or very "
+            f"closely match) this exact hook line: {brief.get('chosen_hook', '')!r}. Every other scene "
+            "must still frame its claim through this same angle, not just default to a generic explainer."
+        )
+    n_claims = len(brief.get("claims") or []) or 1
+    avg_duration = 45.0 / n_claims
+    duration_instruction = (
+        f" There are {n_claims} claims, so {n_claims} scenes. The SUM of every scene's duration must land "
+        f"between 40 and 50 seconds total — with {n_claims} scenes that means roughly {avg_duration:.1f} "
+        "seconds per scene on average. Do not default every scene to the shortest end of the 3-9.5 second "
+        "range; undershooting the total is a common mistake, check your arithmetic before returning."
+    )
+    order_instruction = (
+        " Order the scenes as a logical narrative — setup/context first, then process/mechanism in the "
+        "order it actually happens, ending on the payoff or a memorable closing fact — not just the order "
+        "the claims happen to be listed in below."
+    )
+    tone_instruction = (
+        " Write every narration line the way a real person would SAY it out loud to a friend, not the way "
+        "a textbook would print it. Short sentences. Contractions. No dense multi-clause chemistry-textbook "
+        "sentences (e.g. avoid constructions like 'X, a strong base, does Y to the Z holding W together in "
+        "V' — say it as two short plain sentences instead). Still 100% bound to the supplied claims; "
+        "rephrase for how it sounds spoken, never add or soften the underlying fact."
+    )
+    visual_instruction = (
+        " Every scene's visual_prompt is a MOTION/ACTION description for an illustrated character animating "
+        "against a fixed reference image, not a fresh scene composition — describe what the character DOES "
+        "and what concrete, tangible thing from the claim is shown (the actual soap, oil, lye crystals, "
+        "beaker, bar, bubbles — whatever the claim is literally about), never just an abstract diagram or "
+        "the character standing there. Do not describe or request any text, words, letters, labels, or "
+        "signs appearing in the image — captions are added separately; asking for on-screen text produces "
+        "garbled, broken text and must never be part of visual_prompt."
+    )
     return (
         "Create a factual YouTube Short script lasting 40-50 seconds. Return JSON only. "
-        "Use only the supplied claims; do not add factual claims. Make the first scene a strong hook. "
-        "Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
+        "Use only the supplied claims; do not add factual claims. Make the first scene a strong hook."
+        + idea_instruction
+        + duration_instruction
+        + order_instruction
+        + tone_instruction
+        + " Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
         "visual_prompt, source_claim_id, camera, and sfx (string or null). The top-level object must "
-        "contain topic, language, visual_style, and scenes. Preserve claim IDs exactly. "
-        f"Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
+        "contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
+        + visual_instruction
+        + f" Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
+    )
+
+
+def _topic_proposal_prompt(topic: str) -> str:
+    return (
+        "You are proposing whether a NEW topic is safe to produce as a short, "
+        "source-backed educational video, and what to search for to research it. "
+        "Return JSON only, no prose, no markdown fences. The object must contain exactly: "
+        'safety_class (one of "green", "yellow", "red"), reasoning (one sentence), '
+        "queries (a list of 2 short web search query strings for finding reliable sources "
+        "on this topic), keywords (a list of 5-8 lowercase single-word or short-phrase "
+        "keywords for verifying a retrieved source actually discusses this topic), and "
+        'caution (a one-sentence safety caution string if safety_class is "yellow", else null). '
+        "Classify red if the topic could plausibly provide actionable instructions for weapons, "
+        "explosives, illegal drugs, or serious bodily harm. Classify yellow if it involves a real "
+        "but manageable hazard (heat, caustic chemicals, electricity, food safety). Otherwise green. "
+        f"Topic: {topic!r}"
+    )
+
+
+def _idea_proposal_prompt(topic: str, n: int) -> str:
+    return (
+        f"Propose {n} distinct video concepts for a short (40-50 second), factual, source-backed "
+        f"YouTube Short about {topic!r}. Return JSON only, no prose, no markdown fences: a single "
+        'object {"ideas": [...]} where each item has exactly: concept (a punchy one-line video title, '
+        "not generic), angle (one short phrase describing the narrative angle/genre — vary these across "
+        "the concepts: try a myth-busting historical explainer, a heritage/lost-skills angle, AND a "
+        "speculative 'what if this disappeared tomorrow' framing where it fits, not just one style "
+        "repeated), hooks (a list of exactly 5 distinct opening-line hook variants, each under 100 "
+        "characters, written to stop someone mid-scroll in the first 3 seconds), payoff (one sentence: "
+        "what the viewer walks away knowing), and series (a short lowercase-hyphenated series-name "
+        "string if this concept could anchor a recurring series, else null). A speculative angle must "
+        "still only use the real, source-backed facts given elsewhere — the hypothetical is the framing "
+        "device, not a license to invent claims. Make the "
+        f"{n} concepts genuinely distinct from each other in angle, not variations on one idea. "
+        f"Topic: {topic!r}"
     )
 
 
@@ -177,6 +354,52 @@ class FalLLMProvider(LLMProvider):
         actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
         cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         return script
+
+    def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
+        operation = "llm.propose_topic"
+        cost_tracker.check_budget(operation, self.estimate)
+        data = self.gateway.run(
+            self.endpoint,
+            {
+                "model": self.model,
+                "prompt": _topic_proposal_prompt(topic),
+                "temperature": 0.2,
+                "max_tokens": 500,
+            },
+        )
+        proposal = _json_object(data["output"])
+        required = {"safety_class", "reasoning", "queries", "keywords", "caution"}
+        if not required.issubset(proposal):
+            raise ValueError(f"malformed topic proposal from LLM, missing keys: {required - proposal.keys()}")
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
+        return proposal
+
+    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
+        operation = "llm.propose_ideas"
+        cost_tracker.check_budget(operation, self.estimate)
+        data = self.gateway.run(
+            self.endpoint,
+            {
+                "model": self.model,
+                "prompt": _idea_proposal_prompt(topic, n),
+                "temperature": 0.8,
+                "max_tokens": 1500,
+            },
+        )
+        payload = _json_object(data["output"])
+        ideas = payload.get("ideas")
+        if not isinstance(ideas, list) or not ideas:
+            raise ValueError("malformed idea proposal from LLM: expected a non-empty 'ideas' list")
+        required = {"concept", "angle", "hooks", "payoff", "series"}
+        for idea in ideas:
+            if not required.issubset(idea):
+                raise ValueError(f"malformed idea from LLM, missing keys: {required - idea.keys()}")
+            if not isinstance(idea["hooks"], list) or not idea["hooks"]:
+                raise ValueError("malformed idea from LLM: 'hooks' must be a non-empty list")
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
+        return ideas[:n]
 
 
 def get_llm_provider(

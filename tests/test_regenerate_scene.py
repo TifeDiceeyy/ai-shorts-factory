@@ -4,7 +4,9 @@ rather than silently doing a full re-render behind a misleading name."""
 import hashlib
 from pathlib import Path
 
-from shorts_factory.pipeline import REPO_ROOT, regenerate_scene, run_pipeline
+import pytest
+
+from shorts_factory.pipeline import regenerate_scene, run_pipeline
 
 
 def _sha256(path: Path) -> str:
@@ -15,11 +17,11 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def test_regenerate_scene_reuses_untouched_scenes_on_disk():
-    full = run_pipeline("charcoal")
+def test_regenerate_scene_reuses_untouched_scenes_on_disk(tmp_path):
+    full = run_pipeline("charcoal", artifacts_root=tmp_path)
     assert full.verification["overall_pass"] is True
 
-    workdir = REPO_ROOT / "artifacts" / "charcoal" / "_work"
+    workdir = tmp_path / "charcoal" / "_work"
     untouched_audio = workdir / "audio" / "scene_01.wav"
     untouched_seg = workdir / "generated" / "segments" / "seg_01.mp4"
     assert untouched_audio.exists() and untouched_seg.exists()
@@ -28,7 +30,11 @@ def test_regenerate_scene_reuses_untouched_scenes_on_disk():
     hash_before_seg = _sha256(untouched_seg)
     prior_cost_entries = len(full.cost_report["entries"])
 
-    result = regenerate_scene("charcoal", 0, new_narration="Charcoal starts as ordinary wood, heated without enough air to burn.")
+    result = regenerate_scene(
+        "charcoal", 0,
+        new_narration="Charcoal starts as ordinary wood, heated without enough air to burn.",
+        artifacts_root=tmp_path,
+    )
 
     assert result.verification["overall_pass"] is True
 
@@ -47,7 +53,6 @@ def test_regenerate_scene_reuses_untouched_scenes_on_disk():
     assert result.cost_report["total_spent_usd"] <= result.cost_report["budget_cap_usd"]
 
 
-def test_regenerate_scene_requires_prior_full_run():
-    import pytest
+def test_regenerate_scene_requires_prior_full_run(tmp_path):
     with pytest.raises(FileNotFoundError):
-        regenerate_scene("charcoal-never-rendered-xyz", 0)
+        regenerate_scene("charcoal-never-rendered-xyz", 0, artifacts_root=tmp_path)
