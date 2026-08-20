@@ -136,6 +136,26 @@ def test_fal_image_imagen3_uses_9_16_aspect_ratio(tmp_path):
     assert "3D sticker on pure white" in args["prompt"]
 
 
+def test_fal_image_nano_banana_uses_9_16_aspect_ratio(tmp_path):
+    """fal-ai/imagen3 is confirmed deprecated (2026-08-20) and fal-ai/imagen4
+    doesn't exist under any tested path — nano-banana is the live
+    replacement, same aspect_ratio-only schema as the imagen family."""
+    small_png = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(small_png, format="PNG")
+    fal = gateway({"images": [{"url": "https://example.test/image.png"}]})
+    fal.download = lambda url: small_png.getvalue()
+    provider = FalImageProvider(fal, "fal-ai/nano-banana", 0.04, visual_style="3D sticker on pure white")
+
+    provider.generate_scene_image(
+        {"visual_prompt": "Dwarf mascot pointing up at limestone"}, 0, tmp_path / "out.png", CostTracker(1)
+    )
+
+    args = fal.client.calls[0][1]["arguments"]
+    assert args["aspect_ratio"] == "9:16"
+    assert "style" not in args
+    assert "3D sticker on pure white" in args["prompt"]
+
+
 def test_fal_llm_script_prompt_carries_the_chosen_idea():
     """A human's /plan idea pick must actually steer the real LLM's script,
     not just get logged — the prompt sent to fal.ai must say so."""

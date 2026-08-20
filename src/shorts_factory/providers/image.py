@@ -86,6 +86,27 @@ class StubImageProvider(ImageProvider):
         return out_path
 
 
+def get_image_model_args(model: str, style_preset: str) -> dict[str, Any]:
+    """Model-specific arguments (aspect ratio/size, style) for a given
+    fal.ai image model — each family has a different schema, confirmed live
+    against fal.ai's docs and a real API call (2026-08-20) rather than
+    assumed. Getting this wrong is exactly what's bitten this project
+    before (a deprecated imagen3, a guessed-at imagen4 path that turned out
+    not to exist at all)."""
+    m = model.lower()
+    if "nano-banana" in m or "gemini" in m or "imagen" in m:
+        # Nano Banana (Gemini 2.5/3 Flash Image) and Google's Imagen family
+        # both use aspect_ratio, no "style" param — confirmed via fal.ai's
+        # nano-banana/api and imagen3/api docs.
+        return {"aspect_ratio": "9:16"}
+    # Recraft-v3 (and default/unknown): explicit image_size + style, since
+    # Recraft's "style" param defaults to "realistic_image" when omitted.
+    args: dict[str, Any] = {"image_size": "portrait_16_9"}
+    if style_preset:
+        args["style"] = style_preset
+    return args
+
+
 class FalImageProvider(ImageProvider):
     name = "fal"
 
@@ -138,13 +159,8 @@ class FalImageProvider(ImageProvider):
         arguments: dict[str, Any] = {
             "prompt": prompt,
             "num_images": 1,
+            **get_image_model_args(self.model, self.style_preset),
         }
-        if "imagen" in self.model.lower():
-            arguments["aspect_ratio"] = "9:16"
-        else:
-            arguments["image_size"] = "portrait_16_9"
-            if self.style_preset:
-                arguments["style"] = self.style_preset
 
         data = self.gateway.run(
             self.model,
