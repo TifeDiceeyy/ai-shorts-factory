@@ -56,3 +56,20 @@ def test_regenerate_scene_reuses_untouched_scenes_on_disk(tmp_path):
 def test_regenerate_scene_requires_prior_full_run(tmp_path):
     with pytest.raises(FileNotFoundError):
         regenerate_scene("charcoal-never-rendered-xyz", 0, artifacts_root=tmp_path)
+
+
+def test_run_pipeline_persists_mascot_and_regenerate_uses_it(tmp_path):
+    import json
+    # Run pipeline with explicit non-default mascot
+    full = run_pipeline("charcoal", mascot_id="mascot_2", artifacts_root=tmp_path)
+    assert full.mascot_id == "mascot_2"
+    
+    script_file = tmp_path / "charcoal" / "charcoal.script.json"
+    assert script_file.exists()
+    script_data = json.loads(script_file.read_text(encoding="utf-8"))
+    assert script_data.get("mascot_id") == "mascot_2"
+
+    # Regenerate scene and assert it picks up mascot_2 from script.json
+    regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
+    assert regen.mascot_id == "mascot_2"
+

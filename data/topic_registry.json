@@ -203,40 +203,5 @@
     "keywords": [],
     "safety_class": "yellow",
     "caution": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately."
-  },
-  "what would hapse \u0131f electricity dissappears tomotrow": {
-    "queries": [
-      "impact of global power outage",
-      "societal effects of electricity loss"
-    ],
-    "keywords": [
-      "electricity",
-      "power outage",
-      "blackout",
-      "grid failure",
-      "societal impact",
-      "infrastructure",
-      "modern life",
-      "collapse"
-    ],
-    "safety_class": "green",
-    "caution": null
-  },
-  "what would happen \u0131f electricity dissappears tomorrow": {
-    "queries": [
-      "impact of global power outage",
-      "societal collapse without electricity"
-    ],
-    "keywords": [
-      "electricity",
-      "disappears",
-      "tomorrow",
-      "power outage",
-      "blackout",
-      "grid failure",
-      "societal impact"
-    ],
-    "safety_class": "green",
-    "caution": null
   }
 }

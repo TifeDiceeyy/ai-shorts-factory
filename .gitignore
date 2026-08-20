@@ -21,6 +21,8 @@ __pycache__/
 # generated artifacts (rendered media, per-run outputs — not source)
 artifacts/*
 !artifacts/.gitkeep
+assets/*
+!assets/.gitkeep
 logs/*.log
 
 # OS

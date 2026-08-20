@@ -9,6 +9,7 @@
     "topic": { "type": "string", "minLength": 1 },
     "language": { "type": "string", "minLength": 1 },
     "visual_style": { "type": "string", "minLength": 1 },
+    "mascot_id": { "type": "string" },
     "scenes": {
       "type": "array",
       "minItems": 1,
@@ -26,7 +27,7 @@
           "sfx": { "type": ["string", "null"] },
           "mascot_role": { "type": "string" },
           "mascot_emotion": { "type": "string" },
-          "props": { "type": "string" },
+          "props": { "type": ["string", "null"] },
           "layout": { "type": "string" },
           "scene_type": { "type": "string" },
           "fx": { "type": ["string", "null"] }

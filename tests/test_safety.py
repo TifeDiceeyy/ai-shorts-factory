@@ -37,3 +37,18 @@ def test_unknown_topic_fails_closed_to_red():
 
 def test_yellow_topic_is_not_blocked():
     enforce_not_blocked("soap")  # must not raise
+
+
+def test_retrieval_refuses_red_topic():
+    from shorts_factory.cost_tracker import CostTracker
+    from shorts_factory.providers.search import SearchProvider
+    from shorts_factory.retrieval import run_retrieval_for_topic
+
+    class DummySearch(SearchProvider):
+        name = "dummy"
+        def search(self, query, cost_tracker):
+            return []
+
+    with pytest.raises(TopicBlocked):
+        run_retrieval_for_topic("gunpowder", DummySearch(), CostTracker(1.0))
+

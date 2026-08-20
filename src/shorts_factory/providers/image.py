@@ -62,7 +62,8 @@ class StubImageProvider(ImageProvider):
         operation = f"image.generate_scene_image[{scene_index}]"
         cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
 
-        top, bottom = GRADIENT_PALETTE[scene_index % len(GRADIENT_PALETTE)]
+        pal_idx = scene_index if isinstance(scene_index, int) else (abs(hash(str(scene_index))) % len(GRADIENT_PALETTE))
+        top, bottom = GRADIENT_PALETTE[pal_idx % len(GRADIENT_PALETTE)]
         img = Image.new("RGB", (WIDTH, HEIGHT))
         draw = ImageDraw.Draw(img)
         for y in range(HEIGHT):

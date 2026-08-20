@@ -408,33 +408,42 @@ def _build_caption_overlay(
         stroke_w = st.stroke_width
         bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke_w)
         line_widths.append(bbox[2] - bbox[0])
+        # Use font.getbbox or textbbox to accurately measure line ascender + descender height
         line_heights.append(bbox[3] - bbox[1])
 
-    text_block_width = max(line_widths) if line_widths else 0
-    text_block_height = sum(line_heights) + LINE_SPACING * (len(lines) - 1 if lines else 0)
+    text_block_width = min(max(line_widths) if line_widths else 0, max_text_width)
+    max_safe_height = (FRAME_HEIGHT - SAFE_BOTTOM - SAFE_TOP) - 2 * PADDING
+    text_block_height = min(sum(line_heights) + LINE_SPACING * (len(lines) - 1 if lines else 0), max_safe_height)
 
-    card_width = text_block_width + 2 * PADDING
-    card_height = text_block_height + 2 * PADDING
+    # Allow a small padding buffer for ascenders/descenders/strokes so they stay strictly inside card
+    effective_padding = max(PADDING, st.stroke_width + 4)
+    card_width = min(text_block_width + 2 * effective_padding, FRAME_WIDTH - 2 * SAFE_SIDES)
+    card_height = min(text_block_height + 2 * effective_padding, FRAME_HEIGHT - SAFE_BOTTOM - SAFE_TOP)
 
     # Determine vertical placement based on style.position
     if st.position == "top":
         card_top = SAFE_TOP + 15
-        card_bottom = card_top + card_height
     elif st.position == "middle":
         card_top = (FRAME_HEIGHT - card_height) // 2
-        card_bottom = card_top + card_height
     else:  # bottom
-        card_bottom = FRAME_HEIGHT - SAFE_BOTTOM
-        card_top = card_bottom - card_height
+        card_top = (FRAME_HEIGHT - SAFE_BOTTOM) - card_height
 
+    # Shift card vertically fully inside safe area without shrinking
+    max_top = (FRAME_HEIGHT - SAFE_BOTTOM) - card_height
+    if card_top > max_top:
+        card_top = max_top
+    if card_top < SAFE_TOP:
+        card_top = SAFE_TOP
+    card_bottom = card_top + card_height
+
+    # Center horizontally and shift fully inside safe area
     card_left = (FRAME_WIDTH - card_width) // 2
+    max_left = (FRAME_WIDTH - SAFE_SIDES) - card_width
+    if card_left > max_left:
+        card_left = max_left
+    if card_left < SAFE_SIDES:
+        card_left = SAFE_SIDES
     card_right = card_left + card_width
-
-    # Clamp inside safe area
-    card_top = max(card_top, SAFE_TOP)
-    card_bottom = min(card_bottom, FRAME_HEIGHT - SAFE_BOTTOM)
-    card_left = max(card_left, SAFE_SIDES)
-    card_right = min(card_right, FRAME_WIDTH - SAFE_SIDES)
 
     # 1. Draw background card/pill if configured
     if st.bg_color is not None:
@@ -445,10 +454,11 @@ def _build_caption_overlay(
         )
 
     # 2. Draw text lines with strokes, shadows, or dual-tone keywords
-    y = card_top + PADDING
+    final_card_width = card_right - card_left
+    y = card_top + effective_padding
     for line_idx, (line, lh) in enumerate(zip(lines, line_heights)):
         lw = draw.textlength(line, font=font)
-        x = card_left + (card_width - lw) / 2
+        x = card_left + (final_card_width - lw) / 2
 
         # Optional drop shadow for stroke text without background card
         if st.shadow and st.bg_color is None:

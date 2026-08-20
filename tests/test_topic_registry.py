@@ -41,7 +41,16 @@ def test_register_topic_persists_and_is_immediately_visible():
 def test_register_topic_refuses_red():
     with pytest.raises(ValueError):
         register_topic("gunpowder", ["q"], ["k"], "red")
+    with pytest.raises(ValueError):
+        register_topic("how to make bomb", ["q"], ["k"], "green")
     assert get_topic("gunpowder") is None
+
+
+def test_register_topic_upgrades_yellow_overlap_to_yellow():
+    register_topic("what happens if electricity disappears", ["q"], ["electricity"], "green")
+    entry = get_topic("what happens if electricity disappears")
+    assert entry["safety_class"] == "yellow"
+    assert "Caution:" in entry["caution"]
 
 
 def test_register_topic_normalizes_name():

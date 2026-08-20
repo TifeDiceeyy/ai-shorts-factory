@@ -21,6 +21,7 @@ from PIL import Image
 
 from .captions import FRAME_HEIGHT, FRAME_WIDTH, CaptionBox, caption_overlay_png, draw_caption
 from .cost_tracker import CostTracker
+from .media_probe import probe_duration
 from .providers.tts import TTSProvider
 
 FPS = 30
@@ -41,33 +42,6 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     if result.returncode != 0:
         raise RuntimeError(f"command failed: {' '.join(cmd)}\nstderr:\n{result.stderr}")
     return result
-
-
-def probe_duration(path: Path) -> float:
-    """Actual duration of a media file, via ffprobe / ffmpeg — never trust a
-    provider's requested/nominal duration, measure what it actually produced."""
-    if shutil.which("ffprobe"):
-        cmd = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(path),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            try:
-                return float(result.stdout.strip())
-            except ValueError:
-                pass
-
-    # Fallback to ffmpeg -i parsing if ffprobe is unavailable
-    cmd = ["ffmpeg", "-i", str(path)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", result.stderr)
-    if m:
-        hours, mins, secs = m.groups()
-        return int(hours) * 3600 + int(mins) * 60 + float(secs)
-    raise RuntimeError(f"Could not probe duration for {path}:\n{result.stderr}")
 
 
 def solid_color_frame(index: int) -> Image.Image:

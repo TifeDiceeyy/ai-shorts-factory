@@ -41,3 +41,35 @@ def test_publish_refuses_when_youtube_not_configured(isolated_repo):
 def test_publish_refuses_missing_topic():
     with pytest.raises(FileNotFoundError):
         publish_to_youtube("a-topic-that-was-never-rendered-xyz")
+
+
+def test_youtube_upload_raises_when_disclosure_not_confirmed(tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+    from shorts_factory.providers.youtube import DisclosureNotConfirmed, YouTubeUploadProvider
+
+    fake_secrets = tmp_path / "secrets.json"
+    fake_secrets.write_text("{}", encoding="utf-8")
+    provider = YouTubeUploadProvider(client_secrets_file=str(fake_secrets), token_file=str(tmp_path / "token.json"))
+    mock_service = MagicMock()
+    monkeypatch.setattr(provider, "_get_service", lambda: mock_service)
+
+    fake_video = tmp_path / "video.mp4"
+    fake_video.write_bytes(b"dummy mp4")
+
+    # Mock insert request & response
+    mock_insert_request = MagicMock()
+    mock_insert_request.execute.return_value = {"id": "vid123", "status": {"privacyStatus": "private"}}
+    mock_service.videos().insert.return_value = mock_insert_request
+
+    # Mock list request & confirmation response with missing containsSyntheticMedia
+    mock_list_request = MagicMock()
+    mock_list_request.execute.return_value = {
+        "items": [{"id": "vid123", "status": {"containsSyntheticMedia": False}}]
+    }
+    mock_service.videos().list.return_value = mock_list_request
+
+    with pytest.raises(DisclosureNotConfirmed) as exc_info:
+        provider.upload_video(fake_video, "title", "desc", contains_synthetic_media=True)
+
+    assert exc_info.value.video_id == "vid123"
+

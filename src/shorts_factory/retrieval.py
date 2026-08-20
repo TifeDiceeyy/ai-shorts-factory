@@ -283,6 +283,9 @@ def run_retrieval_for_topic(
     """The real, end-to-end Phase 1 pipeline for one topic: retrieve -> extract
     -> verify -> store. Requires a real, keyed search_provider — see
     providers/search.py, there is no stub for this step."""
+    from .safety import enforce_not_blocked
+    enforce_not_blocked(topic)
+
     from .topics import TOPIC_KEYWORDS, TOPIC_QUERIES
 
     queries = TOPIC_QUERIES.get(topic)
@@ -348,6 +351,13 @@ def main(argv: list[str]) -> int:
 
     search_provider = get_search_provider(settings.search.provider, settings.search_api_key)
     cost_tracker = CostTracker(budget_cap_usd=settings.budget_cap_usd)
+
+    from .safety import TopicBlocked, enforce_not_blocked
+    try:
+        enforce_not_blocked(topic)
+    except TopicBlocked as e:
+        print(f"TOPIC BLOCKED: {e}", file=sys.stderr)
+        return 1
 
     result = run_retrieval_for_topic(topic, search_provider, cost_tracker, book_file=settings.book_file)
 

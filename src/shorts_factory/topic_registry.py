@@ -174,12 +174,38 @@ def register_topic(
     caution: str | None = None,
 ) -> None:
     """Persist a new green/yellow topic. Refuses "red" — see module docstring."""
+    name = normalize_topic(topic)
+    
+    # 1. Red check: Refuse red topic or red keywords
+    from .safety import RED_KEYWORDS, RED_TOPICS
+    if name in RED_TOPICS or any(kw in name for kw in RED_KEYWORDS):
+        raise ValueError(f"refusing to register red/dangerous topic {name!r}")
+
+    # 2. Yellow check: If the topic overlaps with any known yellow topic or keywords,
+    # it must not be registered as green.
+    yellow_match = None
+    for seed_name, seed_entry in _SEED_REGISTRY.items():
+        if seed_entry.get("safety_class") == "yellow":
+            if seed_name in name or any(kw in name for kw in seed_entry.get("keywords", [])):
+                yellow_match = seed_entry
+                break
+
+    if yellow_match:
+        if safety_class == "green":
+            safety_class = "yellow"
+            if not caution:
+                caution = yellow_match.get("caution")
+        elif safety_class == "yellow" and not caution:
+            caution = yellow_match.get("caution")
+
     if safety_class not in ("green", "yellow"):
         raise ValueError(
             f"refusing to register topic with safety_class={safety_class!r}; "
             "only 'green' or 'yellow' may be registered — red topics must stay unregistered"
         )
-    name = normalize_topic(topic)
+    if safety_class == "yellow" and not caution:
+        caution = "Caution: follow safety guidance for this process."
+
     registry = load_registry()
     registry[name] = {
         "queries": list(queries),

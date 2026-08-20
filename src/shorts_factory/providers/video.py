@@ -5,15 +5,16 @@ the source hero image for a fixed duration) so the pipeline stays fully
 testable without real network calls or spend — same house pattern as every
 other provider here.
 
-FalVideoProvider animates a single, shared "hero" character image (see
-pipeline.py — generated once per video, not once per scene) via MiniMax
-Hailuo-02 image-to-video, the cheapest real video model on fal.ai as of
-2026-08-17 ($0.045/sec, confirmed live against fal.ai's docs). Reusing one
-hero image across every scene is deliberate: it's what makes the character
-consistent scene to scene, which independent per-scene image generation
-could never guarantee. Every call is pinned to Hailuo's 6-second minimum
-duration (the cheapest option) — assembly.py pads or trims the result to
-match each scene's actual scripted duration afterward.
+FalVideoProvider animates base images via image-to-video models on fal.ai
+(e.g., Kling 1.5 Pro or MiniMax Hailuo-02).
+The animation pipeline uses a hybrid design:
+  - Mascot/character scenes reuse a single shared "hero" character image
+    (generated once per video) to maintain visual consistency across scenes.
+  - Non-mascot scenes (e.g. ingredient_grid, process_action) generate a
+    per-scene base image.
+  - Each scene's base image is then animated via FalVideoProvider into an MP4 clip.
+  - Cost model: 1 hero image + N_non_mascot base images + N video clips.
+  - Assembly pads or trims each clip to match the scene's actual audio duration.
 """
 from __future__ import annotations
 
@@ -26,6 +27,40 @@ from ..cost_tracker import CostTracker
 from .fal import FalGateway, media_url
 
 HAILUO_CLIP_SECONDS = 6.0
+KLING_CLIP_SECONDS = 5.0
+LUMA_CLIP_SECONDS = 5.0
+
+
+def get_video_model_config(model: str) -> tuple[float, dict[str, Any]]:
+    """Returns (clip_duration_seconds, extra_arguments_dict) for a given video model."""
+    m = model.lower()
+    if "kling" in m:
+        return KLING_CLIP_SECONDS, {"duration": "5", "aspect_ratio": "9:16"}
+    if "luma" in m:
+        return LUMA_CLIP_SECONDS, {"aspect_ratio": "9:16"}
+    # Default to MiniMax / Hailuo
+    return HAILUO_CLIP_SECONDS, {"duration": "6", "resolution": "768P"}
+
+
+def extract_video_url(data: dict[str, Any]) -> str:
+    """Extracts video URL from Fal response across candidate key paths,
+    raising an informative error naming top-level keys and attempted paths if all fail."""
+    candidate_paths: list[tuple[str, ...]] = [
+        ("video", "url"),
+        ("video",),
+        ("output", "url"),
+    ]
+    failures: list[str] = []
+    for path in candidate_paths:
+        try:
+            return media_url(data, *path)
+        except Exception as err:
+            failures.append(f"path {path}: {err}")
+    top_keys = list(data.keys()) if isinstance(data, dict) else type(data).__name__
+    raise KeyError(
+        f"Could not extract video URL from fal response. Top-level keys: {top_keys}. "
+        f"Attempted paths: {'; '.join(failures)}"
+    )
 
 
 class VideoProvider(ABC):
@@ -75,7 +110,8 @@ class FalVideoProvider(VideoProvider):
             raise ValueError("Set VIDEO_COST_PER_SECOND_USD to a conservative positive estimate")
         self.gateway = gateway
         self.model = model.strip("/")
-        self.cost = cost_per_second_usd * HAILUO_CLIP_SECONDS
+        self.clip_seconds, self.model_args = get_video_model_config(self.model)
+        self.cost = cost_per_second_usd * self.clip_seconds
 
     def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
         operation = f"video.generate_scene_video[{scene_index}]"
@@ -85,40 +121,18 @@ class FalVideoProvider(VideoProvider):
         # 2026-08-17: the shared FalGateway.run() default of 180s (fine for
         # LLM/TTS/image calls) timed out on a real call before it finished rendering.
         prompt = scene["visual_prompt"]
-        if "kling" in self.model.lower():
-            arguments = {
-                "image_url": image_url,
-                "prompt": prompt,
-                "duration": "5",
-                "aspect_ratio": "9:16",
-            }
-        elif "luma" in self.model.lower():
-            arguments = {
-                "image_url": image_url,
-                "prompt": prompt,
-                "aspect_ratio": "9:16",
-            }
-        else:
-            # MiniMax / Hailuo default
-            arguments = {
-                "image_url": image_url,
-                "prompt": prompt,
-                "duration": "6",
-                "resolution": "768P",
-            }
+        arguments = {
+            "image_url": image_url,
+            "prompt": prompt,
+            **self.model_args,
+        }
 
         data = self.gateway.run(
             self.model,
             arguments,
             timeout=600,
         )
-        try:
-            video_url = media_url(data, "video", "url")
-        except Exception:
-            try:
-                video_url = media_url(data, "video")
-            except Exception:
-                video_url = media_url(data, "output", "url")
+        video_url = extract_video_url(data)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(self.gateway.download(video_url))
         cost_tracker.record(self.name, operation, self.cost, self.cost, is_stub=False)

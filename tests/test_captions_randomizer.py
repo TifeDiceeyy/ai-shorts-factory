@@ -72,3 +72,43 @@ def test_caption_overlay_png_returns_rgba_and_valid_box():
     assert overlay.mode == "RGBA"
     assert overlay.size == (FRAME_WIDTH, FRAME_HEIGHT)
     assert box.inside_safe_area() is True
+
+
+def test_long_captions_at_top_middle_bottom_stay_inside_box_and_safe_margins():
+    long_text = "THIS IS A VERY LONG SCRIPT CAPTION DESIGNED TO WRAP INTO MULTIPLE LINES AND TEST BOUNDING BOX SHIFTING ACCURACY"
+    for pos in ("top", "middle", "bottom"):
+        custom_style = CaptionStyle(
+            name=f"test_{pos}",
+            font_family="impact",
+            font_size=64,
+            text_color=(255, 255, 255, 255),
+            stroke_color=(0, 0, 0, 255),
+            stroke_width=6,
+            bg_color=(0, 0, 0, 180),
+            bg_radius=18,
+            casing="upper",
+            position=pos,
+        )
+        overlay, box = caption_overlay_png(long_text, style=custom_style)
+        assert box.inside_safe_area() is True
+        assert box.top >= SAFE_TOP
+        assert box.bottom <= FRAME_HEIGHT - SAFE_BOTTOM
+        assert box.left >= SAFE_SIDES
+        assert box.right <= FRAME_WIDTH - SAFE_SIDES
+
+        # Verify all rendered pixels (alpha > 0) are strictly inside the safe margins and bounded by box
+        bbox = overlay.getbbox()
+        assert bbox is not None
+        render_left, render_top, render_right, render_bottom = bbox
+
+        assert render_left >= SAFE_SIDES
+        assert render_right <= FRAME_WIDTH - SAFE_SIDES
+        assert render_top >= SAFE_TOP
+        assert render_bottom <= FRAME_HEIGHT - SAFE_BOTTOM + 1
+
+        assert render_left >= box.left - 2
+        assert render_right <= box.right + 2
+        assert render_top >= box.top - 2
+        assert render_bottom <= box.bottom + 2
+
+

@@ -93,3 +93,15 @@ def test_script_duration_outside_window_rejected():
     bad["scenes"][1]["duration"] = 1.0  # total way under 40s
     with pytest.raises(ValidationError, match="outside the"):
         validate_script_against_brief(bad, BRIEF)
+
+
+def test_script_props_nullable_and_mascot_id_validates():
+    script = _valid_script()
+    script["mascot_id"] = "mascot_4"
+    script["scenes"][0]["props"] = None
+    script["scenes"][1]["props"] = "wooden paddle"
+    script["scenes"][0]["scene_type"] = "mascot_reaction"
+    script["scenes"][0]["layout"] = "centered"
+    script["scenes"][0]["fx"] = "sparks"
+    validate_script_against_brief(script, BRIEF)  # must not raise
+

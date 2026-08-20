@@ -363,9 +363,9 @@ class FalLLMProvider(LLMProvider):
                 "max_tokens": 2500,
             },
         )
-        script = _json_object(data["output"])
         actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
         cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
+        script = _json_object(data["output"])
         return script
 
     def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
@@ -380,12 +380,12 @@ class FalLLMProvider(LLMProvider):
                 "max_tokens": 500,
             },
         )
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         proposal = _json_object(data["output"])
         required = {"safety_class", "reasoning", "queries", "keywords", "caution"}
         if not required.issubset(proposal):
             raise ValueError(f"malformed topic proposal from LLM, missing keys: {required - proposal.keys()}")
-        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
-        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         return proposal
 
     def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
@@ -400,6 +400,8 @@ class FalLLMProvider(LLMProvider):
                 "max_tokens": 1500,
             },
         )
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         payload = _json_object(data["output"])
         ideas = payload.get("ideas")
         if not isinstance(ideas, list) or not ideas:
@@ -410,8 +412,6 @@ class FalLLMProvider(LLMProvider):
                 raise ValueError(f"malformed idea from LLM, missing keys: {required - idea.keys()}")
             if not isinstance(idea["hooks"], list) or not idea["hooks"]:
                 raise ValueError("malformed idea from LLM: 'hooks' must be a non-empty list")
-        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
-        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         return ideas[:n]
 
 

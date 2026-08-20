@@ -52,6 +52,16 @@ def test_fal_llm_parses_json_and_records_real_response_cost():
     assert fal.client.calls[0][0] == "openrouter/router"
 
 
+def test_fal_llm_records_cost_even_if_json_is_malformed():
+    fal = gateway({"output": "NOT VALID JSON", "usage": {"cost": 0.017}})
+    tracker = CostTracker(1)
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    with pytest.raises(Exception):
+        provider.generate_script({"topic": "soap", "claims": []}, "English", "style", tracker)
+    # Even though json decoding failed, the money was spent and must be in the ledger!
+    assert tracker.total_spent_usd == 0.017
+
+
 def test_fal_llm_budget_refuses_before_gateway_call():
     fal = gateway({"output": "{}"})
     provider = FalLLMProvider(fal, "model", 0.25)
@@ -238,6 +248,27 @@ def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):
     assert args["aspect_ratio"] == "9:16"
     assert args["duration"] == "5"
     assert args["prompt"] == "dwarf mascot smiles and points staff up"
+    # Kling is 5s at $0.05/s = $0.25
+    assert provider.cost == pytest.approx(0.25)
+    assert tracker.total_spent_usd == pytest.approx(0.25)
+
+
+def test_fal_video_url_extraction_fallback_and_error(tmp_path):
+    hero_path = tmp_path / "hero.png"
+    hero_path.write_bytes(b"fake png bytes")
+    
+    # Matches third path: output.url
+    fal_fallback = gateway({"output": {"url": "https://example.test/fallback.mp4"}})
+    fal_fallback.download = lambda url: b"fallback bytes"
+    provider_fallback = FalVideoProvider(fal_fallback, "fal-ai/kling-video/v1.5/pro/image-to-video", 0.05)
+    out = provider_fallback.generate_scene_video({"visual_prompt": "x"}, hero_path, 0, tmp_path / "f.mp4", CostTracker(1))
+    assert out.read_bytes() == b"fallback bytes"
+
+    # Matches none -> raises KeyError with attempted paths
+    fal_bad = gateway({"unrecognized_key": "some_value"})
+    provider_bad = FalVideoProvider(fal_bad, "fal-ai/kling-video/v1.5/pro/image-to-video", 0.05)
+    with pytest.raises(KeyError, match="Attempted paths:"):
+        provider_bad.generate_scene_video({"visual_prompt": "x"}, hero_path, 0, tmp_path / "b.mp4", CostTracker(1))
 
 
 def test_fal_video_budget_refuses_before_gateway_call(tmp_path):

@@ -14,6 +14,8 @@ from typing import Any
 
 from PIL import Image, ImageStat
 
+from .media_probe import ffprobe_json
+
 EXPECTED_WIDTH = 1080
 EXPECTED_HEIGHT = 1920
 DURATION_TOLERANCE_S = 0.5
@@ -30,58 +32,6 @@ LOUDNESS_TOLERANCE_LU = 1.0
 MIN_STDDEV_FOR_TEXT = 15.0
 MIN_NEAR_WHITE_FRACTION = 0.01
 NEAR_WHITE_THRESHOLD = 200
-
-
-def ffprobe_json(mp4_path: Path) -> dict[str, Any]:
-    cmd = [
-        "ffprobe", "-v", "error",
-        "-print_format", "json",
-        "-show_format", "-show_streams",
-        str(mp4_path),
-    ]
-    if shutil.which("ffprobe"):
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            try:
-                return json.loads(result.stdout), " ".join(cmd), result.stdout
-            except Exception:
-                pass
-
-    # Fallback to ffmpeg -i parsing
-    ffmpeg_cmd = ["ffmpeg", "-i", str(mp4_path)]
-    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-    stderr = result.stderr
-    streams: list[dict[str, Any]] = []
-    for line in stderr.splitlines():
-        if "Video:" in line:
-            w_h = re.search(r"(\d{3,4})x(\d{3,4})", line)
-            width = int(w_h.group(1)) if w_h else 1080
-            height = int(w_h.group(2)) if w_h else 1920
-            streams.append({
-                "codec_type": "video",
-                "codec_name": "h264",
-                "width": width,
-                "height": height,
-            })
-        elif "Audio:" in line:
-            streams.append({
-                "codec_type": "audio",
-                "codec_name": "aac",
-            })
-    dur_m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", stderr)
-    dur = 0.0
-    if dur_m:
-        h, m, s = dur_m.groups()
-        dur = int(h) * 3600 + int(m) * 60 + float(s)
-
-    data = {
-        "streams": streams,
-        "format": {
-            "duration": str(dur),
-            "size": str(mp4_path.stat().st_size) if mp4_path.exists() else "0",
-        },
-    }
-    return data, " ".join(ffmpeg_cmd), json.dumps(data)
 
 
 def extract_frame(mp4_path: Path, at_seconds: float, out_png: Path) -> tuple[bool, str]:
