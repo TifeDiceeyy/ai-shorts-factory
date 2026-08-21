@@ -90,6 +90,35 @@ def build_scene_frame(
     return frame_path, box
 
 
+def _trim_edge_silence(path: Path) -> None:
+    """Trims leading/trailing near-silence from a narration clip in place,
+    leaving an 80ms buffer at each edge — NOT internal pauses (natural
+    speech prosody), only the dead air at the very start/end that each
+    independently-synthesized scene clip tends to carry. Concatenating N
+    scenes back-to-back without this stacks the trailing silence of scene i
+    against the leading silence of scene i+1 into one noticeably longer
+    pause at every cut, confirmed by measuring real ElevenLabs narration
+    (2026-08-21): a 7s clip had ~2s of near-silent tail past the last
+    detected speech, silencedetect only ever finding a single leading/
+    trailing gap wide enough to matter — internal pauses stayed much
+    shorter and are left untouched here (start_periods=1 only strips the
+    very first/last matching span, not every one throughout).
+    No-op for StubTTSProvider's output (a continuous sine tone, never dips
+    below the threshold), so this never touches deterministic test audio."""
+    tmp_path = path.with_suffix(".trimmed.wav")
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(path),
+        "-af",
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:start_silence=0.08,areverse,"
+        "silenceremove=start_periods=1:start_duration=0:start_threshold=-40dB:start_silence=0.08,areverse",
+        "-fflags", "+bitexact", "-flags:a", "+bitexact",
+        str(tmp_path),
+    ]
+    _run(cmd)
+    tmp_path.replace(path)
+
+
 def build_scene_audio(
     tts_provider: TTSProvider,
     scene: dict[str, Any],
@@ -99,7 +128,9 @@ def build_scene_audio(
 ) -> Path:
     audio_dir.mkdir(parents=True, exist_ok=True)
     out_path = audio_dir / f"scene_{index:02d}.wav"
-    return tts_provider.synthesize_scene(scene, index, out_path, cost_tracker)
+    result = tts_provider.synthesize_scene(scene, index, out_path, cost_tracker)
+    _trim_edge_silence(result)
+    return result
 
 
 def build_scene_video_segment(frame_path: Path, duration: float, index: int, segments_dir: Path) -> Path:

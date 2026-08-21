@@ -27,6 +27,28 @@ def test_caption_styles_catalog_is_rich_and_valid():
         assert len(st.text_color) == 4
 
 
+def test_no_caption_style_has_a_background_card():
+    """Regression test: 4 catalog styles (highlighter_yellow_pill,
+    dark_glass_badge, royal_blue_pill, danger_red_badge) used to draw a
+    solid/translucent card behind the text. User feedback: captions should
+    never have a background — converted to stroke-only text (same color
+    identity, no bg_color) so every style in the catalog renders the same
+    way now: bold outlined text directly over the footage."""
+    for name, st in CAPTION_STYLES.items():
+        assert st.bg_color is None, f"{name} still has a background card"
+
+
+def test_every_caption_style_overlays_the_middle_of_frame():
+    """Regression test: every style defaulted to position="top", placing
+    captions in empty space above the mascot instead of over it. User
+    feedback: captions should overlay the character/mascot — default
+    changed to "middle" (mascots are centered vertically per
+    mascots.build_scene_prompt, so middle-positioned text now sits over
+    the character instead of floating above it)."""
+    for name, st in CAPTION_STYLES.items():
+        assert st.position == "middle", f"{name} is not positioned over the character"
+
+
 def test_caption_style_randomizer_produces_varied_styles():
     styles = [get_random_caption_style() for _ in range(20)]
     names = {s.name for s in styles}

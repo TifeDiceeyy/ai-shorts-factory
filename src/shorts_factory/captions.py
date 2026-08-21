@@ -127,7 +127,7 @@ class CaptionStyle:
     bg_color: tuple[int, int, int, int] | None = None          # Card / Pill background
     bg_radius: int = 18
     casing: str = "upper"                                      # "upper", "title", "original"
-    position: str = "top"                                      # "top", "middle", "bottom"
+    position: str = "middle"                                    # "top", "middle", "bottom"
     shadow: bool = True
     shadow_offset: tuple[int, int] = (4, 4)
     shadow_color: tuple[int, int, int, int] = (0, 0, 0, 180)
@@ -145,7 +145,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "electric_neon_yellow": CaptionStyle(
@@ -156,7 +156,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "cyber_cyan_ice": CaptionStyle(
@@ -167,7 +167,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 10, 25, 255),
         stroke_width=7,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "hot_magenta_fire": CaptionStyle(
@@ -178,7 +178,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "toxic_lime_surge": CaptionStyle(
@@ -189,7 +189,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 20, 10, 255),
         stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "pure_white_punch": CaptionStyle(
@@ -200,7 +200,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=9,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "crimson_alert": CaptionStyle(
@@ -211,55 +211,51 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "highlighter_yellow_pill": CaptionStyle(
         name="highlighter_yellow_pill",
         font_family="heavy_sans",
-        font_size=60,
-        text_color=(10, 10, 10, 255),       # Dark text
-        stroke_width=0,
-        bg_color=(255, 230, 0, 245),        # Bright Yellow Pill
-        bg_radius=18,
+        font_size=64,
+        text_color=(255, 230, 0, 255),      # Bright Yellow text (was a pill background)
+        stroke_color=(0, 0, 0, 255),
+        stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "dark_glass_badge": CaptionStyle(
         name="dark_glass_badge",
         font_family="modern_clean",
-        font_size=58,
-        text_color=(255, 255, 255, 255),    # Crisp White
-        stroke_width=0,
-        bg_color=(15, 18, 25, 215),         # Translucent Charcoal Glass
-        bg_radius=22,
+        font_size=62,
+        text_color=(255, 255, 255, 255),    # Crisp White (was a glass-panel background)
+        stroke_color=(0, 0, 0, 255),
+        stroke_width=7,
         casing="title",
-        position="top",
-        shadow=False,
+        position="middle",
+        shadow=True,
     ),
     "royal_blue_pill": CaptionStyle(
         name="royal_blue_pill",
         font_family="heavy_sans",
-        font_size=60,
-        text_color=(255, 255, 255, 255),    # White text
-        stroke_width=0,
-        bg_color=(0, 102, 255, 240),        # Royal Blue Pill
-        bg_radius=18,
+        font_size=64,
+        text_color=(60, 140, 255, 255),     # Royal Blue text (was a pill background)
+        stroke_color=(0, 0, 0, 255),
+        stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "danger_red_badge": CaptionStyle(
         name="danger_red_badge",
         font_family="impact",
-        font_size=62,
-        text_color=(255, 255, 255, 255),    # Pure White
-        stroke_width=0,
-        bg_color=(220, 20, 20, 245),        # Crimson Red Badge
-        bg_radius=16,
+        font_size=64,
+        text_color=(255, 45, 45, 255),      # Crimson Red text (was a badge background)
+        stroke_color=(0, 0, 0, 255),
+        stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
     ),
     "dual_tone_fire": CaptionStyle(
@@ -271,7 +267,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
         dual_tone=True,
     ),
@@ -284,7 +280,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="top",
+        position="middle",
         shadow=True,
         dual_tone=True,
     ),
