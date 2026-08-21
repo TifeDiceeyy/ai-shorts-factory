@@ -75,15 +75,15 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     video_calls = []
     class FakeVideoProvider(VideoProvider):
         name = "fake_vid"
-        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
-            video_calls.append((scene_index, hero_image_path.name))
+        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
+            video_calls.append((scene_index, hero_image_path.name, motion_prompt))
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(b"fake_video_bytes")
             return out_path
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *args, **kwargs: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *args, **kwargs: FakeVideoProvider())
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
         boxes = []
         for i, s in enumerate(scenes):
             clip_source(i, s)
@@ -153,8 +153,21 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     # split-canvas) actually vary per scene instead of every mascot scene
     # animating one identical frozen pose.
     assert len(video_calls) == len(scenes)
-    for s_idx, base_image_name in video_calls:
+    for s_idx, base_image_name, _motion_prompt in video_calls:
         assert base_image_name == f"raw_{s_idx:02d}.png"
+
+    # 4. Regression test: the motion prompt sent to the video model must be
+    # the SAME prompt the base image was actually built from (see
+    # pipeline.get_scene_image_prompt), not the scene's separate raw
+    # visual_prompt field — animating with mismatched text risks describing
+    # a different shot than what's actually in the frame being animated.
+    from shorts_factory.mascots import get_mascot
+    from shorts_factory.pipeline import get_scene_image_prompt
+    mascot = get_mascot("mascot_4")
+    for s_idx, _base_image_name, motion_prompt in video_calls:
+        expected = get_scene_image_prompt(scenes[s_idx], mascot)
+        assert motion_prompt == expected
+        assert motion_prompt != scenes[s_idx].get("visual_prompt")
 
 
 def test_hero_cache_key_changes_with_model_or_style_or_prompt():
@@ -209,7 +222,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     class FakeVideoProvider(VideoProvider):
         name = "fake_vid"
 
-        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(b"fake_video_bytes")
             return out_path
@@ -217,7 +230,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *a, **k: FakeVideoProvider())
 
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
         for i, s in enumerate(scenes):
             clip_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
@@ -300,7 +313,7 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
 
-    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None):
+    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
         for i, s in enumerate(scenes):
             frame_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
@@ -390,7 +403,7 @@ def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
     class FakeVideoProvider(VideoProvider):
         name = "fake_vid"
 
-        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
             out_path.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 [

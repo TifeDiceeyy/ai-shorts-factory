@@ -7,6 +7,8 @@ from shorts_factory.captions import (
     STYLE_NAMES,
     draw_caption,
     caption_overlay_png,
+    caution_badge_overlay_png,
+    draw_caution_badge,
     get_random_caption_style,
     get_random_caption_style_name,
     resolve_caption_style,
@@ -151,3 +153,40 @@ def test_long_captions_at_top_middle_bottom_stay_inside_box_and_safe_margins():
         assert render_bottom <= box.bottom + 2
 
 
+
+
+def test_draw_caution_badge_adds_to_the_image_not_replaces_it():
+    """Regression test: the caution badge must be an ADDITIONAL element
+    composited on top of the existing frame — it must never be used as a
+    substitute for a scene's real caption (that was the actual bug:
+    pipeline.py used to overwrite scenes[-1]["caption"] with a fixed
+    warning string, silently deleting every yellow topic's real payoff
+    line)."""
+    base = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
+    real_caption_composited, _box = draw_caption(base, "THE REAL PAYOFF LINE", style="comic_punch_orange")
+
+    badged = draw_caution_badge(real_caption_composited, "CAUTION: educational overview only.")
+
+    # The real caption's own rendered pixels must still be present — the
+    # badge must not have overwritten/erased the frame's existing content,
+    # just added to it. Sample the "middle" position where the real
+    # caption card was drawn: pixel data must differ from the plain white
+    # background, proving the caption text is still there underneath.
+    diff_found = any(
+        badged.getpixel((x, FRAME_HEIGHT // 2)) != (255, 255, 255)
+        for x in range(0, FRAME_WIDTH, 20)
+    )
+    assert diff_found, "the real caption's content is gone after adding the caution badge"
+
+
+def test_caution_badge_sits_at_the_bottom_not_over_the_main_middle_caption():
+    """The badge must be positioned opposite the main caption (bottom vs
+    middle) so the two never visually collide."""
+    overlay = caution_badge_overlay_png("CAUTION: educational overview only.")
+    bbox = overlay.getbbox()
+    assert bbox is not None
+    _left, top, _right, bottom = bbox
+    # Must land in the bottom safe region, well below the vertical middle
+    # of the frame where the main caption is drawn.
+    assert top > FRAME_HEIGHT // 2
+    assert bottom <= FRAME_HEIGHT - SAFE_BOTTOM + 1

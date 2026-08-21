@@ -146,3 +146,48 @@ def test_caption_style_persists_and_regenerate_reuses_it(tmp_path):
     regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
     assert regen.script["caption_style"] == original_style
 
+
+
+def test_yellow_topic_last_scenes_real_caption_survives(tmp_path):
+    """Regression test: pipeline.py used to overwrite
+    script["scenes"][-1]["caption"] with a fixed caution string for every
+    yellow-classified topic, silently deleting the actual payoff line the
+    LLM wrote. caution_text is now persisted separately and composited as
+    an additional badge (see captions.draw_caution_badge), never assigned
+    over the real caption."""
+    import json
+
+    full = run_pipeline("charcoal", artifacts_root=tmp_path)  # charcoal is yellow
+    assert full.safety_class == "yellow"
+
+    script_data = json.loads((tmp_path / "charcoal" / "charcoal.script.json").read_text(encoding="utf-8"))
+    last_caption = script_data["scenes"][-1]["caption"]
+    assert last_caption != "CAUTION: Educational overview — follow current expert safety guidance."
+    assert script_data["caution_text"] == "CAUTION: Educational overview — follow current expert safety guidance."
+
+    # Regenerating the last scene must still not clobber its real caption.
+    regen = regenerate_scene(
+        "charcoal", len(script_data["scenes"]) - 1,
+        new_narration="A brand new payoff line about charcoal.",
+        artifacts_root=tmp_path,
+    )
+    assert regen.script["scenes"][-1]["caption"] != "CAUTION: Educational overview — follow current expert safety guidance."
+    assert "brand new payoff" in regen.script["scenes"][-1]["narration"].lower()
+
+
+def test_regenerate_scene_resets_approval_to_pending(tmp_path):
+    """Regression test: the final .mp4 changes every time a scene is
+    regenerated, but review status (approved/scheduled) used to survive
+    untouched — meaning a video could ship to YouTube reflecting an old,
+    never-re-reviewed approval decision made about DIFFERENT content
+    (confirmed real 2026-08-21 review)."""
+    from shorts_factory.dashboard import review_state
+
+    full = run_pipeline("charcoal", artifacts_root=tmp_path)
+    artifacts_dir = tmp_path / "charcoal"
+    review_state.approve(artifacts_dir, notes="looked good")
+    assert review_state.load(artifacts_dir).status == "approved"
+
+    regenerate_scene("charcoal", 0, new_narration="Something different now.", artifacts_root=tmp_path)
+
+    assert review_state.load(artifacts_dir).status == "pending"

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import load_settings
 from .dashboard import review_state
-from .daily_publish import DailyPublishLedger
+from .daily_publish import DailyPublishLedger, DailyPublishLimitReached
 from .experiment_ledger import record_publish
 from .providers.youtube import DisclosureNotConfirmed, YouTubeNotConfigured, get_youtube_provider
 
@@ -28,6 +28,20 @@ class NotApproved(Exception):
         )
 
 
+class VerificationFailed(Exception):
+    """A human can click "approve" independently of whether verify.py's
+    checks actually passed (e.g. approval happened before verification ran,
+    or the report is stale/missing) — approved status alone was letting a
+    failed or unverified render ship to YouTube (confirmed real 2026-08-21
+    review). This is a second, independent gate: both approved AND
+    overall_pass=True are required, not just one."""
+    def __init__(self, topic: str, reason: str):
+        super().__init__(
+            f"refusing to publish {topic!r}: verification did not pass ({reason}). "
+            "Re-run the pipeline or regenerate the failing scene(s) first."
+        )
+
+
 def publish_to_youtube(topic: str, privacy_status: str = "private") -> dict:
     artifacts_dir = REPO_ROOT / "artifacts" / topic
     if not artifacts_dir.exists():
@@ -36,6 +50,13 @@ def publish_to_youtube(topic: str, privacy_status: str = "private") -> dict:
     state = review_state.load(artifacts_dir)
     if state.status != "approved":
         raise NotApproved(topic, state.status)
+
+    verification_path = artifacts_dir / "verification-report.json"
+    if not verification_path.exists():
+        raise VerificationFailed(topic, "no verification-report.json found")
+    verification = json.loads(verification_path.read_text(encoding="utf-8"))
+    if not verification.get("overall_pass"):
+        raise VerificationFailed(topic, "overall_pass is not true in verification-report.json")
 
     settings = load_settings()
     if not settings.youtube_configured:
@@ -109,7 +130,10 @@ def main(argv: list[str]) -> int:
     topic = argv[1]
     try:
         result = publish_to_youtube(topic)
-    except (NotApproved, YouTubeNotConfigured, DisclosureNotConfirmed, FileNotFoundError) as e:
+    except (
+        NotApproved, VerificationFailed, YouTubeNotConfigured,
+        DisclosureNotConfirmed, FileNotFoundError, DailyPublishLimitReached,
+    ) as e:
         print(f"REFUSED: {e}", file=sys.stderr)
         return 1
     print(f"uploaded: video_id={result['video_id']} privacy={result['privacy_status']} "

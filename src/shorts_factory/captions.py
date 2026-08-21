@@ -540,3 +540,34 @@ def caption_overlay_png(
     """Same caption card, as a standalone transparent RGBA image — for
     compositing onto an animated video clip via ffmpeg's overlay filter."""
     return _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=style)
+
+
+CAUTION_BADGE_STYLE = CaptionStyle(
+    name="caution_badge",
+    font_family="modern_clean",
+    font_size=34,
+    text_color=(255, 255, 255, 255),
+    stroke_color=(0, 0, 0, 255),
+    stroke_width=5,
+    casing="original",
+    position="bottom",
+    shadow=True,
+)
+
+
+def draw_caution_badge(base: Image.Image, text: str) -> Image.Image:
+    """Composites a small safety-disclaimer line at the BOTTOM of the frame,
+    ON TOP OF whatever else is already drawn (the scene's own real caption
+    included) — this must never replace a scene's actual caption. Small,
+    stroke-only (no background card, same as every other style), positioned
+    opposite the main "middle" caption so the two never collide."""
+    img = base.convert("RGBA")
+    overlay, _box = _build_caption_overlay(img.size, text, style=CAUTION_BADGE_STYLE)
+    return Image.alpha_composite(img, overlay).convert("RGB")
+
+
+def caution_badge_overlay_png(text: str) -> Image.Image:
+    """Same as draw_caution_badge, as a standalone transparent RGBA layer —
+    for compositing onto an animated video clip via ffmpeg's overlay filter."""
+    overlay, _box = _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=CAUTION_BADGE_STYLE)
+    return overlay

@@ -326,6 +326,34 @@ def test_fal_video_uploads_hero_image_and_animates_it(tmp_path):
     assert tracker.total_spent_usd == pytest.approx(0.27)
 
 
+def test_fal_video_uses_motion_prompt_not_raw_visual_prompt(tmp_path):
+    """Regression test: FalVideoProvider used to always animate with the
+    scene's raw visual_prompt field, even though the actual base image was
+    built from a different, reconstructed prompt
+    (pipeline.get_scene_image_prompt/mascot.build_scene_prompt discards
+    visual_prompt whenever any structured field is present). Animating with
+    text describing a different shot than what's in the frame risked Kling/
+    Hailuo producing motion inconsistent with the actual image. The caller
+    now passes the SAME prompt the image was built from as motion_prompt,
+    which must take priority."""
+    hero_path = tmp_path / "hero.png"
+    hero_path.write_bytes(b"fake png bytes")
+    fal = gateway({"video": {"url": "https://example.test/clip.mp4"}})
+    fal.download = lambda url: b"fake mp4 bytes"
+    provider = FalVideoProvider(fal, "fal-ai/minimax/hailuo-02/standard/image-to-video", 0.045)
+    tracker = CostTracker(1)
+
+    provider.generate_scene_video(
+        {"visual_prompt": "a completely different, stale description"},
+        hero_path, 0, tmp_path / "clip.mp4", tracker,
+        motion_prompt="small mascot in the bottom-left corner pointing up at a floating soap bar",
+    )
+
+    args = fal.client.calls[0][1]["arguments"]
+    assert args["prompt"] == "small mascot in the bottom-left corner pointing up at a floating soap bar"
+    assert "stale description" not in args["prompt"]
+
+
 def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):
     hero_path = tmp_path / "hero.png"
     hero_path.write_bytes(b"fake png bytes")

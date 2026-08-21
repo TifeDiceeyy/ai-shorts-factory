@@ -429,6 +429,20 @@ def build_router(controller: TelegramController) -> Router:
             await message.answer(f"Refused: {result.budget_approval_block_reason}")
         elif result.blocked:
             await message.answer(f"Blocked: {result.block_reason}")
+        elif result.budget_exceeded:
+            # result.verification stays None in this case (the run
+            # returned early, before verification could run) — this branch
+            # used to fall through to the "Generated ..." success message
+            # below regardless, telling the operator a run had succeeded
+            # when it had actually failed partway through on the budget cap
+            # (confirmed real 2026-08-21 review).
+            lines = [f"Budget exceeded generating {topic!r}: {result.budget_exceeded_reason}"]
+            if result.cost_report:
+                lines.append(
+                    f"Cost: ${result.cost_report['total_spent_usd']:.4f} / "
+                    f"${result.cost_report['budget_cap_usd']:.2f} cap"
+                )
+            await message.answer("\n".join(lines))
         else:
             lines = [f"Generated {topic!r}."]
             if result.cost_report:

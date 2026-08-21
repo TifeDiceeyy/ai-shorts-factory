@@ -17,6 +17,7 @@ from . import assembly, verify
 from .captions import get_random_caption_style_name
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import BudgetExceeded, CostTracker
+from .dashboard import review_state
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
@@ -261,10 +262,15 @@ def run_pipeline(
             f"Scene Adaptive Direction: {mascot.scene_role_template}"
         )
         script = llm.generate_script(brief, settings.output_language, effective_visual_style, cost_tracker)
-        warning = caution_caption(topic)
-        if warning and script.get("scenes"):
-            script["scenes"][-1]["caption"] = warning
         script["mascot_id"] = mascot.id
+        # Persisted (not baked into any scene's caption — see
+        # assembly.assemble()'s caution_text param) so regenerate_scene can
+        # re-apply the same badge if the last scene gets regenerated.
+        # Overwriting scenes[-1]["caption"] with this used to silently
+        # replace every yellow topic's real payoff line (confirmed for real
+        # 2026-08-21) — the badge is composited on top of the real caption
+        # instead, never instead of it.
+        script["caution_text"] = caution_caption(topic)
         # One caption style per video, chosen once and persisted — not
         # re-randomized per scene/per render stage. regenerate_scene reads
         # this same value back so a single-scene regeneration never mismatches
@@ -313,6 +319,7 @@ def run_pipeline(
             workdir=placeholder_dir,
             out_mp4=placeholder_mp4,
             caption_style=script["caption_style"],
+            caution_text=script["caution_text"],
         )
         assembly.write_captions_meta(
             script["scenes"], actual_durations, placeholder_result["caption_boxes"],
@@ -380,7 +387,14 @@ def run_pipeline(
                     image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
                 )
                 tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
-                return video_provider.generate_scene_video(scene, base_image_path, i, tmp_clip_path, cost_tracker)
+                # Same prompt the base image was actually built from — not
+                # scene["visual_prompt"] (see providers/video.py's docstring
+                # on why animating with that raw, separate field risks
+                # describing a different shot than what's in the frame).
+                motion_prompt = get_scene_image_prompt(scene, mascot)
+                return video_provider.generate_scene_video(
+                    scene, base_image_path, i, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+                )
 
             generated_result = assembly.assemble_animated(
                 scenes=script["scenes"],
@@ -389,6 +403,7 @@ def run_pipeline(
                 workdir=generated_dir,
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
+                caution_text=script["caution_text"],
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
@@ -409,6 +424,7 @@ def run_pipeline(
                 workdir=generated_dir,
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
+                caution_text=script["caution_text"],
             )
         captions_meta = artifacts_dir / "captions.meta.json"
         assembly.write_captions_meta(
@@ -501,6 +517,12 @@ def regenerate_scene(
     # from before this field existed) falls back to draw_caption's own
     # per-caption-text default, same as it always did.
     caption_style = script.get("caption_style")
+    # Same caution badge the original full run would have applied — only
+    # relevant if the scene being regenerated is the LAST one (see
+    # assembly.assemble()'s caution_text docstring: composited on top of
+    # the real caption, never instead of it).
+    caution_text = script.get("caution_text")
+    is_last_scene = scene_index == len(scenes) - 1
 
     if new_narration:
         scenes[scene_index]["narration"] = new_narration
@@ -577,8 +599,13 @@ def regenerate_scene(
             )
 
             tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
-            clip_path = video_provider.generate_scene_video(scene, base_image_path, scene_index, tmp_clip_path, cost_tracker)
+            motion_prompt = get_scene_image_prompt(scene, mascot)
+            clip_path = video_provider.generate_scene_video(
+                scene, base_image_path, scene_index, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+            )
             overlay_png, new_box = assembly.caption_overlay_png(scene["caption"], style=caption_style)
+            if caution_text and is_last_scene:
+                overlay_png = Image.alpha_composite(overlay_png, assembly.caution_badge_overlay_png(caution_text))
             new_seg_path = assembly.build_scene_video_segment_from_clip(
                 clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
             )
@@ -593,6 +620,9 @@ def regenerate_scene(
             new_frame_path, new_box = assembly.build_scene_frame(
                 scene, scene_index, base_image, generated_dir / "frames", caption_style=caption_style
             )
+            if caution_text and is_last_scene:
+                badged = assembly.draw_caution_badge(Image.open(new_frame_path), caution_text)
+                badged.save(new_frame_path)
             new_seg_path = assembly.build_scene_video_segment(new_frame_path, new_duration, scene_index, generated_dir / "segments")
 
         prior_captions_meta = json.loads((artifacts_dir / "captions.meta.json").read_text(encoding="utf-8"))["scenes"]
@@ -636,6 +666,14 @@ def regenerate_scene(
         (artifacts_dir / "verification-report.json").write_text(json.dumps(verification, indent=2), encoding="utf-8")
         result.verification = verification
         result.artifacts_dir = artifacts_dir
+        # The final .mp4 just changed — any prior approval/schedule was for
+        # the OLD content, not this one. Reset here (not just in the
+        # dashboard route) so it can't be bypassed by calling regenerate_scene
+        # directly (same defensive pattern as review_state.schedule()'s own
+        # approved-only guard) — confirmed real 2026-08-21 review: a
+        # regenerated scene silently kept its prior "approved"/"scheduled"
+        # status, so a fix could ship without a fresh human look.
+        review_state.reset_to_pending(artifacts_dir, notes=f"scene {scene_index} regenerated — needs re-review")
         return result
     except BudgetExceeded as e:
         cost_report = cost_tracker.write_report(cost_report_path)
@@ -660,6 +698,18 @@ def main(argv: list[str]) -> int:
 
     if result.blocked:
         print(f"BLOCKED: {result.block_reason}")
+        return 1
+
+    if result.budget_exceeded:
+        # result.verification stays None when this happens (the run
+        # returned early, before verification could run) — the old code
+        # fell straight through the `if result.verification:` block below
+        # to the final `return 0`, reporting SUCCESS for a run that had
+        # actually failed partway through on the budget cap (confirmed
+        # real 2026-08-21 review).
+        print(f"BUDGET EXCEEDED: {result.budget_exceeded_reason}", file=sys.stderr)
+        if result.cost_report:
+            print(f"cost: ${result.cost_report['total_spent_usd']:.4f} / ${result.cost_report['budget_cap_usd']:.2f} cap")
         return 1
 
     print(f"topic={result.topic} safety_class={result.safety_class}")

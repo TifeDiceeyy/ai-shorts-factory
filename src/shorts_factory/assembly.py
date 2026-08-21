@@ -18,7 +18,15 @@ from typing import Any, Callable
 
 from PIL import Image
 
-from .captions import FRAME_HEIGHT, FRAME_WIDTH, CaptionBox, caption_overlay_png, draw_caption
+from .captions import (
+    FRAME_HEIGHT,
+    FRAME_WIDTH,
+    CaptionBox,
+    caption_overlay_png,
+    caution_badge_overlay_png,
+    draw_caption,
+    draw_caution_badge,
+)
 from .cost_tracker import CostTracker
 from .media_probe import probe_duration
 from .providers.tts import TTSProvider
@@ -440,6 +448,7 @@ def assemble(
     workdir: Path,
     out_mp4: Path,
     caption_style: str | None = None,
+    caution_text: str | None = None,
 ) -> dict[str, Any]:
     """Runs the full assembly for one stage (placeholder or generated-image).
     frame_source(index, scene) -> a base PIL Image (pre-caption) for that scene.
@@ -449,6 +458,11 @@ def assemble(
     (the MEASURED actual audio length), never scene["duration"] (the script's
     nominal estimate) — this is what keeps video/audio in sync once a real,
     variable-length TTS provider replaces the stub.
+    caution_text, if given, is composited as a small bottom-of-frame badge
+    onto the LAST scene ONLY, on top of that scene's real caption — it must
+    never replace a scene's own caption (confirmed for real 2026-08-21: every
+    yellow-topic video was silently ending on a fixed caution string instead
+    of its actual payoff line).
     Returns a dict of intermediate paths + caption boxes, useful for verification.
     """
     frames_dir = workdir / "frames"
@@ -465,6 +479,9 @@ def assemble(
     for i, scene in enumerate(scenes):
         base_image = frame_source(i, scene)
         frame_path, box = build_scene_frame(scene, i, base_image, frames_dir, caption_style=caption_style)
+        if caution_text and i == len(scenes) - 1:
+            badged = draw_caution_badge(Image.open(frame_path), caution_text)
+            badged.save(frame_path)
         frame_paths.append(frame_path)
         caption_boxes.append(box)
 
@@ -486,12 +503,15 @@ def assemble_animated(
     workdir: Path,
     out_mp4: Path,
     caption_style: str | None = None,
+    caution_text: str | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
     a raw, uncaptioned, arbitrary-duration animated clip path for that scene
     (see providers/video.py). Captioning and duration-fitting happen here —
     same division of responsibility as assemble()'s frame_source, the caller
-    only supplies the per-scene visual content."""
+    only supplies the per-scene visual content.
+    caution_text: see assemble()'s docstring — composited onto the LAST
+    scene only, on top of (never instead of) its real caption."""
     segments_dir = workdir / "segments"
     workdir.mkdir(parents=True, exist_ok=True)
 
@@ -504,6 +524,9 @@ def assemble_animated(
     for i, scene in enumerate(scenes):
         clip_path = clip_source(i, scene)
         overlay, box = caption_overlay_png(scene["caption"], style=caption_style)
+        if caution_text and i == len(scenes) - 1:
+            badge = caution_badge_overlay_png(caution_text)
+            overlay = Image.alpha_composite(overlay, badge)
         caption_boxes.append(box)
 
         seg_path = build_scene_video_segment_from_clip(clip_path, audio[i].duration, overlay, i, segments_dir)

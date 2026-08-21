@@ -12,6 +12,18 @@ python3 -m venv .venv
 cp .env.example .env
 ```
 
+On Windows (PowerShell):
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+copy .env.example .env
+```
+
+`ffmpeg`/`ffprobe` are provided via the `imageio_ffmpeg` package (pinned in
+`requirements.txt`) and put on `PATH` automatically at import time — no
+separate ffmpeg install is required on either OS.
+
 Keep `.env`, the YouTube OAuth files, and `data/private/` out of Git. The book
 index is private research material and its chunks are never copied into a
 script or shown in the dashboard.
@@ -44,6 +56,17 @@ PYTHONPATH=src .venv/bin/python -m shorts_factory.publish soap
 ./analytics.sh          # fetch summary metrics and retention curves
 ```
 
+Windows equivalents (`.ps1` wrappers, same arguments):
+
+```powershell
+.\retrieve.ps1 soap
+.\run.ps1 soap
+.\dashboard.ps1
+.\telegram.ps1
+$env:PYTHONPATH="src"; .venv\Scripts\python -m shorts_factory.publish soap
+.\analytics.ps1
+```
+
 Publishing requires `approved` review state, uploads privately, sets and then
 reads back YouTube's synthetic-media disclosure, and permits only one successful
 upload per UTC day. A failed upload is recorded and can be retried. Uploads are
@@ -51,7 +74,9 @@ added to the experiment ledger automatically.
 
 Telegram runs on aiogram 3 and requires `TELEGRAM_BOT_TOKEN` and a comma-separated numeric
 `TELEGRAM_ALLOWED_USER_IDS` allowlist. It supports `/status`, `/video`,
-`/approve`, `/reject`, and explicit `/publish`. It has no generation command.
+`/approve`, `/reject`, and explicit `/publish` for review, plus `/plan` — a
+guided flow that picks or proposes a topic, chooses a mascot, generates ideas,
+and runs the full generation pipeline from inside the chat.
 
 ## Pilot topics
 

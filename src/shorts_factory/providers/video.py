@@ -81,6 +81,7 @@ class VideoProvider(ABC):
         scene_index: int,
         out_path: Path,
         cost_tracker: CostTracker,
+        motion_prompt: str = "",
     ) -> Path:
         ...
 
@@ -88,7 +89,7 @@ class VideoProvider(ABC):
 class StubVideoProvider(VideoProvider):
     name = "stub"
 
-    def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+    def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
         operation = f"video.generate_scene_video[{scene_index}]"
         cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,14 +121,24 @@ class FalVideoProvider(VideoProvider):
         self.clip_seconds, self.model_args = get_video_model_config(self.model)
         self.cost = cost_per_second_usd * self.clip_seconds
 
-    def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+    def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
         operation = f"video.generate_scene_video[{scene_index}]"
         cost_tracker.check_budget(operation, self.cost)
         image_url = self.gateway.upload(hero_image_path)
         # Video generation routinely takes several minutes — confirmed live
         # 2026-08-17: the shared FalGateway.run() default of 180s (fine for
         # LLM/TTS/image calls) timed out on a real call before it finished rendering.
-        prompt = scene["visual_prompt"]
+        # motion_prompt must describe the SAME shot the base image actually
+        # shows — the caller builds it from the identical
+        # get_scene_image_prompt()/mascot.build_scene_prompt() call used for
+        # the image itself. scene["visual_prompt"] (the LLM's own, separate
+        # free-text field) is NOT used here: pipeline.get_scene_image_prompt()
+        # already discards it in favor of the reconstructed mascot prompt for
+        # any scene with structured fields, so animating with the raw
+        # visual_prompt could describe a different pose/composition/layout
+        # than what's actually in the frame being animated (confirmed as a
+        # real mismatch risk in review 2026-08-21).
+        prompt = motion_prompt or scene["visual_prompt"]
         arguments = {
             "image_url": image_url,
             "prompt": prompt,
