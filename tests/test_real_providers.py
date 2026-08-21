@@ -156,6 +156,53 @@ def test_fal_image_nano_banana_uses_9_16_aspect_ratio(tmp_path):
     assert "3D sticker on pure white" in args["prompt"]
 
 
+def test_fal_image_with_reference_dispatches_to_nano_banana_edit_endpoint(tmp_path):
+    """Mascot-type scenes must be generated FROM the hero image (image-to-
+    image editing), not pure text-to-image, so the character stays
+    recognizable while pose/composition can still vary per scene — see
+    pipeline._scene_base_image_path. Confirmed live against fal.ai's docs
+    (2026-08-21): fal-ai/nano-banana/edit takes required `prompt` +
+    `image_urls` (list of reference image URLs)."""
+    small_png = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(small_png, format="PNG")
+    fal = gateway({"images": [{"url": "https://example.test/image.png"}]})
+    fal.download = lambda url: small_png.getvalue()
+    provider = FalImageProvider(fal, "fal-ai/nano-banana", 0.04)
+
+    reference_path = tmp_path / "hero_mascot_4.png"
+    Image.new("RGB", (4, 4)).save(reference_path)
+
+    provider.generate_scene_image(
+        {"visual_prompt": "Mascot pointing at a beaker"}, 0, tmp_path / "out.png", CostTracker(1),
+        reference_image_path=reference_path,
+    )
+
+    endpoint, kwargs = fal.client.calls[0]
+    assert endpoint == "fal-ai/nano-banana/edit"
+    assert kwargs["arguments"]["image_urls"] == [f"https://fake.fal.media/uploaded/{reference_path.name}"]
+    assert reference_path in fal.client.uploaded
+
+
+def test_fal_image_without_reference_uses_base_endpoint_not_edit(tmp_path):
+    """ingredient_grid/process_action scenes have no character reference —
+    must stay on the plain text-to-image endpoint, not silently switch to
+    /edit with an empty/missing image_urls."""
+    small_png = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(small_png, format="PNG")
+    fal = gateway({"images": [{"url": "https://example.test/image.png"}]})
+    fal.download = lambda url: small_png.getvalue()
+    provider = FalImageProvider(fal, "fal-ai/nano-banana", 0.04)
+
+    provider.generate_scene_image(
+        {"visual_prompt": "Grid of raw ingredients"}, 0, tmp_path / "out.png", CostTracker(1)
+    )
+
+    endpoint, kwargs = fal.client.calls[0]
+    assert endpoint == "fal-ai/nano-banana"
+    assert "image_urls" not in kwargs["arguments"]
+    assert fal.client.uploaded == []
+
+
 def test_fal_llm_script_prompt_carries_the_chosen_idea():
     """A human's /plan idea pick must actually steer the real LLM's script,
     not just get logged — the prompt sent to fal.ai must say so."""

@@ -79,6 +79,48 @@ def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, c
     return hero_path
 
 
+def _scene_base_image_path(
+    image_provider,
+    mascot: Mascot,
+    hero_path: Path,
+    scene: dict[str, Any],
+    scene_index: int,
+    generated_dir: Path,
+    cost_tracker: CostTracker,
+) -> Path:
+    """Generates this scene's base image, one call per scene, every scene.
+
+    ingredient_grid/process_action scenes render with no character at all —
+    build_scene_prompt() omits the mascot from these entirely. Every other
+    scene_type IS a mascot scene: it also renders fresh, per-scene (so pose,
+    composition, and layout can genuinely vary — small-and-pointing,
+    big-and-reacting, split-canvas, ...), but ANCHORED on the shared hero
+    image via image-to-image editing when the model supports it
+    (supports_reference_edit), so the character stays recognizable across
+    scenes instead of drifting.
+
+    Reusing the literal hero image for every mascot scene (the prior
+    approach) guaranteed character consistency but collapsed every mascot
+    scene into one identical frozen pose/composition — confirmed for real
+    2026-08-21 against actual generated output, flagged by the user
+    ("always big... should sometimes be small... sometimes not in the
+    scene at all"). Editing from the hero image gets both: real per-scene
+    composition variety AND character consistency, instead of trading one
+    for the other."""
+    stype = scene.get("scene_type", "mascot")
+    scene_prompt = get_scene_image_prompt(scene, mascot)
+    out_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    reference_image_path = None
+    if stype not in ("ingredient_grid", "process_action"):
+        reference_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+    image_provider.generate_scene_image(
+        {"visual_prompt": scene_prompt}, scene_index, out_path, cost_tracker,
+        reference_image_path=reference_image_path,
+    )
+    return out_path
+
+
 def run_pipeline(
     topic: str,
     idea: dict[str, Any] | None = None,
@@ -241,23 +283,34 @@ def run_pipeline(
 
         # --- Stage 2: hybrid hero + per-scene generation (stub image provider stands in
         # until a real one is approved) — this produces the final video.
-        # When animation is enabled (animate=True):
         # 1. ONE hero character image is generated once from mascot.hero_prompt into
         #    generated/hero_<mascot.id>.png (keyed by mascot so switching mascots can
         #    never silently reuse a stale image from a different one).
-        # 2. Per-scene: if scene_type is ingredient_grid or process_action (no mascot in frame),
-        #    generate a per-scene base image using mascot.build_scene_prompt(). Otherwise,
-        #    reuse the hero image as the I2V source for character consistency.
-        # 3. Each base image is animated into a video clip via FalVideoProvider using the LLM's
+        # 2. Every scene renders its OWN base image, one call per scene (see
+        #    _scene_base_image_path): ingredient_grid/process_action scenes render
+        #    with no character; every other scene_type is a mascot scene, edited FROM
+        #    the hero image (image-to-image, when supported) so pose/composition can
+        #    genuinely vary per scene (small-and-pointing, big-and-reacting,
+        #    split-canvas, ...) while the character itself stays recognizable.
+        # 3. When animation is enabled (animate=True), each base image is then
+        #    animated into a video clip via FalVideoProvider using the LLM's
         #    visual_prompt as motion guidance.
-        # Cost model: 1 hero image + N_non_mascot base images + N video clips. ---
+        # Cost model: 1 hero image + 1 image per scene + (N video clips, if animating). ---
         image_provider = get_image_provider(
             settings.image.provider,
             settings.credential_for(settings.image),
             settings.image.model_or_voice,
             settings.image_cost_per_image_usd,
             gateway=fal_gateway,
-            visual_style=mascot.visual_style if mascot else settings.visual_style,
+            # Not mascot.visual_style here: get_scene_image_prompt()/
+            # build_scene_prompt() already embed the right style into every
+            # prompt per scene_type (full character description for mascot
+            # scenes, a character-free style for ingredient_grid/
+            # process_action). Force-appending the character-laden
+            # mascot.visual_style here too bled the mascot into
+            # ingredient/process shots that are supposed to show zero
+            # character (confirmed for real 2026-08-21).
+            visual_style="" if mascot else settings.visual_style,
             style_preset=settings.image_style,
         )
         generated_dir = workdir / "generated"
@@ -283,16 +336,9 @@ def run_pipeline(
             hero_path = generated_dir / f"hero_{mascot.id}.png"
 
             def clip_source(i: int, scene: dict[str, Any]) -> Path:
-                stype = scene.get("scene_type", "mascot")
-                if stype in ("ingredient_grid", "process_action"):
-                    scene_prompt = get_scene_image_prompt(scene, mascot)
-                    scene_frame_path = generated_dir / "raw" / f"raw_{i:02d}.png"
-                    scene_frame_path.parent.mkdir(parents=True, exist_ok=True)
-                    image_provider.generate_scene_image({"visual_prompt": scene_prompt}, i, scene_frame_path, cost_tracker)
-                    base_image_path = scene_frame_path
-                else:
-                    base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
-
+                base_image_path = _scene_base_image_path(
+                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
                 tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
                 return video_provider.generate_scene_video(scene, base_image_path, i, tmp_clip_path, cost_tracker)
 
@@ -305,27 +351,13 @@ def run_pipeline(
             )
         else:
             # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-            # Static (non-animated) mascot scenes must reuse the same shared
-            # hero image, not call the image model fresh per scene: a
-            # stochastic diffusion model given the same text prompt twice can
-            # render a visibly different-looking character each time, which
-            # is exactly the cross-scene mascot-inconsistency bug this whole
-            # hero-image mechanism exists to prevent (confirmed for real
-            # 2026-08-21: 4 different character designs across one video's
-            # scenes when this branch generated each mascot scene independently).
             hero_path = generated_dir / f"hero_{mascot.id}.png"
 
             def image_frame_source(i: int, scene: dict[str, Any]):
                 from PIL import Image
-                stype = scene.get("scene_type", "mascot")
-                if stype in ("ingredient_grid", "process_action"):
-                    scene_prompt = get_scene_image_prompt(scene, mascot)
-                    tmp_path = generated_dir / "raw" / f"raw_{i:02d}.png"
-                    tmp_path.parent.mkdir(parents=True, exist_ok=True)
-                    image_provider.generate_scene_image({"visual_prompt": scene_prompt}, i, tmp_path, cost_tracker)
-                    base_image_path = tmp_path
-                else:
-                    base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+                base_image_path = _scene_base_image_path(
+                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
                 return Image.open(base_image_path).convert("RGB")
 
             generated_result = assembly.assemble(
@@ -468,7 +500,15 @@ def regenerate_scene(
             settings.image.model_or_voice,
             settings.image_cost_per_image_usd,
             gateway=fal_gateway,
-            visual_style=mascot.visual_style if mascot else settings.visual_style,
+            # Not mascot.visual_style here: get_scene_image_prompt()/
+            # build_scene_prompt() already embed the right style into every
+            # prompt per scene_type (full character description for mascot
+            # scenes, a character-free style for ingredient_grid/
+            # process_action). Force-appending the character-laden
+            # mascot.visual_style here too bled the mascot into
+            # ingredient/process shots that are supposed to show zero
+            # character (confirmed for real 2026-08-21).
+            visual_style="" if mascot else settings.visual_style,
             style_preset=settings.image_style,
         )
 
@@ -480,17 +520,11 @@ def regenerate_scene(
                 settings.video_cost_per_second_usd,
                 gateway=fal_gateway,
             )
-            stype = scene.get("scene_type", "mascot")
-            if stype in ("ingredient_grid", "process_action"):
-                scene_prompt = get_scene_image_prompt(scene, mascot)
-                raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
-                raw_path.parent.mkdir(parents=True, exist_ok=True)
-                image_provider.generate_scene_image({"visual_prompt": scene_prompt}, scene_index, raw_path, cost_tracker)
-                base_image_path = raw_path
-            else:
-                # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-                hero_path = generated_dir / f"hero_{mascot.id}.png"
-                base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+            # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
+            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            base_image_path = _scene_base_image_path(
+                image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
+            )
 
             tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
             clip_path = video_provider.generate_scene_video(scene, base_image_path, scene_index, tmp_clip_path, cost_tracker)
@@ -499,17 +533,11 @@ def regenerate_scene(
                 clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
             )
         else:
-            stype = scene.get("scene_type", "mascot")
-            if stype in ("ingredient_grid", "process_action"):
-                scene_prompt = get_scene_image_prompt(scene, mascot)
-                raw_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
-                raw_path.parent.mkdir(parents=True, exist_ok=True)
-                image_provider.generate_scene_image({"visual_prompt": scene_prompt}, scene_index, raw_path, cost_tracker)
-                base_image_path = raw_path
-            else:
-                # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-                hero_path = generated_dir / f"hero_{mascot.id}.png"
-                base_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+            # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
+            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            base_image_path = _scene_base_image_path(
+                image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
+            )
             base_image = Image.open(base_image_path).convert("RGB")
             new_frame_path, new_box = assembly.build_scene_frame(scene, scene_index, base_image, generated_dir / "frames")
             new_seg_path = assembly.build_scene_video_segment(new_frame_path, new_duration, scene_index, generated_dir / "segments")

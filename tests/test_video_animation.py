@@ -66,8 +66,8 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     image_calls = []
     class FakeImageProvider(ImageProvider):
         name = "fake_img"
-        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
-            image_calls.append((scene_index, scene.get("visual_prompt", "")))
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker, reference_image_path=None):
+            image_calls.append((scene_index, reference_image_path is not None))
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(b"fake_image_bytes")
             return out_path
@@ -132,18 +132,29 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     hero_gen_calls = [c for c in image_calls if c[0] == "hero"]
     assert len(hero_gen_calls) == 1
 
-    # 2. Video calls were made for all scenes. Mascot-type scenes reuse the
-    # shared mascot-keyed hero image as their I2V source; ingredient_grid/
-    # process_action scenes get their own per-scene raw image instead
-    # (StubLLMProvider cycles scene_type across scenes, see providers/llm.py).
+    # 2. Every scene renders its own base image (one call per scene, not
+    # shared/reused) — mascot-type scenes edit FROM the hero image
+    # (reference_image_path is set); ingredient_grid/process_action scenes
+    # render fresh with no reference (StubLLMProvider cycles scene_type
+    # across scenes, see providers/llm.py).
     scenes = res.script["scenes"]
-    assert len(video_calls) == len(scenes)
-    for s_idx, hero_name in video_calls:
+    per_scene_image_calls = [c for c in image_calls if c[0] != "hero"]
+    assert len(per_scene_image_calls) == len(scenes)
+    for s_idx, had_reference in per_scene_image_calls:
         stype = scenes[s_idx].get("scene_type")
         if stype in ("ingredient_grid", "process_action"):
-            assert hero_name == f"raw_{s_idx:02d}.png"
+            assert had_reference is False
         else:
-            assert hero_name == "hero_mascot_4.png"
+            assert had_reference is True
+
+    # 3. Video calls were made for all scenes, each animating that scene's
+    # own freshly-generated raw image (not the literal hero image directly)
+    # — this is what lets composition (small-and-pointing, big-and-reacting,
+    # split-canvas) actually vary per scene instead of every mascot scene
+    # animating one identical frozen pose.
+    assert len(video_calls) == len(scenes)
+    for s_idx, base_image_name in video_calls:
+        assert base_image_name == f"raw_{s_idx:02d}.png"
 
 
 def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, monkeypatch):
@@ -163,7 +174,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     class FakeImageProvider(ImageProvider):
         name = "fake_img"
 
-        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker, reference_image_path=None):
             image_calls.append(scene_index)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(b"fake_image_bytes")
@@ -228,15 +239,19 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     assert (generated_dir / "hero_mascot_2.png").exists()
 
 
-def test_static_image_path_reuses_hero_image_across_mascot_scenes(tmp_path, monkeypatch):
+def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path, monkeypatch):
     """Regression test: the non-animate (VIDEO_PROVIDER=stub, IMAGE_PROVIDER=fal)
     path independently called the image model once per mascot scene using only
     a text prompt — no shared reference image. A stochastic image model given
     the same character description twice can render a visibly different
-    character each time, which is the same class of cross-scene mascot
-    inconsistency the animate path's hero-image reuse already prevents.
-    Confirmed for real 2026-08-21: an unrelated reference video showed 4
-    different character designs across mascot-labeled scenes generated this way."""
+    character each time. Confirmed for real 2026-08-21: an unrelated reference
+    video showed 4 different character designs across mascot-labeled scenes
+    generated this way. The fix is NOT to reuse one frozen hero image for
+    every mascot scene either (that guarantees consistency but kills all
+    per-scene pose/composition variety — also flagged for real by the user,
+    "should sometimes be small... sometimes not in the scene at all"): every
+    scene must render its own image, with mascot-type scenes anchored on the
+    hero image via a reference (image-to-image edit) instead of a bare prompt."""
     from shorts_factory import assembly, pipeline
     from shorts_factory.config import Settings
     from shorts_factory.providers.image import ImageProvider
@@ -246,8 +261,8 @@ def test_static_image_path_reuses_hero_image_across_mascot_scenes(tmp_path, monk
     class FakeImageProvider(ImageProvider):
         name = "fake_img"
 
-        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
-            image_calls.append(scene_index)
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker, reference_image_path=None):
+            image_calls.append((scene_index, reference_image_path))
             out_path.parent.mkdir(parents=True, exist_ok=True)
             Image.new("RGB", (1024, 1024), (10, 20, 30)).save(out_path)
             return out_path
@@ -286,10 +301,17 @@ def test_static_image_path_reuses_hero_image_across_mascot_scenes(tmp_path, monk
 
     res = pipeline.run_pipeline("soap", mascot_id="mascot_4", artifacts_root=tmp_path)
 
-    # Mascot-type scenes (StubLLMProvider cycles scene_type across scenes,
-    # see providers/llm.py) must all reuse one shared hero image — never
-    # regenerated independently per scene. ingredient_grid/process_action
-    # scenes still get their own distinct per-scene image.
+    # Hero image generated exactly once.
+    hero_calls = [c for c in image_calls if c[0] == "hero"]
+    assert len(hero_calls) == 1
+    generated_dir = tmp_path / "soap" / "_work" / "generated"
+    real_hero_path = generated_dir / "hero_mascot_4.png"
+    assert real_hero_path.exists()
+
+    # StubLLMProvider cycles scene_type across scenes (see providers/llm.py).
+    # Every scene must render its OWN image exactly once. Mascot-type scenes
+    # must be anchored on the hero image (reference_image_path set to it);
+    # ingredient_grid/process_action scenes must NOT get a character reference.
     scenes = res.script["scenes"]
     mascot_scene_indices = [
         i for i, s in enumerate(scenes) if s.get("scene_type") not in ("ingredient_grid", "process_action")
@@ -298,10 +320,12 @@ def test_static_image_path_reuses_hero_image_across_mascot_scenes(tmp_path, monk
         i for i, s in enumerate(scenes) if s.get("scene_type") in ("ingredient_grid", "process_action")
     ]
     assert mascot_scene_indices, "test script must contain at least one mascot-type scene"
-    assert image_calls.count("hero") == 1
+    per_scene_calls = {idx: ref for idx, ref in image_calls if idx != "hero"}
+    assert sorted(per_scene_calls) == list(range(len(scenes)))
+    for i in mascot_scene_indices:
+        assert per_scene_calls[i] == real_hero_path
     for i in fresh_scene_indices:
-        assert image_calls.count(i) == 1
-    assert sorted(c for c in image_calls if c != "hero") == sorted(fresh_scene_indices)
+        assert per_scene_calls[i] is None
 
 
 def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
@@ -323,7 +347,7 @@ def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
     class FakeImageProvider(ImageProvider):
         name = "fake_img"
 
-        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker, reference_image_path=None):
             out_path.parent.mkdir(parents=True, exist_ok=True)
             Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (60, 90, 140)).save(out_path)
             return out_path

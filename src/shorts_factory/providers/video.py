@@ -7,13 +7,14 @@ other provider here.
 
 FalVideoProvider animates base images via image-to-video models on fal.ai
 (e.g., Kling 1.5 Pro or MiniMax Hailuo-02).
-The animation pipeline uses a hybrid design:
-  - Mascot/character scenes reuse a single shared "hero" character image
-    (generated once per video) to maintain visual consistency across scenes.
-  - Non-mascot scenes (e.g. ingredient_grid, process_action) generate a
-    per-scene base image.
+The animation pipeline uses a hybrid design (see pipeline._scene_base_image_path):
+  - ONE shared "hero" character image is generated once per video.
+  - Every scene then generates its OWN base image: ingredient_grid/process_action
+    scenes render with no character; mascot scenes render edited FROM the hero
+    image (image-to-image, when the model supports it) so pose/composition
+    varies per scene while the character stays recognizable.
   - Each scene's base image is then animated via FalVideoProvider into an MP4 clip.
-  - Cost model: 1 hero image + N_non_mascot base images + N video clips.
+  - Cost model: 1 hero image + 1 image per scene + N video clips.
   - Assembly pads or trims each clip to match the scene's actual audio duration.
 """
 from __future__ import annotations

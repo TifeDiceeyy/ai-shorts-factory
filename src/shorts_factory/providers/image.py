@@ -45,6 +45,7 @@ class ImageProvider(ABC):
         scene_index: int | str,
         out_path: Path,
         cost_tracker: CostTracker,
+        reference_image_path: Path | None = None,
     ) -> Path:
         ...
 
@@ -58,6 +59,7 @@ class StubImageProvider(ImageProvider):
         scene_index: int | str,
         out_path: Path,
         cost_tracker: CostTracker,
+        reference_image_path: Path | None = None,
     ) -> Path:
         operation = f"image.generate_scene_image[{scene_index}]"
         cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
@@ -107,6 +109,20 @@ def get_image_model_args(model: str, style_preset: str) -> dict[str, Any]:
     return args
 
 
+def supports_reference_edit(model: str) -> bool:
+    """Whether `model` has a known fal.ai "/edit" (image_urls + prompt)
+    variant for image-to-image editing. Confirmed live against fal.ai's
+    docs for nano-banana (2026-08-21): fal-ai/nano-banana/edit takes
+    required `prompt` + `image_urls` (list). Only enable this for models
+    verified to have that endpoint — guessing at an unverified path is
+    exactly what broke IMAGE_MODEL before (imagen3/imagen4)."""
+    return "nano-banana" in model.lower()
+
+
+def get_edit_model(model: str) -> str:
+    return f"{model.strip('/')}/edit"
+
+
 class FalImageProvider(ImageProvider):
     name = "fal"
 
@@ -128,7 +144,7 @@ class FalImageProvider(ImageProvider):
         self.visual_style = visual_style
         self.style_preset = style_preset
 
-    def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+    def generate_scene_image(self, scene, scene_index, out_path, cost_tracker, reference_image_path=None):
         operation = f"image.generate_scene_image[{scene_index}]"
         cost_tracker.check_budget(operation, self.cost)
         # Recraft-v3's "style" param defaults to "realistic_image" when
@@ -162,8 +178,21 @@ class FalImageProvider(ImageProvider):
             **get_image_model_args(self.model, self.style_preset),
         }
 
+        # Anchor mascot-type scenes on the shared hero image via image-to-
+        # image editing instead of pure text-to-image: two separate calls
+        # given the identical character description can still render a
+        # visibly different-looking character (confirmed for real
+        # 2026-08-20/21 — that's what the hero-reuse mechanism exists to
+        # prevent). Editing FROM the hero image keeps the character
+        # anchored while actually letting pose/composition/layout vary per
+        # scene, instead of every mascot scene reusing one frozen pose.
+        endpoint = self.model
+        if reference_image_path is not None and supports_reference_edit(self.model):
+            endpoint = get_edit_model(self.model)
+            arguments["image_urls"] = [self.gateway.upload(reference_image_path)]
+
         data = self.gateway.run(
-            self.model,
+            endpoint,
             arguments,
         )
         image_url = media_url(data, "images", "0", "url")

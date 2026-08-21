@@ -71,13 +71,12 @@ def test_tts_is_charged_once_per_scene_not_once_per_render_stage(tmp_path):
         f"expected exactly {scene_count} TTS calls (one per scene), got {len(tts_entries)} "
         "— narration is being re-synthesized per render stage"
     )
-    # ingredient_grid/process_action scenes each generate their own distinct
-    # image; every other scene_type reuses one shared hero image for the
-    # whole video (see pipeline._get_or_create_hero_image), so the image
-    # call count is NOT one-per-scene once a mascot is in the mix.
-    fresh_per_scene = sum(1 for s in scenes if s.get("scene_type") in ("ingredient_grid", "process_action"))
+    # Every scene renders its own image, one call per scene (see
+    # pipeline._scene_base_image_path) — mascot-type scenes edit FROM the
+    # shared hero image instead of reusing it directly, so the hero image
+    # itself is one MORE call on top of that, if any scene needs it.
     expects_hero = any(s.get("scene_type") not in ("ingredient_grid", "process_action") for s in scenes)
-    expected_image_calls = fresh_per_scene + (1 if expects_hero else 0)
+    expected_image_calls = scene_count + (1 if expects_hero else 0)
     assert len(image_entries) == expected_image_calls
     assert len(llm_entries) == 1
     assert len(entries) == scene_count + expected_image_calls + 1
