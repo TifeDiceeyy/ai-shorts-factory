@@ -249,6 +249,34 @@ def test_fal_llm_script_prompt_has_no_idea_instruction_when_none_given():
     assert "human already picked" not in prompt
 
 
+def test_fal_llm_design_mascot_returns_parsed_design_and_records_real_cost():
+    design = {
+        "name": "Mascot: Deep-Sea Diver",
+        "short_desc": "A friendly deep-sea diver in a vintage brass diving helmet.",
+        "hero_prompt": "Full-body 3D CGI cartoon diver mascot, fully clothed, white background.",
+        "visual_style": "High-end 3D CGI cartoon render, stark white background, no text.",
+        "motion_instruction": "Describe the diver's actions and emotions per scene.",
+        "scene_role_template": "Hook/Discovery/Process/Challenge/Payoff arc.",
+        "keywords": ["diving", "submarine", "ocean", "deep", "sea", "pressure"],
+    }
+    fal = gateway({"output": json.dumps(design), "usage": {"cost": 0.02}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    tracker = CostTracker(1)
+    result = provider.design_mascot("deep sea diving", None, tracker)
+    assert result == design
+    assert tracker.total_spent_usd == 0.02
+    prompt = fal.client.calls[0][1]["arguments"]["prompt"]
+    assert "deep sea diving" in prompt
+    assert "fully clothed" in prompt.lower() or "shirtless" in prompt.lower()
+
+
+def test_fal_llm_design_mascot_rejects_malformed_response():
+    fal = gateway({"output": json.dumps({"name": "incomplete"}), "usage": {"cost": 0.02}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    with pytest.raises(ValueError, match="missing keys"):
+        provider.design_mascot("deep sea diving", None, CostTracker(1))
+
+
 def test_fal_llm_propose_ideas_returns_parsed_ideas_and_records_real_cost():
     payload = {
         "ideas": [

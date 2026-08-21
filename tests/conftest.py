@@ -38,3 +38,16 @@ _REAL_PROVIDER_ENV_VARS = [
 def _no_real_providers_by_default(monkeypatch):
     for name in _REAL_PROVIDER_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_custom_mascot_registry(tmp_path, monkeypatch):
+    """mascots.select_mascot_for_story()/generate_custom_mascot() read/write
+    data/custom_mascots.json — a real, non-tmp_path location — and are
+    called from inside run_pipeline() itself whenever a test doesn't pass an
+    explicit mascot_id. Without this, any such test would read (and
+    potentially write) the real project file, exactly the class of test/
+    production collision artifacts_root was added to prevent for
+    artifacts/<topic>/ (see pipeline.run_pipeline's own docstring)."""
+    from shorts_factory import mascots
+    monkeypatch.setattr(mascots, "CUSTOM_MASCOT_REGISTRY_PATH", tmp_path / "custom_mascots.json")

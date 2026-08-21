@@ -103,6 +103,18 @@ class LLMProvider(ABC):
         top of whatever this returns, regardless of which provider answered."""
         ...
 
+    @abstractmethod
+    def design_mascot(self, topic: str, brief: dict[str, Any] | None, cost_tracker: CostTracker) -> dict[str, Any]:
+        """Design a brand-new mascot character for a topic that doesn't fit
+        any of the 5 registered mascots (mascots.select_mascot_for_story()'s
+        no-match fallback). Returns {name, short_desc, hero_prompt,
+        visual_style, motion_instruction, scene_role_template, keywords}
+        matching mascots.Mascot's fields (minus id, which the caller
+        assigns) plus a `keywords` list so future similar topics can find
+        and reuse this same mascot via the normal keyword-scoring path
+        instead of generating yet another one."""
+        ...
+
 
 def _caption_from_claim(claim_text: str) -> str:
     """Short on-screen caption derived from a claim (schema caps at 90 chars)."""
@@ -234,6 +246,48 @@ class StubLLMProvider(LLMProvider):
         )
         return ideas
 
+    def design_mascot(self, topic: str, brief: dict[str, Any] | None, cost_tracker: CostTracker) -> dict[str, Any]:
+        operation = "llm.design_mascot"
+        cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
+        words = [w for w in re.findall(r"[a-zA-Z]+", topic.lower()) if len(w) > 2]
+        keywords = words[:6] or [topic.lower()]
+        design = {
+            "name": f"Custom Mascot: {topic.title()} Specialist",
+            "short_desc": f"Deterministic stub mascot generated for topic {topic!r} — not a real design.",
+            "hero_prompt": (
+                f"Full-body 3D CGI cartoon mascot character themed around {topic}, standing in a friendly "
+                "explanatory pose facing camera, one hand gesturing forward with open palm. Centered "
+                "vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+                "Fully clothed; no bare skin visible except face, forearms, and calves; do not depict "
+                "shirtless or undressed. Stark pure solid white background (#FFFFFF) only, zero background "
+                "details, zero floor shadows, sticker framing."
+            ),
+            "visual_style": (
+                f"High-end 3D CGI cartoon animation render of a {topic}-themed mascot, expressive cartoon "
+                "features. Stark pure solid white background (#FFFFFF) with zero scenery, zero shadows, "
+                "clean sticker framing. Do not render any text, words, letters, labels, or signs."
+            ),
+            "motion_instruction": (
+                f"For every scene's `visual_prompt`, describe the {topic} mascot's dynamic physical ACTION "
+                "and EMOTIONS. Keep the character centered against the clean solid white background."
+            ),
+            "scene_role_template": (
+                f"Cast the {topic} mascot into a narrative role suited to each scene beat: "
+                "Hook=curious reaction to the topic; Discovery=examining raw materials; "
+                "Process=hands-on demonstration; Challenge=testing/refining; Payoff=proud presentation "
+                "of the result."
+            ),
+            "keywords": keywords,
+        }
+        cost_tracker.record(
+            provider=self.name,
+            operation=operation,
+            estimated_cost_usd=0.0,
+            actual_cost_usd=0.0,
+            is_stub=True,
+        )
+        return design
+
 
 def _json_object(text: str) -> dict[str, Any]:
     """Decode a provider response without accepting prose around the object."""
@@ -350,6 +404,37 @@ def _idea_proposal_prompt(topic: str, n: int) -> str:
     )
 
 
+def _mascot_design_prompt(topic: str, brief: dict[str, Any] | None) -> str:
+    brief_context = ""
+    if brief:
+        brief_context = (
+            f" Context from the video's brief — concept: {brief.get('concept', '')!r}, "
+            f"angle: {brief.get('angle', '')!r}, "
+            f"claims: {json.dumps([c.get('claim') for c in (brief.get('claims') or [])][:5], ensure_ascii=False)}."
+        )
+    return (
+        f"Design a brand-new 3D CGI cartoon mascot character for a YouTube Short about {topic!r} — "
+        "none of the 5 existing mascots (a Roman legionary, a chibi tinkerer, a bean-headed scavenger, "
+        "a bearded dwarf explorer, and a bushcraft alchemist) fit this topic's theme, so this is a fresh "
+        "design specifically suited to it." + brief_context + " Return JSON only, no prose, no markdown "
+        "fences. The object must contain exactly: name (a short display name, e.g. 'Mascot: Deep-Sea "
+        "Diver'), short_desc (one sentence describing the archetype and outfit), hero_prompt (a detailed "
+        "full-body character description for an image-generation model — MUST specify: centered "
+        "vertically in frame occupying 60% of vertical height, a friendly explanatory pose gesturing "
+        "forward with one open palm, the character is FULLY CLOTHED with no bare skin visible except "
+        "face/forearms/calves and must explicitly state it is not shirtless or undressed, and a stark "
+        "pure solid white background #FFFFFF with zero scenery and zero floor shadows, sticker framing), "
+        "visual_style (a short paragraph naming the rendering technique — high-end 3D CGI cartoon render "
+        "— plus the character's signature colors/textures, ending with the same white-background/no-text "
+        "rules as hero_prompt), motion_instruction (guidance for describing this mascot's actions/emotions "
+        "in later per-scene prompts), scene_role_template (how this mascot's role should vary across a "
+        "Hook/Discovery/Process/Challenge/Payoff story arc, preserving its signature visual traits), and "
+        "keywords (a list of 5-8 lowercase topic/theme words this mascot is suited to, for matching future "
+        "similar topics without generating a new mascot every time). Every field must actually be specific "
+        f"to {topic!r}, not generic filler."
+    )
+
+
 class FalLLMProvider(LLMProvider):
     """Routes through fal.ai's OpenRouter endpoint (openrouter/router) —
     fal-native schema, not fal-ai/any-llm (confirmed deprecated 2026-08-14,
@@ -433,6 +518,28 @@ class FalLLMProvider(LLMProvider):
             if not isinstance(idea["hooks"], list) or not idea["hooks"]:
                 raise ValueError("malformed idea from LLM: 'hooks' must be a non-empty list")
         return ideas[:n]
+
+    def design_mascot(self, topic: str, brief: dict[str, Any] | None, cost_tracker: CostTracker) -> dict[str, Any]:
+        operation = "llm.design_mascot"
+        cost_tracker.check_budget(operation, self.estimate)
+        data = self.gateway.run(
+            self.endpoint,
+            {
+                "model": self.model,
+                "prompt": _mascot_design_prompt(topic, brief),
+                "temperature": 0.7,
+                "max_tokens": 1200,
+            },
+        )
+        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
+        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
+        design = _json_object(data["output"])
+        required = {"name", "short_desc", "hero_prompt", "visual_style", "motion_instruction", "scene_role_template", "keywords"}
+        if not required.issubset(design):
+            raise ValueError(f"malformed mascot design from LLM, missing keys: {required - design.keys()}")
+        if not isinstance(design["keywords"], list) or not design["keywords"]:
+            raise ValueError("malformed mascot design from LLM: 'keywords' must be a non-empty list")
+        return design
 
 
 def get_llm_provider(

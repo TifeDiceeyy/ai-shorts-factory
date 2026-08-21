@@ -17,7 +17,7 @@ from . import assembly, verify
 from .captions import get_random_caption_style_name
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import BudgetExceeded, CostTracker
-from .mascots import Mascot, get_mascot, select_mascot_for_story
+from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
@@ -227,6 +227,18 @@ def run_pipeline(
                 f"classifier says {safety_class.value!r} — refusing to proceed on a mismatch"
             )
 
+        # --- LLM provider (stub by default) — constructed here, before
+        # mascot resolution, because select_mascot_for_story()'s no-match
+        # case needs it to design a brand-new custom mascot. ---
+        llm = get_llm_provider(
+            settings.llm.provider,
+            settings.credential_for(settings.llm),
+            settings.llm.model_or_voice,
+            settings.llm_cost_per_script_usd,
+            gateway=fal_gateway,
+            endpoint=settings.fal_llm_endpoint,
+        )
+
         # Mascot resolution happens here (after the brief exists, not right
         # after the safety gate) so story-matching (raw_mascot_id in
         # ("auto", "random", "story") or simply not given) can use the
@@ -236,17 +248,14 @@ def run_pipeline(
             mascot = get_mascot(raw_mascot_id)
         else:
             mascot = select_mascot_for_story(topic, brief=brief)
+            if mascot is None:
+                # Nothing among the 5 registered mascots or any previously
+                # generated custom one fits this topic at all — design and
+                # persist a brand-new one instead of forcing an unrelated
+                # mascot onto a story it doesn't suit.
+                mascot = generate_custom_mascot(topic, brief, llm, cost_tracker)
         result.mascot_id = mascot.id
 
-        # --- Script generation (LLM provider, stub by default) ---
-        llm = get_llm_provider(
-            settings.llm.provider,
-            settings.credential_for(settings.llm),
-            settings.llm.model_or_voice,
-            settings.llm_cost_per_script_usd,
-            gateway=fal_gateway,
-            endpoint=settings.fal_llm_endpoint,
-        )
         effective_visual_style = (
             f"{mascot.name} Template. Style DNA: {mascot.visual_style}. "
             f"Scene Adaptive Direction: {mascot.scene_role_template}"

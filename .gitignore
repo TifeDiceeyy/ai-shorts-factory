@@ -10,6 +10,7 @@ data/publish-ledger.json
 data/publish-ledger.json.lock
 data/experiment_ledger.json
 data/idea_history.json
+data/custom_mascots.json
 *client_secret*.json
 
 # python

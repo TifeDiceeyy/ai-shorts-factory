@@ -102,6 +102,33 @@ def test_run_pipeline_picks_mascot_via_story_matching_when_none_given(tmp_path, 
     assert calls == [], "an explicit mascot_id must not trigger story-matching at all"
 
 
+def test_run_pipeline_generates_a_custom_mascot_when_nothing_matches(tmp_path, monkeypatch):
+    """Regression test: when select_mascot_for_story() finds no match at
+    all (returns None), run_pipeline must design and use a brand-new custom
+    mascot (mascots.generate_custom_mascot) instead of crashing on
+    `None.id` or silently forcing an unrelated mascot onto the story."""
+    import json
+    from shorts_factory import mascots, pipeline
+
+    monkeypatch.setattr(pipeline, "select_mascot_for_story", lambda topic, brief=None, seed=None: None)
+
+    design_calls = []
+    real_generate = pipeline.generate_custom_mascot
+
+    def spy_generate(topic, brief, llm, cost_tracker):
+        design_calls.append(topic)
+        return real_generate(topic, brief, llm, cost_tracker)
+
+    monkeypatch.setattr(pipeline, "generate_custom_mascot", spy_generate)
+
+    result = run_pipeline("charcoal", artifacts_root=tmp_path)
+    assert design_calls == ["charcoal"]
+    assert result.mascot_id == mascots.custom_mascot_slug("charcoal")
+
+    script_data = json.loads((tmp_path / "charcoal" / "charcoal.script.json").read_text(encoding="utf-8"))
+    assert script_data["mascot_id"] == result.mascot_id
+
+
 def test_caption_style_persists_and_regenerate_reuses_it(tmp_path):
     """Regression test: caption_style is chosen once per video and must
     survive a single-scene regeneration unchanged — a regenerated scene

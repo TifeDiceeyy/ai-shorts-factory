@@ -1,7 +1,17 @@
 import json
 import pytest
 
-from shorts_factory.mascots import MASCOTS, get_mascot, list_mascots, select_mascot_for_story, Mascot
+from shorts_factory.mascots import (
+    MASCOTS,
+    custom_mascot_slug,
+    generate_custom_mascot,
+    get_mascot,
+    list_mascots,
+    load_custom_mascots,
+    register_custom_mascot,
+    select_mascot_for_story,
+    Mascot,
+)
 from shorts_factory.pipeline import run_pipeline
 from shorts_factory.telegram_bot import TelegramController
 
@@ -128,12 +138,92 @@ def test_select_mascot_for_story_uses_brief_text_too_not_just_topic():
     assert select_mascot_for_story("ancient engineering", brief=brief).id == "mascot_1"
 
 
-def test_select_mascot_for_story_falls_back_to_random_for_unmatched_topics():
-    # No keyword hits at all -> random among all 5, not a silent crash or a
-    # hardcoded always-the-same-mascot fallback.
-    chosen_ids = {select_mascot_for_story("xyzzy nonsense topic", seed=i).id for i in range(30)}
-    assert chosen_ids.issubset(set(MASCOTS.keys()))
-    assert len(chosen_ids) > 1, "expected variety across seeds when nothing matches"
+def test_select_mascot_for_story_returns_none_when_nothing_matches_at_all():
+    # No keyword hits at all -> None, signaling the caller (run_pipeline) to
+    # generate a brand-new custom mascot instead of forcing an unrelated one
+    # or silently defaulting. Not a crash, not a random pick among the 5.
+    for seed in range(10):
+        assert select_mascot_for_story("xyzzy nonsense topic", seed=seed) is None
+
+
+def test_select_mascot_for_story_main_mascot_wins_ties():
+    # Mascot 4 ("Main Mascot") wins ties among the 5 registered mascots
+    # instead of a random pick — an exact tie: "soap" (mascot_4, +1, only in
+    # the brief text) vs "roman" (mascot_1, +1, only in the brief text);
+    # neither appears in the bare topic string, so neither gets the
+    # topic-text double-count bonus, and the tie is genuine.
+    brief = {"concept": "soap made near roman ruins", "angle": "", "claims": []}
+    for seed in range(10):
+        assert select_mascot_for_story("a history lesson", brief=brief, seed=seed).id == "mascot_4"
+
+
+def _custom_mascot_design(topic: str = "deep sea diving") -> dict:
+    return {
+        "name": f"Mascot: {topic.title()} Explorer",
+        "short_desc": f"A {topic}-themed explorer.",
+        "hero_prompt": (
+            "Full-body 3D CGI cartoon mascot, centered vertically occupying 60% of frame, "
+            "fully clothed, no bare skin except face/forearms/calves, not shirtless or undressed, "
+            "stark pure solid white background (#FFFFFF), zero shadows, sticker framing."
+        ),
+        "visual_style": "High-end 3D CGI cartoon render. Stark white background, no text.",
+        "motion_instruction": "Describe dynamic actions and emotions for this mascot.",
+        "scene_role_template": "Hook/Discovery/Process/Challenge/Payoff arc.",
+        "keywords": ["diving", "submarine", "ocean", "deep", "sea"],
+    }
+
+
+def test_register_custom_mascot_persists_and_get_mascot_resolves_it(tmp_path, monkeypatch):
+    import shorts_factory.mascots as mascots_module
+    monkeypatch.setattr(mascots_module, "CUSTOM_MASCOT_REGISTRY_PATH", tmp_path / "custom_mascots.json")
+
+    mascot_id = custom_mascot_slug("Deep Sea Diving!!")
+    assert mascot_id == "mascot_custom_deep_sea_diving"
+
+    registered = register_custom_mascot(mascot_id, _custom_mascot_design())
+    assert registered.id == mascot_id
+    assert registered.name == "Mascot: Deep Sea Diving Explorer"
+
+    # Persisted to disk, not just held in memory.
+    on_disk = load_custom_mascots()
+    assert mascot_id in on_disk
+
+    # get_mascot() must resolve it, not silently fall back to the default.
+    resolved = get_mascot(mascot_id)
+    assert resolved.id == mascot_id
+    assert resolved.name == registered.name
+
+
+def test_generate_custom_mascot_uses_llm_and_registers_it(tmp_path, monkeypatch):
+    import shorts_factory.mascots as mascots_module
+    from shorts_factory.providers.llm import StubLLMProvider
+    from shorts_factory.cost_tracker import CostTracker
+    monkeypatch.setattr(mascots_module, "CUSTOM_MASCOT_REGISTRY_PATH", tmp_path / "custom_mascots.json")
+
+    llm = StubLLMProvider()
+    tracker = CostTracker(budget_cap_usd=1.0)
+    mascot = generate_custom_mascot("deep sea diving", None, llm, tracker)
+
+    assert mascot.id == custom_mascot_slug("deep sea diving")
+    on_disk = load_custom_mascots()
+    assert mascot.id in on_disk
+    assert on_disk[mascot.id]["keywords"]
+
+
+def test_select_mascot_for_story_reuses_a_previously_generated_custom_mascot(tmp_path, monkeypatch):
+    """Regression test: the whole point of persisting a custom mascot is
+    that a FUTURE similar topic finds and reuses it via the same
+    keyword-scoring path, instead of never being found again (which would
+    mean paying to generate a brand-new one every single time)."""
+    import shorts_factory.mascots as mascots_module
+    monkeypatch.setattr(mascots_module, "CUSTOM_MASCOT_REGISTRY_PATH", tmp_path / "custom_mascots.json")
+
+    mascot_id = custom_mascot_slug("deep sea diving")
+    register_custom_mascot(mascot_id, _custom_mascot_design())
+
+    found = select_mascot_for_story("submarine ocean exploration")
+    assert found is not None
+    assert found.id == mascot_id
 
 
 def test_telegram_controller_mascots_text(tmp_path):
