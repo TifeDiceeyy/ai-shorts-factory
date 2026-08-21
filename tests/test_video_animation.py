@@ -132,11 +132,176 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     hero_gen_calls = [c for c in image_calls if c[0] == "hero"]
     assert len(hero_gen_calls) == 1
 
-    # 2. Video calls were made for all scenes using hero.png for mascot scenes
-    assert len(video_calls) > 0
+    # 2. Video calls were made for all scenes. Mascot-type scenes reuse the
+    # shared mascot-keyed hero image as their I2V source; ingredient_grid/
+    # process_action scenes get their own per-scene raw image instead
+    # (StubLLMProvider cycles scene_type across scenes, see providers/llm.py).
+    scenes = res.script["scenes"]
+    assert len(video_calls) == len(scenes)
     for s_idx, hero_name in video_calls:
-        # Default soap scenes are mascot scenes, so they all reuse hero.png
-        assert hero_name == "hero.png"
+        stype = scenes[s_idx].get("scene_type")
+        if stype in ("ingredient_grid", "process_action"):
+            assert hero_name == f"raw_{s_idx:02d}.png"
+        else:
+            assert hero_name == "hero_mascot_4.png"
+
+
+def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, monkeypatch):
+    """Regression test: artifacts/<topic>/_work persists across separate
+    run_pipeline() calls for the same topic. A fixed "hero.png" filename let
+    a stale hero image from a since-changed mascot get silently reused —
+    confirmed for real 2026-08-20/21: a flat-2D mascot from 3 days earlier
+    was reused as scene 0's I2V source in a video whose other scenes
+    correctly used the new mascot. hero_path must be keyed by mascot.id."""
+    from shorts_factory import assembly, pipeline
+    from shorts_factory.config import Settings
+    from shorts_factory.providers.image import ImageProvider
+    from shorts_factory.providers.video import VideoProvider
+
+    image_calls = []
+
+    class FakeImageProvider(ImageProvider):
+        name = "fake_img"
+
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+            image_calls.append(scene_index)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(b"fake_image_bytes")
+            return out_path
+
+    class FakeVideoProvider(VideoProvider):
+        name = "fake_vid"
+
+        def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker):
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(b"fake_video_bytes")
+            return out_path
+
+    monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
+    monkeypatch.setattr(pipeline, "get_video_provider", lambda *a, **k: FakeVideoProvider())
+
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4):
+        for i, s in enumerate(scenes):
+            clip_source(i, s)
+        return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
+
+    monkeypatch.setattr(assembly, "assemble_animated", fake_assemble_animated)
+    monkeypatch.setattr(assembly, "assemble", lambda *a, **k: {"caption_boxes": []})
+    monkeypatch.setattr(
+        assembly,
+        "synthesize_scenes",
+        lambda tts, scenes, audio_dir, cost_tracker: [
+            assembly.SceneAudio(path=audio_dir / f"s{i}.wav", duration=5.0, scripted_duration=5.0)
+            for i in range(len(scenes))
+        ],
+    )
+    monkeypatch.setattr(pipeline.verify, "run_verification", lambda **kwargs: {"overall_pass": True})
+
+    test_settings = Settings(
+        book_file="stub", output_language="English", visual_style="stub",
+        budget_cap_usd=5.0, budget_cap_is_stub=False, music_sfx_source="stub",
+        llm=ProviderConfig("llm", "stub", "stub"), tts=ProviderConfig("tts", "stub", "stub"),
+        image=ProviderConfig("image", "fal", "fal-ai/nano-banana"),
+        video=ProviderConfig("video", "fal", "fal-ai/kling-video/v1.5/pro/image-to-video"),
+        search=ProviderConfig("search", "stub", "stub"), search_api_key="", fal_key="fake_key",
+        fal_llm_endpoint="", tts_voice="", image_style="",
+        llm_cost_per_script_usd=0.0, tts_cost_per_1k_chars_usd=0.0, image_cost_per_image_usd=0.0,
+        video_cost_per_second_usd=0.05, youtube_client_secrets_file="", youtube_token_file="",
+        telegram_bot_token="", telegram_allowed_user_ids=(),
+    )
+    monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
+
+    # Same topic, same artifacts_root (tmp_path) — mimics regenerating the
+    # same video days apart after the mascot changed.
+    pipeline.run_pipeline("soap", mascot_id="mascot_1", artifacts_root=tmp_path)
+    hero_calls_after_first = image_calls.count("hero")
+    assert hero_calls_after_first == 1
+
+    pipeline.run_pipeline("soap", mascot_id="mascot_2", artifacts_root=tmp_path)
+    # A second "hero" image call must have happened for mascot_2 — if the
+    # stale-reuse bug were back, this would stay at 1 (mascot_1's hero
+    # silently reused) instead of becoming 2.
+    assert image_calls.count("hero") == 2
+
+    generated_dir = tmp_path / "soap" / "_work" / "generated"
+    assert (generated_dir / "hero_mascot_1.png").exists()
+    assert (generated_dir / "hero_mascot_2.png").exists()
+
+
+def test_static_image_path_reuses_hero_image_across_mascot_scenes(tmp_path, monkeypatch):
+    """Regression test: the non-animate (VIDEO_PROVIDER=stub, IMAGE_PROVIDER=fal)
+    path independently called the image model once per mascot scene using only
+    a text prompt — no shared reference image. A stochastic image model given
+    the same character description twice can render a visibly different
+    character each time, which is the same class of cross-scene mascot
+    inconsistency the animate path's hero-image reuse already prevents.
+    Confirmed for real 2026-08-21: an unrelated reference video showed 4
+    different character designs across mascot-labeled scenes generated this way."""
+    from shorts_factory import assembly, pipeline
+    from shorts_factory.config import Settings
+    from shorts_factory.providers.image import ImageProvider
+
+    image_calls = []
+
+    class FakeImageProvider(ImageProvider):
+        name = "fake_img"
+
+        def generate_scene_image(self, scene, scene_index, out_path, cost_tracker):
+            image_calls.append(scene_index)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            Image.new("RGB", (1024, 1024), (10, 20, 30)).save(out_path)
+            return out_path
+
+    monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
+
+    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4):
+        for i, s in enumerate(scenes):
+            frame_source(i, s)
+        return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
+
+    monkeypatch.setattr(assembly, "assemble", fake_assemble)
+    monkeypatch.setattr(
+        assembly,
+        "synthesize_scenes",
+        lambda tts, scenes, audio_dir, cost_tracker: [
+            assembly.SceneAudio(path=audio_dir / f"s{i}.wav", duration=5.0, scripted_duration=5.0)
+            for i in range(len(scenes))
+        ],
+    )
+    monkeypatch.setattr(pipeline.verify, "run_verification", lambda **kwargs: {"overall_pass": True})
+
+    test_settings = Settings(
+        book_file="stub", output_language="English", visual_style="stub",
+        budget_cap_usd=5.0, budget_cap_is_stub=False, music_sfx_source="stub",
+        llm=ProviderConfig("llm", "stub", "stub"), tts=ProviderConfig("tts", "stub", "stub"),
+        image=ProviderConfig("image", "fal", "fal-ai/nano-banana"),
+        video=ProviderConfig("video", "stub", "stub"),
+        search=ProviderConfig("search", "stub", "stub"), search_api_key="", fal_key="fake_key",
+        fal_llm_endpoint="", tts_voice="", image_style="",
+        llm_cost_per_script_usd=0.0, tts_cost_per_1k_chars_usd=0.0, image_cost_per_image_usd=0.0,
+        video_cost_per_second_usd=0.0, youtube_client_secrets_file="", youtube_token_file="",
+        telegram_bot_token="", telegram_allowed_user_ids=(),
+    )
+    monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
+
+    res = pipeline.run_pipeline("soap", mascot_id="mascot_4", artifacts_root=tmp_path)
+
+    # Mascot-type scenes (StubLLMProvider cycles scene_type across scenes,
+    # see providers/llm.py) must all reuse one shared hero image — never
+    # regenerated independently per scene. ingredient_grid/process_action
+    # scenes still get their own distinct per-scene image.
+    scenes = res.script["scenes"]
+    mascot_scene_indices = [
+        i for i, s in enumerate(scenes) if s.get("scene_type") not in ("ingredient_grid", "process_action")
+    ]
+    fresh_scene_indices = [
+        i for i, s in enumerate(scenes) if s.get("scene_type") in ("ingredient_grid", "process_action")
+    ]
+    assert mascot_scene_indices, "test script must contain at least one mascot-type scene"
+    assert image_calls.count("hero") == 1
+    for i in fresh_scene_indices:
+        assert image_calls.count(i) == 1
+    assert sorted(c for c in image_calls if c != "hero") == sorted(fresh_scene_indices)
 
 
 def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):

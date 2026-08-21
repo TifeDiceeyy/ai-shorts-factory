@@ -33,6 +33,21 @@ CAMERA_TEMPLATES = [
     "handheld tracking shot",
 ]
 
+# Cycled by scene index, same pattern as CAMERA_TEMPLATES above. Mirrors the
+# scene_type values the real LLM provider is instructed to emit on every
+# scene (see the FalLLMProvider system prompt) — without this, stub-driven
+# tests exercise a script shape (no scene_type at all) that real production
+# scripts never have, which let the mascot hero-image-reuse path (keyed off
+# scene_type, see pipeline.get_scene_image_prompt) go completely untested by
+# the free/local test suite.
+SCENE_TYPE_TEMPLATES = [
+    "mascot_reaction",
+    "ingredient_grid",
+    "process_action",
+    "mascot_reaction",
+    "split_canvas",
+]
+
 # StubLLMProvider.propose_ideas()'s deterministic content — moved here from
 # ideation.py so the stub/real split for ideation matches every other
 # provider in this file: ideation.generate_ideas() just calls
@@ -154,6 +169,7 @@ class StubLLMProvider(LLMProvider):
                     "source_claim_id": claim["id"],
                     "camera": CAMERA_TEMPLATES[i % len(CAMERA_TEMPLATES)],
                     "sfx": None,
+                    "scene_type": SCENE_TYPE_TEMPLATES[i % len(SCENE_TYPE_TEMPLATES)],
                 }
             )
 
