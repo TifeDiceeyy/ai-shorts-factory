@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from . import assembly, verify
+from .captions import get_random_caption_style_name
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import BudgetExceeded, CostTracker
-from .mascots import Mascot, get_mascot
+from .mascots import Mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
 from .providers.llm import get_llm_provider
 from .providers.tts import get_tts_provider
@@ -179,10 +180,6 @@ def run_pipeline(
         return result
     result.safety_class = safety_class.value
 
-    selected_mascot_id = mascot_id or (idea.get("mascot_id") if idea else None) or settings.default_mascot_id
-    mascot = get_mascot(selected_mascot_id)
-    result.mascot_id = mascot.id
-
     artifacts_dir = (artifacts_root or REPO_ROOT / "artifacts") / topic
     workdir = artifacts_dir / "_work"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -230,6 +227,17 @@ def run_pipeline(
                 f"classifier says {safety_class.value!r} — refusing to proceed on a mismatch"
             )
 
+        # Mascot resolution happens here (after the brief exists, not right
+        # after the safety gate) so story-matching (raw_mascot_id in
+        # ("auto", "random", "story") or simply not given) can use the
+        # brief's concept/angle/claims text, not just the bare topic string.
+        raw_mascot_id = mascot_id or (idea.get("mascot_id") if idea else None)
+        if raw_mascot_id and str(raw_mascot_id).strip().lower() not in ("auto", "random", "story", ""):
+            mascot = get_mascot(raw_mascot_id)
+        else:
+            mascot = select_mascot_for_story(topic, brief=brief)
+        result.mascot_id = mascot.id
+
         # --- Script generation (LLM provider, stub by default) ---
         llm = get_llm_provider(
             settings.llm.provider,
@@ -248,6 +256,11 @@ def run_pipeline(
         if warning and script.get("scenes"):
             script["scenes"][-1]["caption"] = warning
         script["mascot_id"] = mascot.id
+        # One caption style per video, chosen once and persisted — not
+        # re-randomized per scene/per render stage. regenerate_scene reads
+        # this same value back so a single-scene regeneration never mismatches
+        # the rest of the video's captions.
+        script["caption_style"] = get_random_caption_style_name()
         validate_script_against_brief(script, brief)
         result.script = script
 
@@ -290,6 +303,7 @@ def run_pipeline(
             audio=scene_audio,
             workdir=placeholder_dir,
             out_mp4=placeholder_mp4,
+            caption_style=script["caption_style"],
         )
         assembly.write_captions_meta(
             script["scenes"], actual_durations, placeholder_result["caption_boxes"],
@@ -365,6 +379,7 @@ def run_pipeline(
                 audio=scene_audio,
                 workdir=generated_dir,
                 out_mp4=final_mp4,
+                caption_style=script["caption_style"],
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
@@ -384,6 +399,7 @@ def run_pipeline(
                 audio=scene_audio,
                 workdir=generated_dir,
                 out_mp4=final_mp4,
+                caption_style=script["caption_style"],
             )
         captions_meta = artifacts_dir / "captions.meta.json"
         assembly.write_captions_meta(
@@ -470,6 +486,12 @@ def regenerate_scene(
     mascot_id = script.get("mascot_id") or settings.default_mascot_id
     mascot = get_mascot(mascot_id)
     result.mascot_id = mascot.id
+    # Reuse the SAME caption style the original full run picked (persisted in
+    # script.json) — a regenerated scene must not end up with a different
+    # font/color/casing than the rest of the video. None (older script.json
+    # from before this field existed) falls back to draw_caption's own
+    # per-caption-text default, same as it always did.
+    caption_style = script.get("caption_style")
 
     if new_narration:
         scenes[scene_index]["narration"] = new_narration
@@ -547,7 +569,7 @@ def regenerate_scene(
 
             tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
             clip_path = video_provider.generate_scene_video(scene, base_image_path, scene_index, tmp_clip_path, cost_tracker)
-            overlay_png, new_box = assembly.caption_overlay_png(scene["caption"])
+            overlay_png, new_box = assembly.caption_overlay_png(scene["caption"], style=caption_style)
             new_seg_path = assembly.build_scene_video_segment_from_clip(
                 clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
             )
@@ -559,7 +581,9 @@ def regenerate_scene(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )
             base_image = Image.open(base_image_path).convert("RGB")
-            new_frame_path, new_box = assembly.build_scene_frame(scene, scene_index, base_image, generated_dir / "frames")
+            new_frame_path, new_box = assembly.build_scene_frame(
+                scene, scene_index, base_image, generated_dir / "frames", caption_style=caption_style
+            )
             new_seg_path = assembly.build_scene_video_segment(new_frame_path, new_duration, scene_index, generated_dir / "segments")
 
         prior_captions_meta = json.loads((artifacts_dir / "captions.meta.json").read_text(encoding="utf-8"))["scenes"]

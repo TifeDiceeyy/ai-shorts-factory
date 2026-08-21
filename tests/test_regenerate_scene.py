@@ -66,7 +66,7 @@ def test_run_pipeline_persists_mascot_and_regenerate_uses_it(tmp_path):
     # Run pipeline with explicit non-default mascot
     full = run_pipeline("charcoal", mascot_id="mascot_2", artifacts_root=tmp_path)
     assert full.mascot_id == "mascot_2"
-    
+
     script_file = tmp_path / "charcoal" / "charcoal.script.json"
     assert script_file.exists()
     script_data = json.loads(script_file.read_text(encoding="utf-8"))
@@ -75,4 +75,47 @@ def test_run_pipeline_persists_mascot_and_regenerate_uses_it(tmp_path):
     # Regenerate scene and assert it picks up mascot_2 from script.json
     regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
     assert regen.mascot_id == "mascot_2"
+
+
+def test_run_pipeline_picks_mascot_via_story_matching_when_none_given(tmp_path, monkeypatch):
+    """Regression test: an explicit mascot_id must skip story-matching
+    entirely; leaving it unset must NOT silently fall back to a fixed
+    default — it must go through select_mascot_for_story(topic, brief=...)."""
+    from shorts_factory import pipeline
+
+    calls = []
+    real_select = pipeline.select_mascot_for_story
+
+    def spy_select(topic, brief=None, seed=None):
+        calls.append((topic, brief))
+        return real_select(topic, brief=brief, seed=seed)
+
+    monkeypatch.setattr(pipeline, "select_mascot_for_story", spy_select)
+
+    run_pipeline("charcoal", artifacts_root=tmp_path)
+    assert len(calls) == 1
+    assert calls[0][0] == "charcoal"
+    assert calls[0][1] is not None  # the brief was passed, not just the bare topic
+
+    calls.clear()
+    run_pipeline("charcoal", mascot_id="mascot_2", artifacts_root=(tmp_path / "explicit"))
+    assert calls == [], "an explicit mascot_id must not trigger story-matching at all"
+
+
+def test_caption_style_persists_and_regenerate_reuses_it(tmp_path):
+    """Regression test: caption_style is chosen once per video and must
+    survive a single-scene regeneration unchanged — a regenerated scene
+    must never end up with a different font/color/casing than the rest of
+    the video just because regenerate_scene() re-ran a fresh random pick."""
+    import json
+    from shorts_factory.captions import STYLE_NAMES
+
+    full = run_pipeline("charcoal", artifacts_root=tmp_path)
+    script_file = tmp_path / "charcoal" / "charcoal.script.json"
+    script_data = json.loads(script_file.read_text(encoding="utf-8"))
+    assert script_data.get("caption_style") in STYLE_NAMES
+    original_style = script_data["caption_style"]
+
+    regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
+    assert regen.script["caption_style"] == original_style
 

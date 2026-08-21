@@ -254,6 +254,10 @@ def _mascot_kb() -> InlineKeyboardMarkup:
     rows = []
     for m in list_mascots():
         rows.append([InlineKeyboardButton(text=m.name, callback_data=f"mascot_{m.id}")])
+    # "auto" is a sentinel (see pipeline.run_pipeline / mascots.select_mascot_for_story),
+    # never a real mascot_id — the callback handler below must special-case it,
+    # not resolve it through get_mascot() like the numbered buttons.
+    rows.append([InlineKeyboardButton(text="🎲 Story-Matched / Random", callback_data="mascot_auto")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -321,9 +325,9 @@ def build_router(controller: TelegramController) -> Router:
         await state.update_data(topic=topic)
         stored = await state.get_data()
         mascot_id = stored.get("chosen_mascot_id")
-        mascot = get_mascot(mascot_id)
+        mascot_label = "a story-matched mascot (chosen automatically from the topic)" if mascot_id == "auto" else get_mascot(mascot_id).name
         await message.answer(
-            f"Ready to generate {topic!r} using {mascot.name}. Real cost is ~$0.30/video once real providers are "
+            f"Ready to generate {topic!r} using {mascot_label}. Real cost is ~$0.30/video once real providers are "
             "configured (stub providers cost $0) — enforced against BUDGET_CAP_USD either way. Generate now?",
             reply_markup=_confirm_cancel_kb("generate"),
         )
@@ -530,7 +534,14 @@ def build_router(controller: TelegramController) -> Router:
             elif current_state == PlanningStates.choosing_mascot.state:
                 stored = await state.get_data()
                 topic = stored.get("topic")
-                if data.startswith("mascot_"):
+                if data == "mascot_auto":
+                    # Store the literal sentinel — run_pipeline's own
+                    # mascot resolution (via select_mascot_for_story) picks
+                    # the actual mascot later, once the topic's brief exists.
+                    await state.update_data(chosen_mascot_id="auto")
+                    await message.answer("Selected: story-matched / random — picked automatically once generation starts.")
+                    await enter_retrieval_or_generate(message, state, topic)
+                elif data.startswith("mascot_"):
                     mascot_id = data.replace("mascot_", "", 1)
                     mascot = get_mascot(mascot_id)
                     await state.update_data(chosen_mascot_id=mascot.id)
@@ -552,6 +563,11 @@ def build_router(controller: TelegramController) -> Router:
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")
                     await state.clear()
+            elif data == "mascot_auto":
+                await message.answer(
+                    "🎲 Story-Matched / Random\nPicks whichever of the 5 mascots best fits the topic's "
+                    "theme once generation actually starts (falls back to a random pick if nothing matches)."
+                )
             elif data.startswith("mascot_"):
                 mascot_id = data.replace("mascot_", "", 1)
                 mascot = get_mascot(mascot_id)

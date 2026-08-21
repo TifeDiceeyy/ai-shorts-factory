@@ -81,8 +81,9 @@ def build_scene_frame(
     index: int,
     base_image: Image.Image,
     frames_dir: Path,
+    caption_style: str | None = None,
 ) -> tuple[Path, CaptionBox]:
-    composited, box = draw_caption(base_image, scene["caption"])
+    composited, box = draw_caption(base_image, scene["caption"], style=caption_style)
     frames_dir.mkdir(parents=True, exist_ok=True)
     frame_path = frames_dir / f"scene_{index:02d}.png"
     composited.save(frame_path)
@@ -348,6 +349,7 @@ def assemble(
     audio: list[SceneAudio],
     workdir: Path,
     out_mp4: Path,
+    caption_style: str | None = None,
 ) -> dict[str, Any]:
     """Runs the full assembly for one stage (placeholder or generated-image).
     frame_source(index, scene) -> a base PIL Image (pre-caption) for that scene.
@@ -372,7 +374,7 @@ def assemble(
 
     for i, scene in enumerate(scenes):
         base_image = frame_source(i, scene)
-        frame_path, box = build_scene_frame(scene, i, base_image, frames_dir)
+        frame_path, box = build_scene_frame(scene, i, base_image, frames_dir, caption_style=caption_style)
         frame_paths.append(frame_path)
         caption_boxes.append(box)
 
@@ -393,6 +395,7 @@ def assemble_animated(
     audio: list[SceneAudio],
     workdir: Path,
     out_mp4: Path,
+    caption_style: str | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
     a raw, uncaptioned, arbitrary-duration animated clip path for that scene
@@ -410,7 +413,7 @@ def assemble_animated(
 
     for i, scene in enumerate(scenes):
         clip_path = clip_source(i, scene)
-        overlay, box = caption_overlay_png(scene["caption"])
+        overlay, box = caption_overlay_png(scene["caption"], style=caption_style)
         caption_boxes.append(box)
 
         seg_path = build_scene_video_segment_from_clip(clip_path, audio[i].duration, overlay, i, segments_dir)

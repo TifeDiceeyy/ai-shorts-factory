@@ -293,6 +293,17 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
 STYLE_NAMES = list(CAPTION_STYLES.keys())
 
 
+def get_random_caption_style_name(seed: Any = None, exclude: list[str] | None = None) -> str:
+    """Returns the name key of a randomly selected style from CAPTION_STYLES
+    (not a randomized/jittered CaptionStyle instance like
+    get_random_caption_style() below) — for cases that need a plain string
+    to persist (e.g. script.json's caption_style field) and re-resolve later
+    via resolve_caption_style(name), rather than a one-off in-memory object."""
+    rng = random.Random(seed) if seed is not None else random
+    available_keys = [k for k in STYLE_NAMES if not exclude or k not in exclude]
+    return rng.choice(available_keys)
+
+
 def get_random_caption_style(seed: Any = None, exclude: list[str] | None = None) -> CaptionStyle:
     """Returns a randomized, dynamic CaptionStyle with variations in font, color, and casing."""
     rng = random.Random(seed) if seed is not None else random

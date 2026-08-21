@@ -4,9 +4,11 @@ from PIL import Image
 from shorts_factory.captions import (
     CAPTION_STYLES,
     CaptionStyle,
+    STYLE_NAMES,
     draw_caption,
     caption_overlay_png,
     get_random_caption_style,
+    get_random_caption_style_name,
     resolve_caption_style,
     SAFE_TOP,
     SAFE_BOTTOM,
@@ -35,6 +37,21 @@ def test_caption_style_randomizer_produces_varied_styles():
     assert len(names) >= 4
     assert len(font_families) >= 2
     assert len(colors) >= 3
+
+
+def test_get_random_caption_style_name_returns_a_real_catalog_key():
+    """get_random_caption_style_name() must return a plain string key
+    (unlike get_random_caption_style(), which returns a jittered
+    CaptionStyle instance) — this is what gets persisted as script.json's
+    caption_style field and re-resolved later via resolve_caption_style()."""
+    for _ in range(20):
+        name = get_random_caption_style_name()
+        assert isinstance(name, str)
+        assert name in STYLE_NAMES
+        # Must resolve to the EXACT unmodified catalog style, not a jittered
+        # variant — a persisted name has to look the same every time it's
+        # re-resolved (e.g. once per scene across a whole video).
+        assert resolve_caption_style(name) is CAPTION_STYLES[name]
 
 
 def test_all_caption_styles_stay_inside_safe_area():

@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from shorts_factory.mascots import MASCOTS, get_mascot, list_mascots, Mascot
+from shorts_factory.mascots import MASCOTS, get_mascot, list_mascots, select_mascot_for_story, Mascot
 from shorts_factory.pipeline import run_pipeline
 from shorts_factory.telegram_bot import TelegramController
 
@@ -107,6 +107,35 @@ def test_get_mascot_aliases_and_fallback():
     assert get_mascot("unknown_mascot").id == "mascot_4"
 
 
+def test_select_mascot_for_story_matches_topic_keywords():
+    # Direct topic keyword hits (see MASCOT_STORY_KEYWORDS) — deterministic
+    # since a single-candidate match never reaches the random tie-break.
+    assert select_mascot_for_story("soap").id == "mascot_4"
+    assert select_mascot_for_story("charcoal").id == "mascot_4"
+    assert select_mascot_for_story("roman concrete").id == "mascot_1"
+    assert select_mascot_for_story("apple cider vinegar").id == "mascot_3"
+
+
+def test_select_mascot_for_story_uses_brief_text_too_not_just_topic():
+    # A generic/ambiguous topic string alone matches nothing, but the
+    # brief's concept/angle/claims carry the real thematic signal — must be
+    # searched too, not just the bare topic.
+    brief = {
+        "concept": "How Roman engineers made waterproof concrete",
+        "angle": "an ancient engineering explainer",
+        "claims": [{"claim": "Pozzolana ash was mixed with lime to bind aqueduct stone."}],
+    }
+    assert select_mascot_for_story("ancient engineering", brief=brief).id == "mascot_1"
+
+
+def test_select_mascot_for_story_falls_back_to_random_for_unmatched_topics():
+    # No keyword hits at all -> random among all 5, not a silent crash or a
+    # hardcoded always-the-same-mascot fallback.
+    chosen_ids = {select_mascot_for_story("xyzzy nonsense topic", seed=i).id for i in range(30)}
+    assert chosen_ids.issubset(set(MASCOTS.keys()))
+    assert len(chosen_ids) > 1, "expected variety across seeds when nothing matches"
+
+
 def test_telegram_controller_mascots_text(tmp_path):
     controller = TelegramController((1,), tmp_path)
     text = controller.mascots_text()
@@ -206,7 +235,7 @@ def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     # Mock assembly.assemble to avoid needing external ffmpeg in quick unit tests
     from shorts_factory import assembly
 
-    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4):
+    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None):
         out_mp4.parent.mkdir(parents=True, exist_ok=True)
         out_mp4.write_bytes(b"dummy_mp4")
         return {"caption_boxes": []}

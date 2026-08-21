@@ -10,6 +10,7 @@ Each mascot provides:
 """
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from typing import Any
 
@@ -307,3 +308,52 @@ def get_mascot(mascot_id: str | None) -> Mascot:
 def list_mascots() -> list[Mascot]:
     """Returns all 5 mascots in numeric order."""
     return [MASCOTS[f"mascot_{i}"] for i in range(1, 6)]
+
+
+# Topic/story keyword -> mascot_id, used by select_mascot_for_story() to pick
+# a thematically-appropriate mascot instead of always defaulting to the same
+# one. Keys are lowercase substrings checked against the topic/brief text.
+MASCOT_STORY_KEYWORDS: dict[str, list[str]] = {
+    "mascot_1": ["roman", "concrete", "rome", "aqueduct", "monument", "pozzolana"],
+    "mascot_2": ["compass", "pump", "gear", "pottery", "wheel", "mechanic", "tool", "rope"],
+    "mascot_3": ["vinegar", "food", "preservation", "ferment", "salt", "drying", "cider", "apple"],
+    "mascot_4": ["soap", "charcoal", "stone", "mineral", "mining", "smelt", "furnace", "ash", "lye"],
+    "mascot_5": ["water filtration", "filter", "distill", "alchemist", "chemistry", "herb", "purify"],
+}
+
+
+def select_mascot_for_story(
+    topic: str,
+    brief: dict[str, Any] | None = None,
+    seed: Any = None,
+) -> Mascot:
+    """Picks a mascot thematically suited to the topic/brief instead of
+    always the same DEFAULT_MASCOT_ID — scores every mascot's keyword list
+    against the topic + brief's concept/angle/claims text, picking the
+    highest-scoring match (topic-text hits count double). Ties, and topics
+    that match no keywords at all, fall back to a random pick among all 5 so
+    the choice is never silently deterministic-by-accident."""
+    rng = random.Random(seed) if seed is not None else random
+    search_text = topic.lower()
+    if brief:
+        search_text += f" {brief.get('concept', '')} {brief.get('angle', '')}"
+        for claim in brief.get("claims", []):
+            if isinstance(claim, dict):
+                search_text += f" {claim.get('claim', '')} {claim.get('narrative_role', '')}"
+            elif isinstance(claim, str):
+                search_text += f" {claim}"
+
+    scores: dict[str, int] = {m_id: 0 for m_id in MASCOTS}
+    topic_lower = topic.lower()
+    for m_id, keywords in MASCOT_STORY_KEYWORDS.items():
+        for kw in keywords:
+            if kw in search_text:
+                scores[m_id] += 2 if kw in topic_lower else 1
+
+    max_score = max(scores.values()) if scores else 0
+    if max_score > 0:
+        candidates = [m_id for m_id, s in scores.items() if s == max_score]
+        chosen_id = rng.choice(candidates)
+    else:
+        chosen_id = rng.choice(list(MASCOTS.keys()))
+    return MASCOTS[chosen_id]
