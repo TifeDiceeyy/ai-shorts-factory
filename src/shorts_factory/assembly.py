@@ -10,6 +10,7 @@ tests/test_determinism.py, which hashes two independent runs.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -153,6 +154,57 @@ def build_scene_video_segment(frame_path: Path, duration: float, index: int, seg
     return out_path
 
 
+_FREEZE_EVENT_RE = re.compile(
+    r"lavfi\.freezedetect\.freeze_(start|duration|end):\s*([\d.]+)"
+)
+
+
+def _leading_freeze_seconds(clip_path: Path, clip_duration: float) -> float:
+    """How long clip_path holds a static (near-zero-motion) frame starting
+    from time 0 — real image-to-video models (confirmed for real 2026-08-21,
+    measured against actual paid Kling clips from the electricity video)
+    routinely hold the source pose for a beat, sometimes over half the
+    clip, before any real motion begins. That dead time landing right after
+    a scene cut is what reads as "a pause between scenes" even though the
+    narration audio is already talking — trimming it (see
+    build_scene_video_segment_from_clip) gets straight to the motion, and
+    tpad's existing end-of-clip hold absorbs the same amount of frozen time
+    at the scene's END instead, which reads as "holding on the result"
+    rather than "nothing is happening yet".
+
+    Detects via ffmpeg's freezedetect filter, coalescing any back-to-back
+    freeze intervals starting at t=0 into one combined leading-freeze
+    length (a single real freeze sometimes gets reported as 2-3 adjacent
+    intervals). Capped at 70% of the clip's own duration so a clip that's
+    frozen almost throughout still keeps a meaningful slice of real motion
+    rather than being trimmed to nothing."""
+    cmd = [
+        "ffmpeg", "-i", str(clip_path),
+        "-vf", "freezedetect=n=-30dB:d=0.15",
+        "-an", "-f", "null", "-",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    events: list[tuple[str, float]] = [
+        (kind, float(value)) for kind, value in _FREEZE_EVENT_RE.findall(result.stderr)
+    ]
+    # Group the flat (kind, value) stream back into (start, duration, end) triples.
+    triples: list[tuple[float, float, float]] = []
+    current: dict[str, float] = {}
+    for kind, value in events:
+        current[kind] = value
+        if {"start", "duration", "end"}.issubset(current):
+            triples.append((current["start"], current["duration"], current["end"]))
+            current = {}
+
+    leading_end = 0.0
+    for start, _duration, end in triples:
+        if abs(start - leading_end) < 0.05:
+            leading_end = end
+        else:
+            break
+    return min(leading_end, clip_duration * 0.7)
+
+
 def build_scene_video_segment_from_clip(
     clip_path: Path,
     duration: float,
@@ -161,23 +213,30 @@ def build_scene_video_segment_from_clip(
     segments_dir: Path,
 ) -> Path:
     """Same role as build_scene_video_segment(), for an animated clip
-    instead of a static frame: scales to frame size, composites the caption
-    overlay (see captions.caption_overlay_png — a transparent RGBA layer,
-    since there's no single base image to burn it into ahead of time), and
-    holds the last frame (tpad, generously over-padded then hard-trimmed by
-    -t) to reach the scene's actual scripted duration — image-to-video
-    models return a fixed clip length (e.g. Hailuo's 6s minimum) that will
-    essentially never match the scripted duration exactly."""
+    instead of a static frame: skips any leading static/frozen hold in the
+    source clip (see _leading_freeze_seconds), scales to frame size,
+    composites the caption overlay (see captions.caption_overlay_png — a
+    transparent RGBA layer, since there's no single base image to burn it
+    into ahead of time), and holds the last frame (tpad, generously
+    over-padded then hard-trimmed by -t) to reach the scene's actual
+    scripted duration — image-to-video models return a fixed clip length
+    (e.g. Hailuo's 6s minimum) that will essentially never match the
+    scripted duration exactly."""
     segments_dir.mkdir(parents=True, exist_ok=True)
     overlay_path = segments_dir / f"caption_overlay_{index:02d}.png"
     caption_overlay.save(overlay_path)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
+
+    clip_duration = probe_duration(clip_path)
+    skip_seconds = _leading_freeze_seconds(clip_path, clip_duration)
+
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-i", str(clip_path),
         "-loop", "1", "-i", str(overlay_path),
         "-filter_complex",
-        f"[0:v]scale={FRAME_WIDTH}:{FRAME_HEIGHT},tpad=stop_mode=clone:stop_duration=15[base];"
+        (f"[0:v]trim=start={skip_seconds:.3f},setpts=PTS-STARTPTS," if skip_seconds > 0.05 else "[0:v]")
+        + f"scale={FRAME_WIDTH}:{FRAME_HEIGHT},tpad=stop_mode=clone:stop_duration=15[base];"
         "[base][1:v]overlay=0:0[out]",
         "-map", "[out]",
         "-t", f"{duration:.3f}",
