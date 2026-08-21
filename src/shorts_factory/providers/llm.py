@@ -256,8 +256,9 @@ class StubLLMProvider(LLMProvider):
             "short_desc": f"Deterministic stub mascot generated for topic {topic!r} — not a real design.",
             "hero_prompt": (
                 f"Full-body 3D CGI cartoon mascot character themed around {topic}, standing in a friendly "
-                "explanatory pose facing camera, one hand gesturing forward with open palm. Centered "
-                "vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+                "explanatory pose facing camera, one hand gesturing forward with open palm. Small and centered "
+                "vertically in frame, occupying no more than 40% of vertical height, with generous empty white "
+                "space above, below, and on both sides — must NOT dominate the frame. "
                 "Fully clothed; no bare skin visible except face, forearms, and calves; do not depict "
                 "shirtless or undressed. Stark pure solid white background (#FFFFFF) only, zero background "
                 "details, zero floor shadows, sticker framing."
@@ -419,8 +420,9 @@ def _mascot_design_prompt(topic: str, brief: dict[str, Any] | None) -> str:
         "design specifically suited to it." + brief_context + " Return JSON only, no prose, no markdown "
         "fences. The object must contain exactly: name (a short display name, e.g. 'Mascot: Deep-Sea "
         "Diver'), short_desc (one sentence describing the archetype and outfit), hero_prompt (a detailed "
-        "full-body character description for an image-generation model — MUST specify: centered "
-        "vertically in frame occupying 60% of vertical height, a friendly explanatory pose gesturing "
+        "full-body character description for an image-generation model — MUST specify: small and centered "
+        "vertically in frame occupying no more than 40% of vertical height, with generous empty white space "
+        "above, below, and on both sides (must NOT dominate the frame), a friendly explanatory pose gesturing "
         "forward with one open palm, the character is FULLY CLOTHED with no bare skin visible except "
         "face/forearms/calves and must explicitly state it is not shirtless or undressed, and a stark "
         "pure solid white background #FFFFFF with zero scenery and zero floor shadows, sticker framing), "

@@ -1,0 +1,23 @@
+{
+  "budget_cap_usd": 20.0,
+  "total_spent_usd": 0.016,
+  "under_cap": true,
+  "entries": [
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['history of electricity discovery Volta Faraday reliable source']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787323547.304116
+    },
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['how early batteries and electric current were first discovered']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787323548.526674
+    }
+  ]
+}

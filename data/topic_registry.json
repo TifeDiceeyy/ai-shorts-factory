@@ -193,8 +193,20 @@
     "caution": "Caution: extreme heat and combustion gases can kill. Use expert-designed equipment and ventilation."
   },
   "electricity": {
-    "queries": [],
-    "keywords": [],
+    "queries": [
+      "history of electricity discovery Volta Faraday reliable source",
+      "how early batteries and electric current were first discovered"
+    ],
+    "keywords": [
+      "electricity",
+      "volta",
+      "faraday",
+      "battery",
+      "circuit",
+      "current",
+      "induction",
+      "voltaic"
+    ],
     "safety_class": "yellow",
     "caution": "Caution: electrical work can cause shock, fire, or death. Use qualified guidance and proper protection."
   },

@@ -91,7 +91,7 @@ class Mascot:
             opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
             prompt_parts = [
                 "Split-canvas 3D explainer composition on a stark pure solid white background (#FFFFFF).",
-                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying 35-40% of vertical height) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (small, occupying no more than 22% of vertical height, with lots of surrounding empty white space) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
             ]
             if props:
                 prompt_parts.append(
@@ -107,7 +107,7 @@ class Mascot:
             return " ".join(prompt_parts)
         else:
             prompt_parts = [
-                f"Full-body {self.name} mascot centered vertically in frame (occupying 55-60% of vertical height) on a stark pure solid white background (#FFFFFF).",
+                f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 40% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
                 f"Role: {scene_role or 'explainer'}. Emotion: {emotion or 'friendly enthusiastic expression'}.",
             ]
             if action:
@@ -129,7 +129,9 @@ MASCOT_1 = Mascot(
     hero_prompt=(
         "Full-body cartoon Roman legionary mascot character standing in a friendly explanatory pose "
         "facing camera, one hand gesturing forward with open palm. "
-        "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
+        "fill the frame. "
         "The character is fully clothed: wearing a classic polished bronze helmet with red brush crest, "
         "a red cape over a Roman tunic with leather armor strips and bronze buckles, and strapped sandals. "
         "Expressive cartoon eyes, animated bushy eyebrows, and engaging friendly expression. "
@@ -162,7 +164,9 @@ MASCOT_2 = Mascot(
     hero_prompt=(
         "Full-body 2D/3D animated chibi cartoon mascot character standing in a friendly explanatory gesture "
         "with one hand raised open-palmed. "
-        "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
+        "fill the frame. "
         "The character has cute chibi proportions with an oversized expressive head and animated large cartoon eyes. "
         "The character is fully clothed: wearing a brown leather artisan apron with pocket tools over a navy tunic, "
         "round brass goggles resting on top of hair, and small sturdy utility boots. "
@@ -194,7 +198,9 @@ MASCOT_3 = Mascot(
     short_desc="Smooth coffee bean explorer with iron kettle helmet, burlap scarf, and duster coat",
     hero_prompt=(
         "Full-body 3D animated cartoon character mascot combining a smooth brown bean face with a rugged medieval scavenger explorer. "
-        "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
+        "fill the frame. "
         "Smooth rounded bean head with prominent expressive brow ridges, large animated green eyes, and a classic vintage handlebar mustache. "
         "The character is fully clothed: wearing an antique iron kettle helmet, a weathered brown scavenger leather coat with a frayed burlap cowl scarf, "
         "utility belt with pouches, leather gloves, and sturdy explorer boots, holding a wooden walking staff in one hand and gesturing with the other open hand. "
@@ -226,7 +232,9 @@ MASCOT_4 = Mascot(
     short_desc="Charming stylized 3D human dwarf/halfling explorer with neat brown beard, weathered leather duster coat, burlap scarf, iron kettle helmet, and walking staff",
     hero_prompt=(
         "Full-body 3D CGI cartoon character mascot: a stylized human dwarf / halfling scavenger explorer. "
-        "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
+        "fill the frame. "
         "Charming expressive facial features with tousled wavy brown hair, warm expressive animated eyes, "
         "a neatly-groomed rugged full brown dwarf beard and mustache, and a friendly engaging smile. "
         "Wearing an antique metal skull-cap / iron kettle helmet, a frayed burlap cowl scarf draped around his neck, "
@@ -263,7 +271,9 @@ MASCOT_5 = Mascot(
     short_desc="Wilderness survivor with green hooded cowl, copper distillation flask, and tool harness",
     hero_prompt=(
         "Full-body 3D animated character mascot: a wilderness bushcraft alchemist and survival herbalist. "
-        "The character is centered vertically in frame, occupying 60% of vertical height with clear space at top and bottom. "
+        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
+        "fill the frame. "
         "Expressive animated cartoon face with determined friendly eyes and animated brow. "
         "The character is fully clothed: wearing a moss-green weathered canvas hooded cowl over a durable wool work shirt, "
         "reinforced leather utility vest with brass buckle straps, chemical test vials strapped to chest, "
