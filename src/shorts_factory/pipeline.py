@@ -7,6 +7,7 @@ report. See CLAUDE.md for the full spec this implements.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -61,6 +62,18 @@ def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
     return scene.get("visual_prompt", mascot.hero_prompt)
 
 
+def _hero_cache_key(mascot: Mascot, image_model: str, image_style: str) -> str:
+    """Short hash covering everything that changes what the hero image
+    looks like: the mascot's own hero_prompt text, the image model, and the
+    style preset. mascot.id alone isn't enough — artifacts/<topic>/_work
+    persists across separate runs of the same topic, so switching
+    IMAGE_MODEL (e.g. Recraft -> Nano Banana) or editing a mascot's
+    hero_prompt while keeping the same mascot_id would otherwise silently
+    keep reusing a hero image rendered under the old model/prompt."""
+    raw = f"{mascot.hero_prompt}|{image_model}|{image_style}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
+
+
 def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, cost_tracker: CostTracker) -> Path:
     """Generates the shared hero character image once and reuses it on every
     later call (within or across run_pipeline/regenerate_scene) — this is
@@ -68,11 +81,13 @@ def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, c
     scene. Lazy: a script made entirely of ingredient_grid/process_action
     scenes never calls this and never pays for a hero image it wouldn't use.
 
-    hero_path MUST be keyed by mascot.id by the caller (e.g.
-    generated/hero_mascot_4.png, not a fixed hero.png) — artifacts/<topic>
-    persists across separate runs of the same topic, so a fixed filename
-    would let a stale image from a since-changed mascot get silently
-    reused indefinitely."""
+    hero_path MUST be keyed by both mascot.id AND _hero_cache_key() by the
+    caller (e.g. generated/hero_mascot_4_a1b2c3d4e5.png, not a fixed
+    hero.png or a mascot.id-only hero_mascot_4.png) — artifacts/<topic>
+    persists across separate runs of the same topic, so a filename that
+    doesn't account for the mascot's prompt text and image model would let
+    a stale image rendered under a different one get silently reused
+    indefinitely."""
     if not hero_path.exists():
         hero_path.parent.mkdir(parents=True, exist_ok=True)
         image_provider.generate_scene_image({"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker)
@@ -325,15 +340,17 @@ def run_pipeline(
                 gateway=fal_gateway,
             )
 
-            # Keyed by mascot.id, not a fixed "hero.png" — artifacts/<topic>/_work
-            # persists across separate runs of the same topic (including runs
-            # days apart with a different mascot/DEFAULT_MASCOT selected). A
-            # fixed filename meant a stale hero image from a completely
-            # different mascot could get silently reused (confirmed for real
-            # 2026-08-20/21: a flat-2D mascot from three days earlier got
-            # reused as scene 0's I2V source in a video whose other scenes
-            # correctly used the new 3D "Bearded Dwarf" mascot).
-            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            # Keyed by mascot.id AND _hero_cache_key(), not a fixed "hero.png"
+            # or a mascot.id-only filename — artifacts/<topic>/_work persists
+            # across separate runs of the same topic (including runs days
+            # apart with a different mascot/DEFAULT_MASCOT, IMAGE_MODEL, or
+            # hero_prompt text). A filename that didn't account for all of
+            # that let a stale hero image get silently reused (confirmed for
+            # real 2026-08-20/21: a flat-2D mascot from three days earlier
+            # got reused as scene 0's I2V source in a video whose other
+            # scenes correctly used the new 3D "Bearded Dwarf" mascot).
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
 
             def clip_source(i: int, scene: dict[str, Any]) -> Path:
                 base_image_path = _scene_base_image_path(
@@ -350,8 +367,9 @@ def run_pipeline(
                 out_mp4=final_mp4,
             )
         else:
-            # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
 
             def image_frame_source(i: int, scene: dict[str, Any]):
                 from PIL import Image
@@ -520,8 +538,9 @@ def regenerate_scene(
                 settings.video_cost_per_second_usd,
                 gateway=fal_gateway,
             )
-            # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
             base_image_path = _scene_base_image_path(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )
@@ -533,8 +552,9 @@ def regenerate_scene(
                 clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
             )
         else:
-            # Keyed by mascot.id — see _get_or_create_hero_image's docstring.
-            hero_path = generated_dir / f"hero_{mascot.id}.png"
+            # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
             base_image_path = _scene_base_image_path(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )

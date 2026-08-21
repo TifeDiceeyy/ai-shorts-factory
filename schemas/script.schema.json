@@ -27,6 +27,7 @@
           "sfx": { "type": ["string", "null"] },
           "mascot_role": { "type": "string" },
           "mascot_emotion": { "type": "string" },
+          "action": { "type": "string" },
           "props": { "type": ["string", "null"] },
           "layout": { "type": "string" },
           "scene_type": { "type": "string" },

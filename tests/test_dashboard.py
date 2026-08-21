@@ -61,6 +61,32 @@ def test_media_route_serves_the_actual_mp4():
     assert resp.headers["content-type"] in ("video/mp4", "application/octet-stream")
 
 
+def test_index_and_review_render_when_verification_failed(isolated_artifacts):
+    """Regression test: both index.html and review.html computed the
+    stage-progress dots/steps via a bare
+    ['script','render','verify','ready'].index(stage) — "verify-failed" (the
+    real value _stage_for returns whenever a video's verification actually
+    fails, see app.py) isn't in that list, so Jinja2's list.index() raised
+    ValueError and the page 500'd instead of showing the failure state.
+    Confirmed for real: the only existing fixture in this file always wrote
+    overall_pass=True, so this path was never exercised before."""
+    (isolated_artifacts / "soap" / "verification-report.json").write_text(
+        json.dumps({"overall_pass": False, "checks": [{"criterion": "x", "passed": False}]})
+    )
+    no_raise_client = TestClient(app, raise_server_exceptions=False)
+
+    resp = no_raise_client.get("/")
+    assert resp.status_code == 200
+    assert "verify-failed" in resp.text
+
+    resp = no_raise_client.get("/video/soap")
+    assert resp.status_code == 200
+    # review.html doesn't print the raw "verify-failed" stage value as text
+    # (only index.html's stage-label does) — it renders the fail state via
+    # this CSS class on the "verify" step.
+    assert "stage-item--fail" in resp.text
+
+
 def test_media_route_rejects_path_traversal():
     resp = client.get("/video/soap/media/..%2F..%2F..%2Fetc%2Fpasswd")
     assert resp.status_code in (404, 400)

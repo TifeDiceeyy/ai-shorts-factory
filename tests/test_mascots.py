@@ -164,6 +164,44 @@ def test_mascot_build_scene_prompt_split_canvas_and_centered():
     assert "clamped wooden mold" in prompt_action
 
 
+def test_get_scene_image_prompt_carries_the_scenes_action_through():
+    """Regression test: pipeline.get_scene_image_prompt() reads
+    scene.get("action", "") and build_scene_prompt()'s process_action
+    branch uses it as the shot's main content — but neither the real LLM's
+    system prompt (providers/llm.py) nor script.schema.json ever requested/
+    allowed an "action" field, so it was always "" in practice and every
+    process_action scene silently fell back to the generic hardcoded
+    'pouring mixture into mold', regardless of what the scene was actually
+    about. Confirmed by adding action to both and checking it now survives
+    the full get_scene_image_prompt() call, not just a direct
+    build_scene_prompt() call (already covered by
+    test_mascot_build_scene_prompt_split_canvas_and_centered above)."""
+    from shorts_factory.pipeline import get_scene_image_prompt
+    from shorts_factory.schema_validate import validate_script_shape
+
+    mascot = get_mascot("mascot_4")
+    scene = {
+        "narration": "Lye breaks down the fatty acid bonds.",
+        "caption": "Lye breaks down the fatty acid bonds",
+        "duration": 7.0,
+        "visual_prompt": "placeholder, must be overridden by structured fields",
+        "source_claim_id": "claim-01",
+        "scene_type": "process_action",
+        "action": "stirring the boiling cauldron with a long wooden paddle",
+        "props": "cauldron, wooden paddle",
+    }
+    prompt = get_scene_image_prompt(scene, mascot)
+    assert "stirring the boiling cauldron with a long wooden paddle" in prompt
+    assert "pouring mixture into mold" not in prompt
+
+    # And the field is schema-legal, not silently rejected by the strict
+    # additionalProperties:false scene schema.
+    validate_script_shape({
+        "topic": "soap", "language": "English", "visual_style": "test",
+        "scenes": [scene],
+    })
+
+
 def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     # Mock assembly.assemble to avoid needing external ffmpeg in quick unit tests
     from shorts_factory import assembly

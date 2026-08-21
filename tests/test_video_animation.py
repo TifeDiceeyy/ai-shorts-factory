@@ -157,6 +157,32 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         assert base_image_name == f"raw_{s_idx:02d}.png"
 
 
+def test_hero_cache_key_changes_with_model_or_style_or_prompt():
+    """Regression test: the hero image cache was keyed on mascot.id alone.
+    That's not enough — switching IMAGE_MODEL (e.g. Recraft/Imagen ->
+    Nano Banana) or editing a mascot's hero_prompt text while keeping the
+    same mascot_id would silently keep reusing a hero image rendered under
+    the old model/prompt, since the cache only ever checked "does a file
+    named hero_<mascot.id>.png already exist" — it never checked whether
+    that file still matches the CURRENT model/prompt/style."""
+    from shorts_factory.mascots import get_mascot
+    from shorts_factory.pipeline import _hero_cache_key
+
+    m4 = get_mascot("mascot_4")
+    key_a = _hero_cache_key(m4, "fal-ai/recraft-v3", "digital_illustration/hand_drawn_outline")
+    key_b = _hero_cache_key(m4, "fal-ai/nano-banana", "digital_illustration/hand_drawn_outline")
+    key_c = _hero_cache_key(m4, "fal-ai/recraft-v3", "")
+    assert key_a != key_b, "changing the image model must change the cache key"
+    assert key_a != key_c, "changing the style preset must change the cache key"
+
+    class _FakeMascot:
+        hero_prompt = "a different hero prompt text"
+        id = "mascot_4"
+
+    key_d = _hero_cache_key(_FakeMascot(), "fal-ai/recraft-v3", "digital_illustration/hand_drawn_outline")
+    assert key_a != key_d, "changing the mascot's hero_prompt text must change the cache key"
+
+
 def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, monkeypatch):
     """Regression test: artifacts/<topic>/_work persists across separate
     run_pipeline() calls for the same topic. A fixed "hero.png" filename let
@@ -234,9 +260,14 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     # silently reused) instead of becoming 2.
     assert image_calls.count("hero") == 2
 
+    from shorts_factory.mascots import get_mascot
+    from shorts_factory.pipeline import _hero_cache_key
+
     generated_dir = tmp_path / "soap" / "_work" / "generated"
-    assert (generated_dir / "hero_mascot_1.png").exists()
-    assert (generated_dir / "hero_mascot_2.png").exists()
+    key1 = _hero_cache_key(get_mascot("mascot_1"), test_settings.image.model_or_voice, test_settings.image_style)
+    key2 = _hero_cache_key(get_mascot("mascot_2"), test_settings.image.model_or_voice, test_settings.image_style)
+    assert (generated_dir / f"hero_mascot_1_{key1}.png").exists()
+    assert (generated_dir / f"hero_mascot_2_{key2}.png").exists()
 
 
 def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path, monkeypatch):
@@ -304,8 +335,12 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
     # Hero image generated exactly once.
     hero_calls = [c for c in image_calls if c[0] == "hero"]
     assert len(hero_calls) == 1
+    from shorts_factory.mascots import get_mascot
+    from shorts_factory.pipeline import _hero_cache_key
+
     generated_dir = tmp_path / "soap" / "_work" / "generated"
-    real_hero_path = generated_dir / "hero_mascot_4.png"
+    hero_key = _hero_cache_key(get_mascot("mascot_4"), test_settings.image.model_or_voice, test_settings.image_style)
+    real_hero_path = generated_dir / f"hero_mascot_4_{hero_key}.png"
     assert real_hero_path.exists()
 
     # StubLLMProvider cycles scene_type across scenes (see providers/llm.py).

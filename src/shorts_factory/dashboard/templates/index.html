@@ -16,7 +16,7 @@
       <span class="queue-topic">{{ v.topic }}</span>
       <span class="stage-strip" aria-label="pipeline stage: {{ v.stage }}">
         {% for s in ['script', 'render', 'verify', 'ready'] %}
-        <span class="stage-dot stage-dot--{{ 'done' if (['script','render','verify','ready'].index(v.stage) > loop.index0 or v.stage == 'ready') else ('active' if v.stage == s else 'pending') }}{{ ' stage-dot--fail' if v.stage == 'verify-failed' and s == 'verify' else '' }}"></span>
+        <span class="stage-dot stage-dot--{{ 'done' if (v.stage_index > loop.index0 or v.stage == 'ready') else ('active' if v.stage == s else 'pending') }}{{ ' stage-dot--fail' if v.stage == 'verify-failed' and s == 'verify' else '' }}"></span>
         {% endfor %}
         <span class="stage-label">{{ v.stage }}</span>
       </span>

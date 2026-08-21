@@ -170,6 +170,7 @@ class StubLLMProvider(LLMProvider):
                     "camera": CAMERA_TEMPLATES[i % len(CAMERA_TEMPLATES)],
                     "sfx": None,
                     "scene_type": SCENE_TYPE_TEMPLATES[i % len(SCENE_TYPE_TEMPLATES)],
+                    "action": f"physically demonstrating: {claim['claim']}",
                 }
             )
 
@@ -302,7 +303,10 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         + tone_instruction
         + " Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
         "visual_prompt, source_claim_id, camera, sfx (string or null), mascot_role (string), "
-        "mascot_emotion (string), props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
+        "mascot_emotion (string), action (string: the physical action/verb-phrase happening on screen this "
+        "scene, e.g. 'pouring the lye solution into the melted fat' or 'stirring the mixture with a wooden "
+        "paddle' — for process_action scenes this is the main content of the shot, not just a list of props), "
+        "props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
         "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), and fx (string or null). "
         "The top-level object must contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
         + visual_instruction

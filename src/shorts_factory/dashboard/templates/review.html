@@ -12,7 +12,7 @@
       <h2 class="rail-heading">Pipeline</h2>
       <ol class="stage-list">
         {% for s in ['script', 'render', 'verify', 'ready'] %}
-        <li class="stage-item stage-item--{{ 'done' if (['script','render','verify','ready'].index(stage) > loop.index0 or stage == 'ready') else ('active' if stage == s else 'pending') }}{{ ' stage-item--fail' if stage == 'verify-failed' and s == 'verify' else '' }}">
+        <li class="stage-item stage-item--{{ 'done' if (stage_index > loop.index0 or stage == 'ready') else ('active' if stage == s else 'pending') }}{{ ' stage-item--fail' if stage == 'verify-failed' and s == 'verify' else '' }}">
           {{ s }}
         </li>
         {% endfor %}

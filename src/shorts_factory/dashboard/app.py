@@ -28,6 +28,9 @@ app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="stati
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 
+STAGE_STEPS = ["script", "render", "verify", "ready"]
+
+
 def _stage_for(topic: str, artifacts_dir: Path) -> str:
     if not (artifacts_dir / f"{topic}.script.json").exists():
         return "script"
@@ -38,6 +41,18 @@ def _stage_for(topic: str, artifacts_dir: Path) -> str:
         return "verify"
     verification = json.loads(vpath.read_text(encoding="utf-8"))
     return "ready" if verification.get("overall_pass") else "verify-failed"
+
+
+def _stage_index(stage: str) -> int:
+    """Position of `stage` in STAGE_STEPS for the queue/review stage-progress
+    UI. "verify-failed" isn't itself a step in STAGE_STEPS (it's a status
+    modifier on the "verify" step, rendered with its own fail styling) — a
+    bare `STAGE_STEPS.index(stage)` raises ValueError for it, which crashed
+    both index.html and review.html with a 500 whenever a video's
+    verification actually failed (confirmed live: the only fixture in
+    tests/test_dashboard.py always wrote overall_pass=True, so this path was
+    never exercised). Map it to "verify"'s own position instead."""
+    return STAGE_STEPS.index("verify" if stage == "verify-failed" else stage)
 
 
 def _list_videos() -> list[dict[str, Any]]:
@@ -57,6 +72,7 @@ def _list_videos() -> list[dict[str, Any]]:
         videos.append({
             "topic": topic,
             "stage": stage,
+            "stage_index": _stage_index(stage),
             "status": state.status,
             "cost": cost,
         })
@@ -88,10 +104,12 @@ def _load_video(topic: str) -> dict[str, Any]:
 
     state = review_state.load(artifacts_dir)
     has_video = (artifacts_dir / f"{topic}.mp4").exists()
+    stage = _stage_for(topic, artifacts_dir)
 
     return {
         "topic": topic,
-        "stage": _stage_for(topic, artifacts_dir),
+        "stage": stage,
+        "stage_index": _stage_index(stage),
         "state": state,
         "script": script,
         "captions_meta": captions_meta,
