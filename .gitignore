@@ -6,6 +6,10 @@
 credentials.json
 .youtube_token.json
 data/private/
+# brain/data/*.json contains excerpted text from copyrighted books
+# (see src/shorts_factory/brain/config.py) — never commit, same policy as
+# data/private/ above.
+data/brain/
 data/publish-ledger.json
 data/publish-ledger.json.lock
 data/experiment_ledger.json
