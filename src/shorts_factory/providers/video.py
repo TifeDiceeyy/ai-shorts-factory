@@ -45,11 +45,28 @@ NONVERBAL_CONTINUOUS_MOTION = (
 )
 
 
+KLING_NEGATIVE_PROMPT = (
+    "static, frozen, still image, motionless, frozen pose, no movement, paused, "
+    "blur, distort, low quality"
+)
+# fal.ai's documented default is 0.5 (confirmed via API docs, 2026-08-27). Raising
+# it pushes the model to follow NONVERBAL_CONTINUOUS_MOTION's "never settle into
+# a frozen pose" instruction more literally, at the cost of some prompt creativity —
+# an explicit trade we want here since under-animation (not over-literalness) is
+# the failure mode we've actually hit.
+KLING_CFG_SCALE = 0.7
+
+
 def get_video_model_config(model: str) -> tuple[float, dict[str, Any]]:
     """Returns (clip_duration_seconds, extra_arguments_dict) for a given video model."""
     m = model.lower()
     if "kling" in m:
-        return KLING_CLIP_SECONDS, {"duration": "5", "aspect_ratio": "9:16"}
+        return KLING_CLIP_SECONDS, {
+            "duration": "5",
+            "aspect_ratio": "9:16",
+            "negative_prompt": KLING_NEGATIVE_PROMPT,
+            "cfg_scale": KLING_CFG_SCALE,
+        }
     if "luma" in m:
         return LUMA_CLIP_SECONDS, {"aspect_ratio": "9:16"}
     # Default to MiniMax / Hailuo

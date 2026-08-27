@@ -66,18 +66,23 @@ class Mascot:
         if scene_type == "ingredient_grid" or (grid_items and len(grid_items) >= 2):
             items_str = ", ".join(grid_items) if grid_items else (props or "raw ingredients")
             return (
-                f"Multi-item 2x2 ingredient recipe grid breakdown on a stark pure solid white background (#FFFFFF). "
-                f"Clean isolated 3D tactile artifact stickers displaying: {items_str}. "
-                f"Each item is cleanly isolated with rich realistic textures and subtle ambient contact occlusion. "
+                f"Multi-item 2x2 ingredient recipe grid breakdown, drawn in the SAME flat cel-shaded cartoon "
+                f"illustration style as the mascot — bold black ink outlines, clean flat cel shading, no "
+                f"photoreal or 3D-render textures, no glossy CGI materials. Clean isolated cartoon-sticker icons "
+                f"displaying: {items_str}. Each item is cleanly isolated, flat-shaded, simplified — an "
+                f"illustrated icon, not a rendered photograph. "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
                 f"No text or labels rendered directly on the image."
             )
 
         if scene_type == "process_action":
             return (
-                f"Dynamic 3D process demonstration action scene on a stark pure solid white background (#FFFFFF). "
-                f"Close-up isolated physical action: {action or props or 'pouring mixture into mold'}. "
-                f"Tactile materials, realistic liquid flow/physics, and crisp lighting. "
+                f"Dynamic process demonstration action scene, drawn in the SAME flat cel-shaded cartoon "
+                f"illustration style as the mascot — bold black ink outlines, clean flat cel shading, no "
+                f"photoreal or 3D-render textures, no glossy CGI materials, no dramatic studio lighting. "
+                f"Close-up isolated physical action, illustrated as a cartoon: {action or props or 'pouring mixture into mold'}. "
+                f"Simplified flat-shaded materials and stylized illustrated motion lines, not realistic liquid "
+                f"physics or photoreal rendering. "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, clean sticker framing. "
                 f"No text or labels rendered directly on the image."
             )
@@ -127,8 +132,9 @@ MASCOT_1 = Mascot(
     name="Mascot 1: Roman Legionary",
     short_desc="Cartoon Roman legionary with bronze helmet, red crest, and cape",
     hero_prompt=(
-        "Full-body cartoon Roman legionary mascot character standing in a friendly explanatory pose "
-        "facing camera, one hand gesturing forward with open palm. "
+        "Full-body FLAT 2D cel-shaded cartoon illustration of a Roman legionary mascot character standing in a "
+        "friendly explanatory pose facing camera, one hand gesturing forward with open palm. Bold black ink "
+        "outlines, flat clean cel shading — NOT a 3D render, NOT photoreal, NOT glossy CGI. "
         "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
@@ -139,8 +145,9 @@ MASCOT_1 = Mascot(
         "Stark pure solid white background (#FFFFFF) only, zero background details, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "Vibrant 2D/3D comic cartoon illustration style, bold black ink outlines, clean cel shading, "
-        "expressive Roman legionary mascot character on a pure solid white background (#FFFFFF) "
+        "Flat 2D cel-shaded cartoon illustration style, bold black ink outlines, clean flat shading, no gradients "
+        "beyond simple cel shading — explicitly NOT a 3D render, NOT photoreal, NOT glossy CGI. "
+        "Expressive Roman legionary mascot character on a pure solid white background (#FFFFFF) "
         "with zero background scenery and zero shadows. Do not render any text, words, letters, labels, or signs."
     ),
     motion_instruction=(
@@ -162,8 +169,9 @@ MASCOT_2 = Mascot(
     name="Mascot 2: Chibi Artisan Engineer",
     short_desc="Cute chibi anime-style inventor with leather tool apron and brass goggles",
     hero_prompt=(
-        "Full-body 2D/3D animated chibi cartoon mascot character standing in a friendly explanatory gesture "
-        "with one hand raised open-palmed. "
+        "Full-body FLAT 2D cel-shaded chibi cartoon illustration standing in a friendly explanatory gesture "
+        "with one hand raised open-palmed. Thick black ink line art, flat clean cel shading — NOT a 3D render, "
+        "NOT photoreal, NOT glossy CGI. "
         "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
@@ -174,8 +182,9 @@ MASCOT_2 = Mascot(
         "Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "Cute 2D/3D chibi cartoon illustration style, thick black ink line art, clean vector cel shading, "
-        "vibrant saturated colors, expressive animated facial proportions. "
+        "Cute flat 2D cel-shaded chibi cartoon illustration style, thick black ink line art, clean flat vector "
+        "shading, vibrant saturated colors, expressive animated facial proportions — explicitly NOT a 3D render, "
+        "NOT photoreal, NOT glossy CGI. "
         "Pure solid white background (#FFFFFF) with zero scenery, zero shadows. Do not render any text, words, letters, labels, or signs."
     ),
     motion_instruction=(
@@ -197,19 +206,22 @@ MASCOT_3 = Mascot(
     name="Mascot 3: 3D Bean Scavenger",
     short_desc="Smooth coffee bean explorer with iron kettle helmet, burlap scarf, and duster coat",
     hero_prompt=(
-        "Full-body 3D animated cartoon character mascot combining a smooth brown bean face with a rugged medieval scavenger explorer. "
+        "Full-body FLAT 2D cel-shaded cartoon illustration combining a smooth brown bean face with a rugged "
+        "medieval scavenger explorer. Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT "
+        "photoreal, NOT glossy CGI, NOT cinematic lighting. "
         "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "Smooth rounded bean head with prominent expressive brow ridges, large animated green eyes, and a classic vintage handlebar mustache. "
         "The character is fully clothed: wearing an antique iron kettle helmet, a weathered brown scavenger leather coat with a frayed burlap cowl scarf, "
         "utility belt with pouches, leather gloves, and sturdy explorer boots, holding a wooden walking staff in one hand and gesturing with the other open hand. "
-        "High-detail 3D animation render with tactile weathered leather and metal textures. "
+        "Simplified flat-shaded leather and metal textures rendered as clean illustration, not tactile/photoreal materials. "
         "Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "High-detail 3D animated bean scavenger character render, expressive 3D cartoon eyes, "
-        "weathered leather and burlap textures, cinematic lighting. "
+        "Flat 2D cel-shaded cartoon illustration style, bold black ink outlines, expressive flat-shaded bean "
+        "scavenger character, simplified illustrated leather and burlap textures, bright even lighting — "
+        "explicitly NOT a 3D render, NOT photoreal, NOT cinematic/dramatic lighting. "
         "Pure solid white background (#FFFFFF) with zero scenery, zero shadows. Do not render any text, words, letters, labels, or signs."
     ),
     motion_instruction=(
@@ -231,7 +243,9 @@ MASCOT_4 = Mascot(
     name="Mascot 4: Bearded Dwarf Scavenger Explorer (Main Mascot)",
     short_desc="Charming stylized 3D human dwarf/halfling explorer with neat brown beard, weathered leather duster coat, burlap scarf, iron kettle helmet, and walking staff",
     hero_prompt=(
-        "Full-body 3D CGI cartoon character mascot: a stylized human dwarf / halfling scavenger explorer. "
+        "Full-body FLAT 2D cel-shaded cartoon illustration of a stylized human dwarf / halfling scavenger explorer. "
+        "Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT CGI, NOT Pixar/Dreamworks-style "
+        "rendering, NOT photoreal, NOT glossy materials. A hand-drawn illustration, not a 3D-rendered asset. "
         "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
@@ -240,12 +254,14 @@ MASCOT_4 = Mascot(
         "Wearing an antique metal skull-cap / iron kettle helmet, a frayed burlap cowl scarf draped around his neck, "
         "a weathered brown leather scavenger duster coat with frayed tattered hem, utility belt with pouches and brass buckles, "
         "leather work gloves, and sturdy strapped adventurer boots, holding a tall wooden walking staff in one hand and gesturing forward with open palm. "
-        "High-end 3D CGI animation render, Pixar / Dreamworks quality with rich tactile leather, metal, and cloth textures. "
+        "Simplified flat-shaded leather, metal, and cloth textures drawn as clean illustration, not tactile/photoreal materials. "
         "Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "High-end 3D CGI cartoon animation render of a stylized human dwarf explorer mascot with a neat brown beard, "
-        "expressive 3D cartoon face with wavy brown hair, antique kettle helmet, frayed burlap scarf, and weathered brown leather duster coat. "
+        "Flat 2D cel-shaded cartoon illustration of a stylized human dwarf explorer mascot with a neat brown "
+        "beard, bold black ink outlines, flat clean shading, wavy brown hair, antique kettle helmet, frayed "
+        "burlap scarf, and weathered brown leather duster coat — explicitly NOT a 3D render, NOT CGI, NOT "
+        "Pixar/Dreamworks-style, NOT photoreal. "
         "Stark pure solid white background (#FFFFFF) with zero scenery, zero shadows, clean sticker framing. "
         "Do not render any text, words, letters, labels, or signs in the base image."
     ),
@@ -270,7 +286,8 @@ MASCOT_5 = Mascot(
     name="Mascot 5: Bushcraft Alchemist",
     short_desc="Wilderness survivor with green hooded cowl, copper distillation flask, and tool harness",
     hero_prompt=(
-        "Full-body 3D animated character mascot: a wilderness bushcraft alchemist and survival herbalist. "
+        "Full-body FLAT 2D cel-shaded cartoon illustration of a wilderness bushcraft alchemist and survival "
+        "herbalist. Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT CGI, NOT photoreal. "
         "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
@@ -278,12 +295,13 @@ MASCOT_5 = Mascot(
         "The character is fully clothed: wearing a moss-green weathered canvas hooded cowl over a durable wool work shirt, "
         "reinforced leather utility vest with brass buckle straps, chemical test vials strapped to chest, "
         "durable field trousers, and rugged survival climbing boots, holding an antique copper distillation flask in one hand and gesturing with the other. "
-        "High-detail 3D CGI render with rich organic canvas and leather textures. "
+        "Simplified flat-shaded canvas and leather textures drawn as clean illustration, not tactile/photoreal materials. "
         "Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "High-detail 3D CGI animation render of a bushcraft alchemist survival mascot, rich canvas and leather textures, "
-        "expressive cartoon features, vibrant lighting. "
+        "Flat 2D cel-shaded cartoon illustration of a bushcraft alchemist survival mascot, bold black ink "
+        "outlines, simplified flat-shaded canvas and leather textures, expressive cartoon features, bright even "
+        "lighting — explicitly NOT a 3D render, NOT CGI, NOT photoreal, NOT cinematic/dramatic lighting. "
         "Pure solid white background (#FFFFFF) with zero scenery, zero shadows. Do not render any text, words, letters, labels, or signs."
     ),
     motion_instruction=(

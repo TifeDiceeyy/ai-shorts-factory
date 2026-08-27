@@ -127,7 +127,7 @@ class CaptionStyle:
     bg_color: tuple[int, int, int, int] | None = None          # Card / Pill background
     bg_radius: int = 18
     casing: str = "upper"                                      # "upper", "title", "original"
-    position: str = "middle"                                    # "top", "middle", "bottom"
+    position: str = "top"                                    # "top", "middle", "bottom"
     shadow: bool = True
     shadow_offset: tuple[int, int] = (4, 4)
     shadow_color: tuple[int, int, int, int] = (0, 0, 0, 180)
@@ -145,7 +145,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "electric_neon_yellow": CaptionStyle(
@@ -156,7 +156,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "cyber_cyan_ice": CaptionStyle(
@@ -167,7 +167,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 10, 25, 255),
         stroke_width=7,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "hot_magenta_fire": CaptionStyle(
@@ -178,7 +178,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "toxic_lime_surge": CaptionStyle(
@@ -189,7 +189,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 20, 10, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "pure_white_punch": CaptionStyle(
@@ -200,7 +200,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=9,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "crimson_alert": CaptionStyle(
@@ -211,7 +211,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "highlighter_yellow_pill": CaptionStyle(
@@ -222,7 +222,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "dark_glass_badge": CaptionStyle(
@@ -233,7 +233,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
         casing="title",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "royal_blue_pill": CaptionStyle(
@@ -244,7 +244,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "danger_red_badge": CaptionStyle(
@@ -255,7 +255,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
     ),
     "dual_tone_fire": CaptionStyle(
@@ -267,7 +267,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
         dual_tone=True,
     ),
@@ -280,7 +280,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
         casing="upper",
-        position="middle",
+        position="top",
         shadow=True,
         dual_tone=True,
     ),

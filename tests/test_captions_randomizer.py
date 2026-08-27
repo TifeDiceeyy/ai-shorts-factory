@@ -40,15 +40,15 @@ def test_no_caption_style_has_a_background_card():
         assert st.bg_color is None, f"{name} still has a background card"
 
 
-def test_every_caption_style_overlays_the_middle_of_frame():
-    """Regression test: every style defaulted to position="top", placing
-    captions in empty space above the mascot instead of over it. User
-    feedback: captions should overlay the character/mascot — default
-    changed to "middle" (mascots are centered vertically per
-    mascots.build_scene_prompt, so middle-positioned text now sits over
-    the character instead of floating above it)."""
+def test_every_caption_style_sits_in_the_top_headspace_not_over_the_character():
+    """Regression test, reversed twice by direct user feedback: captions
+    were originally "top", then changed to "middle" (overlay the mascot) per
+    earlier feedback, then reverted back to "top" 2026-08-27 after the user
+    provided a real reference short — captions there always sit in the empty
+    space above the character/props, never across the torso, matching
+    professional practice for this format."""
     for name, st in CAPTION_STYLES.items():
-        assert st.position == "middle", f"{name} is not positioned over the character"
+        assert st.position == "top", f"{name} is not positioned in the top headspace"
 
 
 def test_caption_style_randomizer_produces_varied_styles():
@@ -163,17 +163,20 @@ def test_draw_caution_badge_adds_to_the_image_not_replaces_it():
     warning string, silently deleting every yellow topic's real payoff
     line)."""
     base = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
-    real_caption_composited, _box = draw_caption(base, "THE REAL PAYOFF LINE", style="comic_punch_orange")
+    real_caption_composited, box = draw_caption(base, "THE REAL PAYOFF LINE", style="comic_punch_orange")
 
     badged = draw_caution_badge(real_caption_composited, "CAUTION: educational overview only.")
 
     # The real caption's own rendered pixels must still be present — the
     # badge must not have overwritten/erased the frame's existing content,
-    # just added to it. Sample the "middle" position where the real
-    # caption card was drawn: pixel data must differ from the plain white
-    # background, proving the caption text is still there underneath.
+    # just added to it. Sample within the real caption's own returned box
+    # (position-independent — the badge sits at the bottom regardless of
+    # where the main caption is configured to render): pixel data must
+    # differ from the plain white background, proving the caption text is
+    # still there underneath.
+    sample_y = (box.top + box.bottom) // 2
     diff_found = any(
-        badged.getpixel((x, FRAME_HEIGHT // 2)) != (255, 255, 255)
+        badged.getpixel((x, sample_y)) != (255, 255, 255)
         for x in range(0, FRAME_WIDTH, 20)
     )
     assert diff_found, "the real caption's content is gone after adding the caution badge"

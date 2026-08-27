@@ -103,8 +103,8 @@ class TimedCaptionOverlay:
 def narration_caption_cues(
     narration: str,
     duration: float,
-    max_words: int = 5,
-    max_chars: int = 38,
+    max_words: int = 3,
+    max_chars: int = 22,
 ) -> list[CaptionCue]:
     """Split the exact narration into short, contiguous timed captions.
 
@@ -244,6 +244,22 @@ _FREEZE_EVENT_RE = re.compile(
     r"lavfi\.freezedetect\.freeze_(start|duration|end):\s*([\d.]+)"
 )
 
+# Beyond ~1.8x, stretching a short usable clip into slow motion starts
+# reading as barely-moving rather than as real playback speed.
+MAX_CLIP_STRETCH_FACTOR = 1.8
+# Zoom increment applied every output frame (30fps) by the always-on Ken
+# Burns pan in build_scene_video_segment_from_clip. Chosen empirically
+# (2026-08-27): a subtler rate (~0.0003-0.0006/frame) still reads as
+# perceptibly static over 1-2s windows on real footage — confirmed via direct
+# frame comparison, not just freezedetect. This rate produces clearly
+# noticeable zoom progression by 5s in.
+KEN_BURNS_ZOOM_PER_FRAME = 0.0012
+# zoompan crops from an oversized source; the crop coordinates round to whole
+# pixels each frame, so too little headroom relative to clip length means
+# consecutive frames can round to the identical crop and look duplicated.
+# 1.4x gives enough pixel budget across a realistic ~8s scene to avoid that.
+KEN_BURNS_HEADROOM = 1.4
+
 
 def _leading_freeze_seconds(clip_path: Path, clip_duration: float) -> float:
     """How long clip_path holds a static (near-zero-motion) frame starting
@@ -304,10 +320,16 @@ def build_scene_video_segment_from_clip(
     instead of a static frame: skips any leading static/frozen hold in the
     source clip (see _leading_freeze_seconds), scales to frame size,
     composites timed caption overlays, and retimes the usable source motion
-    to the scene's measured narration duration. The old implementation held
-    the final frame with tpad, producing multi-second freezes (up to 8.39s in
-    a real render); duration fitting now keeps motion progressing to the last
-    frame instead of looping or freezing."""
+    to the scene's measured narration duration.
+
+    Usable motion is stretched to fill the scene up to MAX_CLIP_STRETCH_FACTOR
+    — beyond that a stretch reads as slow-motion rather than real playback, so
+    any remaining time is covered by holding the last frame instead. Either
+    way, a continuous slow Ken Burns zoom (KEN_BURNS_ZOOM_PER_FRAME) runs for
+    the entire segment: it guarantees the frame is never literally static on
+    screen even during a held tail or when the source clip's own motion is
+    too subtle to read as movement — confirmed against a real Kling clip that
+    was frozen for its entire raw duration (2026-08-27)."""
     segments_dir.mkdir(parents=True, exist_ok=True)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
 
@@ -328,12 +350,30 @@ def build_scene_video_segment_from_clip(
         timed.image.save(path)
         overlay_paths.append(path)
 
+    # Stretching short usable motion to fill a long scene reads as slow-motion
+    # once the factor gets large (a 1.2s clip stretched to 8.5s is a ~7x
+    # crawl that looks nearly static). Cap the stretch and cover any
+    # remaining time with a held-frame pad instead of an ever-slower crawl.
     usable_duration = max(1.0 / FPS, clip_duration - skip_seconds)
-    stretch_factor = duration / usable_duration
+    natural_stretch = duration / usable_duration
+    stretch_factor = min(natural_stretch, MAX_CLIP_STRETCH_FACTOR)
+    played_duration = usable_duration * stretch_factor
+    pad_duration = max(0.0, duration - played_duration)
+
+    oversized_w = round(FRAME_WIDTH * KEN_BURNS_HEADROOM)
+    oversized_h = round(FRAME_HEIGHT * KEN_BURNS_HEADROOM)
     base_filter = (
         f"[0:v]trim=start={skip_seconds:.3f}:duration={usable_duration:.3f},"
         f"setpts={stretch_factor:.8f}*(PTS-STARTPTS),"
-        f"scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS}[base0]"
+        f"scale={oversized_w}:{oversized_h},fps={FPS}"
+        + (f",tpad=stop_mode=clone:stop_duration={pad_duration:.3f}" if pad_duration > 0.05 else "")
+        # A continuous slow zoom guarantees visible motion for the padded
+        # tail (a held frame is not literally static on screen) and adds a
+        # small floor of motion even where the source clip's own animation
+        # is subtle enough to read as a freeze.
+        + f",zoompan=z='1.0+{KEN_BURNS_ZOOM_PER_FRAME}*on':"
+        + "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+        + f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
     )
     overlay_filters = []
     prior_label = "base0"

@@ -42,7 +42,7 @@ def test_narration_caption_cues_preserve_every_spoken_word_and_cover_duration():
     assert cues[0].start == 0.0
     assert cues[-1].end == 7.25
     assert all(a.end == b.start for a, b in zip(cues, cues[1:]))
-    assert all(len(cue.text.split()) <= 5 for cue in cues)
+    assert all(len(cue.text.split()) <= 3 for cue in cues)
 
 
 def test_srt_uses_exact_narration_chunks_not_summary_caption(tmp_path):
