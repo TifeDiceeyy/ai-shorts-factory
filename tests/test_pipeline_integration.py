@@ -1,7 +1,52 @@
 """Integration-level tests against the real run_pipeline() entrypoint."""
 import pytest
 
-from shorts_factory.pipeline import run_pipeline
+from shorts_factory.cost_tracker import CostTracker
+from shorts_factory.pipeline import _generate_script_with_fallback, run_pipeline
+from shorts_factory.schema_validate import validate_script_against_brief
+
+
+def _six_claim_brief():
+    return {
+        "topic": "metal",
+        "safety_class": "green",
+        "claims": [
+            {"id": f"claim-{i:02d}", "claim": f"Verified metal claim number {i}.", "source": "source"}
+            for i in range(1, 7)
+        ],
+    }
+
+
+def test_real_llm_schema_failure_falls_back_to_verified_claim_script():
+    brief = _six_claim_brief()
+
+    class InvalidRealLLM:
+        name = "fal"
+
+        def generate_script(self, brief, language, visual_style, cost_tracker):
+            return {
+                "topic": brief["topic"],
+                "language": language,
+                "visual_style": visual_style,
+                "scenes": [{
+                    "narration": "An uncited hook.",
+                    "caption": "An uncited hook",
+                    "duration": 45,
+                    "visual_prompt": "hook",
+                    "source_claim_id": None,
+                }],
+            }
+
+    script, warning, rejected = _generate_script_with_fallback(
+        InvalidRealLLM(), brief, "English", "style", CostTracker(1)
+    )
+
+    validate_script_against_brief(script, brief)
+    assert warning["fallback"] == "deterministic_verified_claim_script"
+    assert rejected["scenes"][0]["source_claim_id"] is None
+    assert [scene["source_claim_id"] for scene in script["scenes"]] == [
+        f"claim-{i:02d}" for i in range(1, 7)
+    ]
 
 
 def test_animate_with_stub_image_refuses(tmp_path, monkeypatch):

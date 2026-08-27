@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,7 @@ from .cost_tracker import BudgetExceeded, CostTracker
 from .dashboard import review_state
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
-from .providers.llm import get_llm_provider
+from .providers.llm import LLMResponseFormatError, StubLLMProvider, get_llm_provider
 from .providers.tts import get_tts_provider
 from .providers.video import get_video_provider
 from .providers.fal import FalGateway
@@ -46,6 +47,40 @@ class PipelineResult:
         self.cost_report: dict[str, Any] | None = None
         self.script: dict[str, Any] | None = None
         self.error: str | None = None
+
+
+def _generate_script_with_fallback(
+    llm,
+    brief: dict[str, Any],
+    language: str,
+    visual_style: str,
+    cost_tracker: CostTracker,
+) -> tuple[dict[str, Any], dict[str, str] | None, dict[str, Any] | None]:
+    """Generate a strict script, falling back locally on model format drift.
+
+    The fallback is deterministic and builds one scene directly from each
+    verified brief claim, so it never guesses a missing citation ID. It is
+    used only after a real provider returned malformed JSON or a script that
+    failed strict schema/citation/duration validation; provider/network errors
+    still propagate normally.
+    """
+    rejected_script = None
+    try:
+        script = llm.generate_script(brief, language, visual_style, cost_tracker)
+        rejected_script = script
+        validate_script_against_brief(script, brief)
+        return script, None, None
+    except (LLMResponseFormatError, ValidationError) as exc:
+        if getattr(llm, "name", "") == "stub":
+            raise
+        fallback = StubLLMProvider().generate_script(brief, language, visual_style, cost_tracker)
+        validate_script_against_brief(fallback, brief)
+        warning = {
+            "provider_error_type": type(exc).__name__,
+            "provider_error": str(exc),
+            "fallback": "deterministic_verified_claim_script",
+        }
+        return fallback, warning, rejected_script
 
 
 def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
@@ -199,6 +234,7 @@ def run_pipeline(
     )
     fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
 
+    stage = "brief"
     try:
         # Real runs must consume a verified citation store. Hand-authored briefs
         # remain available only to the zero-cost Phase 0 renderer test.
@@ -261,7 +297,16 @@ def run_pipeline(
             f"{mascot.name} Template. Style DNA: {mascot.visual_style}. "
             f"Scene Adaptive Direction: {mascot.scene_role_template}"
         )
-        script = llm.generate_script(brief, settings.output_language, effective_visual_style, cost_tracker)
+        stage = "script_generation"
+        script, script_warning, rejected_script = _generate_script_with_fallback(
+            llm, brief, settings.output_language, effective_visual_style, cost_tracker
+        )
+        if rejected_script is not None:
+            rejected_out = artifacts_dir / f"{topic}.script.rejected.json"
+            rejected_out.write_text(json.dumps(rejected_script, indent=2), encoding="utf-8")
+        if script_warning is not None:
+            warning_out = artifacts_dir / "script-generation-warning.json"
+            warning_out.write_text(json.dumps(script_warning, indent=2), encoding="utf-8")
         script["mascot_id"] = mascot.id
         # Persisted (not baked into any scene's caption — see
         # assembly.assemble()'s caution_text param) so regenerate_scene can
@@ -276,6 +321,12 @@ def run_pipeline(
         # this same value back so a single-scene regeneration never mismatches
         # the rest of the video's captions.
         script["caption_style"] = get_random_caption_style_name()
+        # Keep the provider result available when strict validation refuses
+        # it. Previously the only copy was discarded, leaving Telegram with
+        # an error but no artifact that explained which field was malformed.
+        script_draft_out = artifacts_dir / f"{topic}.script.draft.json"
+        script_draft_out.write_text(json.dumps(script, indent=2), encoding="utf-8")
+        stage = "script_validation"
         validate_script_against_brief(script, brief)
         result.script = script
 
@@ -291,6 +342,7 @@ def run_pipeline(
         # exactly. Everything downstream (video segments, captions, the
         # verification target duration) is driven by the measured value so
         # nothing can drift out of sync with what's actually on the timeline. ---
+        stage = "tts"
         tts = get_tts_provider(
             settings.tts.provider,
             settings.credential_for(settings.tts),
@@ -312,6 +364,7 @@ def run_pipeline(
         # Proves FFmpeg/assembly correctness before any image provider is touched. ---
         placeholder_dir = workdir / "placeholder"
         placeholder_mp4 = artifacts_dir / f"{topic}.placeholder.mp4"
+        stage = "placeholder_assembly"
         placeholder_result = assembly.assemble(
             scenes=script["scenes"],
             frame_source=lambda i, scene: assembly.solid_color_frame(i),
@@ -361,6 +414,7 @@ def run_pipeline(
         generated_dir = workdir / "generated"
         final_mp4 = artifacts_dir / f"{topic}.mp4"
 
+        stage = "image_video_generation" if animate else "image_generation"
         if animate:
             video_provider = get_video_provider(
                 settings.video.provider,
@@ -382,9 +436,30 @@ def run_pipeline(
             hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
             hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
 
-            def clip_source(i: int, scene: dict[str, Any]) -> Path:
-                base_image_path = _scene_base_image_path(
+            # Build base images serially so the shared hero reference is
+            # created exactly once, then animate two scenes concurrently.
+            # Video generation dominates wall time (the six real clips in a
+            # measured run took ~34 minutes serially); bounded parallelism
+            # roughly halves that without flooding the provider.
+            base_image_paths = [
+                _scene_base_image_path(
                     image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
+                for i, scene in enumerate(script["scenes"])
+            ]
+            batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"])
+            cost_tracker.check_budget("video.generate_batch", batch_estimate)
+
+            def render_clip(i: int, scene: dict[str, Any]) -> Path:
+                # fal_client's synchronous client is not shared across worker
+                # threads; each concurrent request gets its own gateway.
+                worker_gateway = FalGateway(settings.fal_key)
+                worker_provider = get_video_provider(
+                    settings.video.provider,
+                    settings.credential_for(settings.video),
+                    settings.video.model_or_voice,
+                    settings.video_cost_per_second_usd,
+                    gateway=worker_gateway,
                 )
                 tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
                 # Same prompt the base image was actually built from — not
@@ -392,9 +467,24 @@ def run_pipeline(
                 # on why animating with that raw, separate field risks
                 # describing a different shot than what's in the frame).
                 motion_prompt = get_scene_image_prompt(scene, mascot)
-                return video_provider.generate_scene_video(
-                    scene, base_image_path, i, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+                return worker_provider.generate_scene_video(
+                    scene, base_image_paths[i], i, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
                 )
+
+            clip_paths: list[Path | None] = [None] * len(script["scenes"])
+            with ThreadPoolExecutor(max_workers=min(2, len(script["scenes"]))) as executor:
+                pending = {
+                    executor.submit(render_clip, i, scene): i
+                    for i, scene in enumerate(script["scenes"])
+                }
+                for future in as_completed(pending):
+                    clip_paths[pending[future]] = future.result()
+
+            def clip_source(i: int, _scene: dict[str, Any]) -> Path:
+                path = clip_paths[i]
+                if path is None:
+                    raise RuntimeError(f"animated clip {i} did not complete")
+                return path
 
             generated_result = assembly.assemble_animated(
                 scenes=script["scenes"],
@@ -441,6 +531,7 @@ def run_pipeline(
         # Target duration is the ACTUAL total from real audio, not the script's
         # nominal total — with the stub this is identical by construction; with
         # a real TTS provider it's the only correct target to check against. ---
+        stage = "verification"
         verification = verify.run_verification(
             mp4_path=final_mp4,
             scripted_total_seconds=actual_total,
@@ -462,6 +553,21 @@ def run_pipeline(
         result.budget_exceeded_reason = str(e)
         result.error = str(e)
         return result
+    except Exception as e:
+        # Paid provider calls can succeed before a later validation/render
+        # step fails. Persist their cost and the failing stage before
+        # propagating the exception to Telegram.
+        cost_report_path = artifacts_dir / "cost-report.json"
+        cost_tracker.write_report(cost_report_path)
+        error_report_path = artifacts_dir / "generation-error.json"
+        error_report_path.write_text(
+            json.dumps(
+                {"stage": stage, "error_type": type(e).__name__, "error": str(e)},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        raise
 
 
 def regenerate_scene(
@@ -603,11 +709,19 @@ def regenerate_scene(
             clip_path = video_provider.generate_scene_video(
                 scene, base_image_path, scene_index, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
             )
-            overlay_png, new_box = assembly.caption_overlay_png(scene["caption"], style=caption_style)
-            if caution_text and is_last_scene:
-                overlay_png = Image.alpha_composite(overlay_png, assembly.caution_badge_overlay_png(caution_text))
+            timed_overlays, new_box = assembly.build_timed_caption_overlays(
+                scene["narration"],
+                new_duration,
+                caption_style=caption_style,
+                caution_text=caution_text if is_last_scene else None,
+            )
             new_seg_path = assembly.build_scene_video_segment_from_clip(
-                clip_path, new_duration, overlay_png, scene_index, generated_dir / "segments"
+                clip_path,
+                new_duration,
+                None,
+                scene_index,
+                generated_dir / "segments",
+                timed_caption_overlays=timed_overlays,
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.

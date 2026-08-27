@@ -36,6 +36,13 @@ LUMA_CLIP_SECONDS = 5.0
 # real generation crashed on it after 3 clips had already been paid for.
 # Generous margin above the slowest observed model.
 VIDEO_GEN_TIMEOUT_S = 1200
+NONVERBAL_CONTINUOUS_MOTION = (
+    "Continuous natural nonverbal motion from the first frame through the final frame: expressive eyes, "
+    "eyebrows, head turns, hand gestures, body movement, moving props, particles, and environmental effects. "
+    "The character must not speak or lip-sync: no talking mouth shapes, no mouthing words, and no speech-like "
+    "jaw movement. Keep the mouth naturally closed or in a stable non-speaking expression. Never settle into "
+    "a frozen pose; movement continues smoothly until the clip ends."
+)
 
 
 def get_video_model_config(model: str) -> tuple[float, dict[str, Any]]:
@@ -138,7 +145,7 @@ class FalVideoProvider(VideoProvider):
         # visual_prompt could describe a different pose/composition/layout
         # than what's actually in the frame being animated (confirmed as a
         # real mismatch risk in review 2026-08-21).
-        prompt = motion_prompt or scene["visual_prompt"]
+        prompt = f"{motion_prompt or scene['visual_prompt']} {NONVERBAL_CONTINUOUS_MOTION}"
         arguments = {
             "image_url": image_url,
             "prompt": prompt,

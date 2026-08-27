@@ -11,7 +11,7 @@ frozen time at the scene's END instead."""
 import subprocess
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageChops
 
 from shorts_factory import assembly, captions
 from shorts_factory.media_probe import probe_duration
@@ -112,3 +112,24 @@ def test_build_scene_video_segment_from_clip_skips_the_leading_freeze(tmp_path):
     # frozen intro, every one of these would read (0, 0, 255).
     samples = [frame.getpixel((x, 40)) for x in range(50, FRAME_WIDTH - 50, 100)]
     assert len(set(samples)) > 1, f"segment still opens on the frozen blue intro frame: {samples}"
+
+
+def test_duration_fitting_keeps_motion_changing_through_final_second(tmp_path):
+    """A short source clip stretched to longer narration must not freeze its
+    final frame. The old tpad path cloned the last frame for the remainder."""
+    clip = tmp_path / "clip.mp4"
+    _continuously_moving_clip(clip, duration=2.0)
+    overlay, _box = captions.caption_overlay_png("moving", style="comic_punch_orange")
+    seg = assembly.build_scene_video_segment_from_clip(
+        clip, duration=5.0, caption_overlay=overlay, index=0, segments_dir=tmp_path
+    )
+
+    frames = []
+    for n, timestamp in enumerate((4.0, 4.8)):
+        path = tmp_path / f"tail_{n}.png"
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-ss", str(timestamp), "-i", str(seg), "-frames:v", "1", str(path)],
+            check=True,
+        )
+        frames.append(Image.open(path).convert("RGB").crop((0, 0, 1080, 500)))
+    assert ImageChops.difference(frames[0], frames[1]).getbbox() is not None

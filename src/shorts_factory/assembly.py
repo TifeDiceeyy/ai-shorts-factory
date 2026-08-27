@@ -85,6 +85,84 @@ class SceneArtifacts:
     segment_video_path: Path
 
 
+@dataclass(frozen=True)
+class CaptionCue:
+    text: str
+    start: float
+    end: float
+
+
+@dataclass
+class TimedCaptionOverlay:
+    image: Image.Image
+    start: float
+    end: float
+    box: CaptionBox
+
+
+def narration_caption_cues(
+    narration: str,
+    duration: float,
+    max_words: int = 5,
+    max_chars: int = 38,
+) -> list[CaptionCue]:
+    """Split the exact narration into short, contiguous timed captions.
+
+    Timing is proportional to spoken-character weight within the measured
+    TTS duration. This keeps every displayed word identical to the voiceover
+    without requiring a second speech-to-text provider call.
+    """
+    words = narration.split()
+    if not words:
+        return []
+
+    chunks: list[str] = []
+    current: list[str] = []
+    for word in words:
+        candidate = " ".join([*current, word])
+        if current and (len(current) >= max_words or len(candidate) > max_chars):
+            chunks.append(" ".join(current))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        chunks.append(" ".join(current))
+
+    weights = [max(1, len(re.sub(r"[^A-Za-z0-9]", "", chunk))) for chunk in chunks]
+    total_weight = sum(weights)
+    cursor = 0.0
+    cues: list[CaptionCue] = []
+    for index, (chunk, weight) in enumerate(zip(chunks, weights)):
+        end = duration if index == len(chunks) - 1 else cursor + duration * weight / total_weight
+        cues.append(CaptionCue(text=chunk, start=cursor, end=end))
+        cursor = end
+    return cues
+
+
+def build_timed_caption_overlays(
+    narration: str,
+    duration: float,
+    caption_style: str | None = None,
+    caution_text: str | None = None,
+) -> tuple[list[TimedCaptionOverlay], CaptionBox]:
+    overlays: list[TimedCaptionOverlay] = []
+    for cue in narration_caption_cues(narration, duration):
+        image, box = caption_overlay_png(cue.text, style=caption_style)
+        if caution_text:
+            image = Image.alpha_composite(image, caution_badge_overlay_png(caution_text))
+        overlays.append(TimedCaptionOverlay(image=image, start=cue.start, end=cue.end, box=box))
+    if not overlays:
+        image, box = caption_overlay_png("…", style=caption_style)
+        overlays.append(TimedCaptionOverlay(image=image, start=0.0, end=duration, box=box))
+    union_box = CaptionBox(
+        left=min(item.box.left for item in overlays),
+        top=min(item.box.top for item in overlays),
+        right=max(item.box.right for item in overlays),
+        bottom=max(item.box.bottom for item in overlays),
+    )
+    return overlays, union_box
+
+
 def build_scene_frame(
     scene: dict[str, Any],
     index: int,
@@ -216,37 +294,66 @@ def _leading_freeze_seconds(clip_path: Path, clip_duration: float) -> float:
 def build_scene_video_segment_from_clip(
     clip_path: Path,
     duration: float,
-    caption_overlay: Image.Image,
+    caption_overlay: Image.Image | None,
     index: int,
     segments_dir: Path,
+    *,
+    timed_caption_overlays: list[TimedCaptionOverlay] | None = None,
 ) -> Path:
     """Same role as build_scene_video_segment(), for an animated clip
     instead of a static frame: skips any leading static/frozen hold in the
     source clip (see _leading_freeze_seconds), scales to frame size,
-    composites the caption overlay (see captions.caption_overlay_png — a
-    transparent RGBA layer, since there's no single base image to burn it
-    into ahead of time), and holds the last frame (tpad, generously
-    over-padded then hard-trimmed by -t) to reach the scene's actual
-    scripted duration — image-to-video models return a fixed clip length
-    (e.g. Hailuo's 6s minimum) that will essentially never match the
-    scripted duration exactly."""
+    composites timed caption overlays, and retimes the usable source motion
+    to the scene's measured narration duration. The old implementation held
+    the final frame with tpad, producing multi-second freezes (up to 8.39s in
+    a real render); duration fitting now keeps motion progressing to the last
+    frame instead of looping or freezing."""
     segments_dir.mkdir(parents=True, exist_ok=True)
-    overlay_path = segments_dir / f"caption_overlay_{index:02d}.png"
-    caption_overlay.save(overlay_path)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
 
     clip_duration = probe_duration(clip_path)
     skip_seconds = _leading_freeze_seconds(clip_path, clip_duration)
 
+    if timed_caption_overlays is None:
+        if caption_overlay is None:
+            raise ValueError("caption_overlay or timed_caption_overlays is required")
+        fallback_box = CaptionBox(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
+        timed_caption_overlays = [
+            TimedCaptionOverlay(caption_overlay, 0.0, duration, fallback_box)
+        ]
+
+    overlay_paths: list[Path] = []
+    for cue_index, timed in enumerate(timed_caption_overlays):
+        path = segments_dir / f"caption_overlay_{index:02d}_{cue_index:02d}.png"
+        timed.image.save(path)
+        overlay_paths.append(path)
+
+    usable_duration = max(1.0 / FPS, clip_duration - skip_seconds)
+    stretch_factor = duration / usable_duration
+    base_filter = (
+        f"[0:v]trim=start={skip_seconds:.3f}:duration={usable_duration:.3f},"
+        f"setpts={stretch_factor:.8f}*(PTS-STARTPTS),"
+        f"scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS}[base0]"
+    )
+    overlay_filters = []
+    prior_label = "base0"
+    for cue_index, timed in enumerate(timed_caption_overlays):
+        out_label = f"captioned{cue_index}"
+        overlay_filters.append(
+            f"[{prior_label}][{cue_index + 1}:v]overlay=0:0:"
+            f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
+        )
+        prior_label = out_label
+
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-i", str(clip_path),
-        "-loop", "1", "-i", str(overlay_path),
-        "-filter_complex",
-        (f"[0:v]trim=start={skip_seconds:.3f},setpts=PTS-STARTPTS," if skip_seconds > 0.05 else "[0:v]")
-        + f"scale={FRAME_WIDTH}:{FRAME_HEIGHT},tpad=stop_mode=clone:stop_duration=15[base];"
-        "[base][1:v]overlay=0:0[out]",
-        "-map", "[out]",
+    ]
+    for overlay_path in overlay_paths:
+        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
+    cmd.extend([
+        "-filter_complex", ";".join([base_filter, *overlay_filters]),
+        "-map", f"[{prior_label}]",
         "-t", f"{duration:.3f}",
         "-r", str(FPS),
         "-pix_fmt", "yuv420p",
@@ -254,7 +361,7 @@ def build_scene_video_segment_from_clip(
         "-fflags", "+bitexact", "-flags:v", "+bitexact",
         "-metadata", "creation_time=1970-01-01T00:00:00Z",
         str(out_path),
-    ]
+    ])
     _run(cmd)
     return out_path
 
@@ -359,14 +466,15 @@ def write_captions_srt(scenes: list[dict[str, Any]], durations: list[float], out
 
     lines = []
     cursor = 0.0
-    for i, (scene, duration) in enumerate(zip(scenes, durations), start=1):
-        start = cursor
-        end = cursor + duration
-        lines.append(str(i))
-        lines.append(f"{fmt(start)} --> {fmt(end)}")
-        lines.append(scene["caption"])
-        lines.append("")
-        cursor = end
+    cue_number = 1
+    for scene, duration in zip(scenes, durations):
+        for cue in narration_caption_cues(scene["narration"], duration):
+            lines.append(str(cue_number))
+            lines.append(f"{fmt(cursor + cue.start)} --> {fmt(cursor + cue.end)}")
+            lines.append(cue.text)
+            lines.append("")
+            cue_number += 1
+        cursor += duration
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -410,6 +518,15 @@ def write_captions_meta(
                 "scripted_duration": round(scripted, 3) if scripted is not None else None,
                 "drift_seconds": round(duration - scripted, 3) if scripted is not None else None,
                 "caption": scene["caption"],
+                "spoken_narration": scene["narration"],
+                "caption_cues": [
+                    {
+                        "text": cue.text,
+                        "start": round(start + cue.start, 3),
+                        "end": round(start + cue.end, 3),
+                    }
+                    for cue in narration_caption_cues(scene["narration"], duration)
+                ],
                 "source_claim_id": scene["source_claim_id"],
                 "box": box_dict,
                 "inside_safe_area": inside_safe_area,
@@ -523,13 +640,22 @@ def assemble_animated(
 
     for i, scene in enumerate(scenes):
         clip_path = clip_source(i, scene)
-        overlay, box = caption_overlay_png(scene["caption"], style=caption_style)
-        if caution_text and i == len(scenes) - 1:
-            badge = caution_badge_overlay_png(caution_text)
-            overlay = Image.alpha_composite(overlay, badge)
+        timed_overlays, box = build_timed_caption_overlays(
+            scene["narration"],
+            audio[i].duration,
+            caption_style=caption_style,
+            caution_text=caution_text if i == len(scenes) - 1 else None,
+        )
         caption_boxes.append(box)
 
-        seg_path = build_scene_video_segment_from_clip(clip_path, audio[i].duration, overlay, i, segments_dir)
+        seg_path = build_scene_video_segment_from_clip(
+            clip_path,
+            audio[i].duration,
+            None,
+            i,
+            segments_dir,
+            timed_caption_overlays=timed_overlays,
+        )
         segment_paths.append(seg_path)
 
     tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)

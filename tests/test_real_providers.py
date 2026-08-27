@@ -8,8 +8,8 @@ from PIL import Image
 from shorts_factory.cost_tracker import BudgetExceeded, CostTracker
 from shorts_factory.providers.fal import FalGateway
 from shorts_factory.providers.image import FalImageProvider
-from shorts_factory.providers.llm import FalLLMProvider
-from shorts_factory.providers.video import FalVideoProvider
+from shorts_factory.providers.llm import FalLLMProvider, LLMResponseFormatError
+from shorts_factory.providers.video import FalVideoProvider, NONVERBAL_CONTINUOUS_MOTION
 
 
 def sample_script():
@@ -47,9 +47,47 @@ def test_fal_llm_parses_json_and_records_real_response_cost():
     fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})
     tracker = CostTracker(1)
     provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
-    assert provider.generate_script({"topic": "soap", "claims": []}, "English", "style", tracker) == script
+    assert provider.generate_script(
+        {"topic": "soap", "claims": []}, "English", script["visual_style"], tracker
+    ) == script
     assert tracker.total_spent_usd == 0.017
     assert fal.client.calls[0][0] == "openrouter/router"
+
+
+def test_fal_llm_normalizes_harmless_script_schema_drift():
+    script = sample_script()
+    script["reasoning"] = "This key is not part of the script contract."
+    script["topic"] = "a model typo"
+    script["language"] = "a model typo"
+    script["visual_style"] = "a model typo"
+    script["scenes"][0]["notes"] = "also not part of the contract"
+    script["scenes"][0]["caption"] = "word " * 30
+    script["scenes"][0]["duration"] = "8"
+    fal = gateway({"output": json.dumps({"script": script}), "usage": {"cost": 0.017}})
+    tracker = CostTracker(1)
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    brief = {"topic": "soap", "claims": []}
+
+    result = provider.generate_script(brief, "English", "house style", tracker)
+
+    assert result["topic"] == "soap"
+    assert result["language"] == "English"
+    assert result["visual_style"] == "house style"
+    assert "reasoning" not in result
+    assert "notes" not in result["scenes"][0]
+    assert len(result["scenes"][0]["caption"]) <= 90
+    assert result["scenes"][0]["duration"] == 8.0
+
+
+def test_fal_llm_does_not_invent_missing_required_scene_fields():
+    script = sample_script()
+    del script["scenes"][0]["source_claim_id"]
+    fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+
+    result = provider.generate_script({"topic": "soap", "claims": []}, "English", "style", CostTracker(1))
+
+    assert "source_claim_id" not in result["scenes"][0]
 
 
 def test_fal_llm_records_cost_even_if_json_is_malformed():
@@ -60,6 +98,27 @@ def test_fal_llm_records_cost_even_if_json_is_malformed():
         provider.generate_script({"topic": "soap", "claims": []}, "English", "style", tracker)
     # Even though json decoding failed, the money was spent and must be in the ledger!
     assert tracker.total_spent_usd == 0.017
+
+
+def test_fal_llm_repairs_only_trailing_comma_json_drift():
+    script = sample_script()
+    malformed = json.dumps(script).replace('"sfx": null}', '"sfx": null,}')
+    fal = gateway({"output": malformed, "usage": {"cost": 0.017}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+
+    result = provider.generate_script(
+        {"topic": "soap", "claims": []}, "English", script["visual_style"], CostTracker(1)
+    )
+
+    assert result == script
+
+
+def test_fal_llm_rejects_non_trailing_comma_json_corruption():
+    fal = gateway({"output": '{"topic": unquoted}', "usage": {"cost": 0.017}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+
+    with pytest.raises(LLMResponseFormatError, match="not valid JSON"):
+        provider.generate_script({"topic": "soap", "claims": []}, "English", "style", CostTracker(1))
 
 
 def test_fal_llm_budget_refuses_before_gateway_call():
@@ -320,7 +379,8 @@ def test_fal_video_uploads_hero_image_and_animates_it(tmp_path):
     assert fal.client.uploaded == [hero_path]
     args = fal.client.calls[0][1]["arguments"]
     assert args["image_url"] == "https://fake.fal.media/uploaded/hero.png"
-    assert args["prompt"] == "character gestures at a bar of soap"
+    assert args["prompt"].startswith("character gestures at a bar of soap")
+    assert NONVERBAL_CONTINUOUS_MOTION in args["prompt"]
     assert args["duration"] == "6"
     # 6 seconds at $0.045/s, flat — Hailuo has no variable usage.cost field
     assert tracker.total_spent_usd == pytest.approx(0.27)
@@ -350,8 +410,10 @@ def test_fal_video_uses_motion_prompt_not_raw_visual_prompt(tmp_path):
     )
 
     args = fal.client.calls[0][1]["arguments"]
-    assert args["prompt"] == "small mascot in the bottom-left corner pointing up at a floating soap bar"
+    assert args["prompt"].startswith("small mascot in the bottom-left corner pointing up at a floating soap bar")
     assert "stale description" not in args["prompt"]
+    assert "must not speak or lip-sync" in args["prompt"]
+    assert "movement continues smoothly until the clip ends" in args["prompt"]
 
 
 def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):
@@ -370,7 +432,8 @@ def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):
     args = fal.client.calls[0][1]["arguments"]
     assert args["aspect_ratio"] == "9:16"
     assert args["duration"] == "5"
-    assert args["prompt"] == "dwarf mascot smiles and points staff up"
+    assert args["prompt"].startswith("dwarf mascot smiles and points staff up")
+    assert "no talking mouth shapes" in args["prompt"]
     # Kling is 5s at $0.05/s = $0.25
     assert provider.cost == pytest.approx(0.25)
     assert tracker.total_spent_usd == pytest.approx(0.25)

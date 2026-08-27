@@ -1,0 +1,23 @@
+{
+  "budget_cap_usd": 20.0,
+  "total_spent_usd": 0.016,
+  "under_cap": true,
+  "entries": [
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['post-apocalyptic metal production methods']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787592762.7198532
+    },
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['primitive iron smelting techniques']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787592765.1939032
+    }
+  ]
+}

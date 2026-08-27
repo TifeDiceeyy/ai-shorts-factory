@@ -10,6 +10,7 @@ when the guard fires.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -50,17 +51,20 @@ class CostTracker:
     def __init__(self, budget_cap_usd: float):
         self.budget_cap_usd = budget_cap_usd
         self.entries: list[CostEntry] = []
+        self._lock = threading.RLock()
 
     @property
     def total_spent_usd(self) -> float:
-        return sum(e.actual_cost_usd for e in self.entries)
+        with self._lock:
+            return sum(e.actual_cost_usd for e in self.entries)
 
     def check_budget(self, operation: str, estimated_cost_usd: float) -> None:
         """Call BEFORE making a provider call. Raises BudgetExceeded (and logs
         nothing, spends nothing) if the projected total would exceed the cap."""
-        projected = self.total_spent_usd + estimated_cost_usd
-        if projected > self.budget_cap_usd:
-            raise BudgetExceeded(projected, self.budget_cap_usd, operation)
+        with self._lock:
+            projected = sum(e.actual_cost_usd for e in self.entries) + estimated_cost_usd
+            if projected > self.budget_cap_usd:
+                raise BudgetExceeded(projected, self.budget_cap_usd, operation)
 
     def record(
         self,
@@ -70,23 +74,26 @@ class CostTracker:
         actual_cost_usd: float,
         is_stub: bool,
     ) -> None:
-        self.entries.append(
-            CostEntry(
-                provider=provider,
-                operation=operation,
-                estimated_cost_usd=estimated_cost_usd,
-                actual_cost_usd=actual_cost_usd,
-                is_stub=is_stub,
+        with self._lock:
+            self.entries.append(
+                CostEntry(
+                    provider=provider,
+                    operation=operation,
+                    estimated_cost_usd=estimated_cost_usd,
+                    actual_cost_usd=actual_cost_usd,
+                    is_stub=is_stub,
+                )
             )
-        )
 
     def write_report(self, path: Path) -> dict:
-        report = {
-            "budget_cap_usd": self.budget_cap_usd,
-            "total_spent_usd": round(self.total_spent_usd, 6),
-            "under_cap": self.total_spent_usd <= self.budget_cap_usd,
-            "entries": [e.to_dict() for e in self.entries],
-        }
+        with self._lock:
+            total = sum(e.actual_cost_usd for e in self.entries)
+            report = {
+                "budget_cap_usd": self.budget_cap_usd,
+                "total_spent_usd": round(total, 6),
+                "under_cap": total <= self.budget_cap_usd,
+                "entries": [e.to_dict() for e in self.entries],
+            }
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

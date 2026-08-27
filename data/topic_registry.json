@@ -215,5 +215,22 @@
     "keywords": [],
     "safety_class": "yellow",
     "caution": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately."
+  },
+  "how could humanity start producing metal again": {
+    "queries": [
+      "post-apocalyptic metal production methods",
+      "primitive iron smelting techniques"
+    ],
+    "keywords": [
+      "smelting",
+      "ore",
+      "forge",
+      "refining",
+      "post-collapse",
+      "resource extraction",
+      "restarting industry"
+    ],
+    "safety_class": "green",
+    "caution": null
   }
 }

@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from shorts_factory.assembly import assemble_animated, probe_duration, synthesize_scenes
+from shorts_factory.assembly import (
+    assemble_animated,
+    narration_caption_cues,
+    probe_duration,
+    synthesize_scenes,
+    write_captions_srt,
+)
 from shorts_factory.captions import FRAME_HEIGHT, FRAME_WIDTH
 from shorts_factory.cost_tracker import CostTracker
 from shorts_factory.providers.tts import StubTTSProvider
@@ -26,6 +32,33 @@ def test_stub_video_provider_produces_a_clip_of_the_fixed_clip_length(tmp_path):
 
     assert probe_duration(out) == pytest.approx(HAILUO_CLIP_SECONDS, abs=0.1)
     assert tracker.total_spent_usd == 0.0
+
+
+def test_narration_caption_cues_preserve_every_spoken_word_and_cover_duration():
+    narration = "Could you make a metal tool from scratch? Ancient humans used smelting."
+    cues = narration_caption_cues(narration, 7.25)
+
+    assert " ".join(cue.text for cue in cues) == narration
+    assert cues[0].start == 0.0
+    assert cues[-1].end == 7.25
+    assert all(a.end == b.start for a, b in zip(cues, cues[1:]))
+    assert all(len(cue.text.split()) <= 5 for cue in cues)
+
+
+def test_srt_uses_exact_narration_chunks_not_summary_caption(tmp_path):
+    scenes = [{
+        "narration": "The heat separates impurities from the iron.",
+        "caption": "Impurities melt!",
+    }]
+    out = tmp_path / "captions.srt"
+    write_captions_srt(scenes, [4.0], out)
+    rendered = out.read_text()
+
+    assert "The heat separates impurities from the iron." == " ".join(
+        line for line in rendered.splitlines()
+        if line and not line.isdigit() and "-->" not in line
+    )
+    assert "Impurities melt!" not in rendered
 
 
 def test_assemble_animated_pads_short_clips_and_burns_captions(tmp_path):
@@ -454,4 +487,3 @@ def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
     assert result.verification is not None
     final_mp4 = tmp_path / "soap" / "soap.mp4"
     assert final_mp4.exists()
-

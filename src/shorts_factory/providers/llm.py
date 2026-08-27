@@ -79,7 +79,6 @@ class LLMProvider(ABC):
         cost_tracker: CostTracker,
     ) -> dict[str, Any]:
         ...
-
     @abstractmethod
     def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
         """Propose a safety classification + Phase 1 retrieval config for a
@@ -116,6 +115,10 @@ class LLMProvider(ABC):
         ...
 
 
+class LLMResponseFormatError(ValueError):
+    """The provider answered, but its script payload was not usable JSON."""
+
+
 def _caption_from_claim(claim_text: str) -> str:
     """Short on-screen caption derived from a claim (schema caps at 90 chars)."""
     cap = claim_text.strip()
@@ -123,6 +126,78 @@ def _caption_from_claim(claim_text: str) -> str:
         return cap
     cut = cap[:87].rsplit(" ", 1)[0]
     return cut + "..."
+
+
+SCRIPT_TOP_LEVEL_KEYS = {"topic", "language", "visual_style", "scenes"}
+SCRIPT_SCENE_KEYS = {
+    "narration",
+    "caption",
+    "duration",
+    "visual_prompt",
+    "source_claim_id",
+    "camera",
+    "sfx",
+    "mascot_role",
+    "mascot_emotion",
+    "action",
+    "props",
+    "layout",
+    "scene_type",
+    "fx",
+}
+
+
+def _normalize_generated_script(
+    payload: dict[str, Any], brief: dict[str, Any], language: str, visual_style: str
+) -> dict[str, Any]:
+    """Repair harmless formatting drift in an otherwise usable LLM script.
+
+    The JSON Schema intentionally rejects unknown properties, but generative
+    models occasionally add explanatory keys even when asked not to. Those
+    keys have no downstream meaning, so discard them rather than charging for
+    an entire second script call. Keep substantive validation strict: missing
+    required fields, invalid claim IDs, bad types, and unsafe durations still
+    fail in schema_validate.validate_script_against_brief().
+    """
+    # Some models add one redundant wrapper despite being asked for the script
+    # object directly. Unwrap only this unambiguous shape.
+    if set(payload) == {"script"} and isinstance(payload.get("script"), dict):
+        payload = payload["script"]
+
+    normalized = {key: value for key, value in payload.items() if key in SCRIPT_TOP_LEVEL_KEYS}
+    # These values are authoritative inputs, not creative output. Prevent a
+    # model typo or paraphrase from changing artifact identity or render style.
+    normalized["topic"] = brief["topic"]
+    normalized["language"] = language
+    normalized["visual_style"] = visual_style
+
+    scenes = payload.get("scenes")
+    if not isinstance(scenes, list):
+        # Preserve the invalid value so the schema produces the useful error.
+        normalized["scenes"] = scenes
+        return normalized
+
+    normalized_scenes = []
+    for scene in scenes:
+        if not isinstance(scene, dict):
+            normalized_scenes.append(scene)
+            continue
+        clean = {key: value for key, value in scene.items() if key in SCRIPT_SCENE_KEYS}
+
+        caption = clean.get("caption")
+        if isinstance(caption, str) and len(caption) > 90:
+            clean["caption"] = _caption_from_claim(caption)
+
+        # Accept a plain numeric JSON string such as "7.5". Descriptive
+        # values like "about eight seconds" remain invalid and fail closed.
+        duration = clean.get("duration")
+        if isinstance(duration, str) and re.fullmatch(r"\s*\d+(?:\.\d+)?\s*", duration):
+            clean["duration"] = float(duration)
+
+        normalized_scenes.append(clean)
+
+    normalized["scenes"] = normalized_scenes
+    return normalized
 
 
 def _visual_prompt(claim_text: str, visual_style: str) -> str:
@@ -290,12 +365,55 @@ class StubLLMProvider(LLMProvider):
         return design
 
 
+def _strip_json_trailing_commas(text: str) -> str:
+    """Remove commas before ``}``/``]`` while leaving string content intact."""
+    out: list[str] = []
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            out.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+            out.append(char)
+            continue
+        if char == ",":
+            lookahead = index + 1
+            while lookahead < len(text) and text[lookahead].isspace():
+                lookahead += 1
+            if lookahead < len(text) and text[lookahead] in "}]":
+                continue
+        out.append(char)
+    return "".join(out)
+
+
 def _json_object(text: str) -> dict[str, Any]:
     """Decode a provider response without accepting prose around the object."""
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
-    value = json.loads(cleaned)
+    try:
+        value = json.loads(cleaned)
+    except json.JSONDecodeError as first_error:
+        # A trailing comma is a common model formatting slip and has one
+        # unambiguous repair. Do not attempt broader rewriting that could
+        # change factual content or citation IDs.
+        repaired = _strip_json_trailing_commas(cleaned)
+        if repaired == cleaned:
+            raise LLMResponseFormatError(f"LLM response was not valid JSON: {first_error}") from first_error
+        try:
+            value = json.loads(repaired)
+        except json.JSONDecodeError as repaired_error:
+            raise LLMResponseFormatError(
+                f"LLM response was not valid JSON after trailing-comma repair: {repaired_error}"
+            ) from repaired_error
     if not isinstance(value, dict):
-        raise ValueError("LLM response must be a JSON object")
+        raise LLMResponseFormatError("LLM response must be a JSON object")
     return value
 
 
@@ -363,7 +481,11 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "paddle' — for process_action scenes this is the main content of the shot, not just a list of props), "
         "props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
         "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), and fx (string or null). "
-        "The top-level object must contain topic, language, visual_style, and scenes. Preserve claim IDs exactly."
+        "The top-level object must contain exactly topic, language, visual_style, and scenes, with no other keys. "
+        "Each scene must contain only the scene fields listed above; never add helper, reasoning, notes, index, "
+        "or metadata fields. Every scene must use exactly one supplied source_claim_id; source_claim_id must "
+        "never be null and must never be invented. The opening hook must share a scene with, and lead directly "
+        "into, the factual claim identified by that scene's source_claim_id. Preserve claim IDs exactly."
         + visual_instruction
         + f" Language: {language}. Visual style: {visual_style}. Brief: {json.dumps(brief, ensure_ascii=False)}"
     )
@@ -473,7 +595,7 @@ class FalLLMProvider(LLMProvider):
         actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
         cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
         script = _json_object(data["output"])
-        return script
+        return _normalize_generated_script(script, brief, language, visual_style)
 
     def propose_topic(self, topic: str, cost_tracker: CostTracker) -> dict[str, Any]:
         operation = "llm.propose_topic"

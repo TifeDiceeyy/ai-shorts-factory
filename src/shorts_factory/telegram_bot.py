@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -47,6 +48,7 @@ from .safety import is_explicitly_red
 from .topic_registry import get_topic, load_registry, normalize_topic, register_topic
 
 TOPIC_RE = re.compile(r"^[a-z0-9][a-z0-9 _-]{0,79}$", re.IGNORECASE)
+logger = logging.getLogger(__name__)
 
 
 class TelegramNotConfigured(Exception):
@@ -420,6 +422,7 @@ def build_router(controller: TelegramController) -> Router:
             try:
                 result = await asyncio.to_thread(controller.run_generate, topic, chosen_idea, chosen_mascot_id)
             except Exception as exc:
+                logger.exception("Telegram generation failed for topic %r", topic)
                 await message.answer(f"Refused: {exc}")
                 await state.clear()
                 return
@@ -520,6 +523,11 @@ def build_router(controller: TelegramController) -> Router:
         if not controller.authorized(user_id):
             await callback.answer("Unauthorized.", show_alert=True)
             return
+        # Telegram callback queries must be acknowledged within seconds. The
+        # generation/retrieval handlers can run for many minutes, so answering
+        # at the end makes Telegram reject the stale query even when the job
+        # itself completed successfully.
+        await callback.answer()
         current_state = await state.get_state()
         data = callback.data or ""
         message = callback.message
@@ -588,7 +596,6 @@ def build_router(controller: TelegramController) -> Router:
                 await message.answer(f"🎭 {mascot.name}\n{mascot.short_desc}\n\nStyle Description:\n{mascot.visual_style}")
         except Exception as exc:
             await message.answer(f"Refused: {exc}")
-        await callback.answer()
 
     return router
 
