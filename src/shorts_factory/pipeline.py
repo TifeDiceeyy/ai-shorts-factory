@@ -173,6 +173,62 @@ def _scene_base_image_path(
     return out_path
 
 
+# Direct user feedback (2026-08-28): once a real clip's motion runs out
+# mid-scene, the next beat should also be real motion where reasonable, not
+# an immediate fall back to a static hold. Bounded at 2 — not unlimited —
+# specifically to cap the worst-case cost impact (each extra clip is a real
+# paid Kling/Hailuo call); the static sticker-style cut-in (see
+# assembly.build_scene_video_segment_from_clip) still absorbs whatever's
+# left after that.
+MAX_REAL_CLIPS_PER_SCENE = 2
+
+
+def _render_scene_clips(
+    video_provider,
+    scene: dict[str, Any],
+    source_image_path: Path,
+    target_duration: float,
+    scene_index: int,
+    generated_dir: Path,
+    cost_tracker: CostTracker,
+    motion_prompt: str,
+) -> list[Path]:
+    """Generates up to MAX_REAL_CLIPS_PER_SCENE real video clips for one
+    scene, continuing from where the previous clip's real motion left off
+    (its own last frame, extracted locally — zero extra cost) rather than
+    re-animating the same starting pose. Stops early once the accumulated
+    real motion (after each clip's own leading-freeze-skip and the same
+    MAX_CLIP_STRETCH_FACTOR-capped stretch build_scene_video_segment_from_clip
+    will apply) already covers target_duration — no point paying for a
+    second clip nothing will end up using. Returns every clip actually
+    generated, in order; build_scene_video_segment_from_clip does the same
+    per-clip accounting again when it assembles them, so this is a cost
+    decision, not a duplicate of the assembly-time timing logic."""
+    clip_paths: list[Path] = []
+    remaining = target_duration
+    current_source = source_image_path
+
+    for attempt in range(MAX_REAL_CLIPS_PER_SCENE):
+        tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}_{attempt}.mp4"
+        clip_path = video_provider.generate_scene_video(
+            scene, current_source, scene_index, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+        )
+        clip_paths.append(clip_path)
+
+        usable = assembly.usable_clip_seconds(clip_path)
+        stretch_factor = min(remaining / usable, assembly.MAX_CLIP_STRETCH_FACTOR)
+        played = usable * stretch_factor
+        remaining = max(0.0, remaining - played)
+
+        if remaining <= assembly.CUT_IN_MIN_PAD_SECONDS or attempt == MAX_REAL_CLIPS_PER_SCENE - 1:
+            break
+
+        last_frame_path = generated_dir / "raw" / f"clip_{scene_index:02d}_{attempt}_last.png"
+        current_source = assembly.extract_last_frame(clip_path, last_frame_path)
+
+    return clip_paths
+
+
 def run_pipeline(
     topic: str,
     idea: dict[str, Any] | None = None,
@@ -475,10 +531,14 @@ def run_pipeline(
                 )
                 for i, scene in enumerate(script["scenes"])
             ]
-            batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"])
+            # Worst case, per scene: MAX_REAL_CLIPS_PER_SCENE clips (see
+            # _render_scene_clips) — an early sanity check against that
+            # ceiling, not the only guard: check_budget() also runs before
+            # every individual real clip call inside generate_scene_video().
+            batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"]) * MAX_REAL_CLIPS_PER_SCENE
             cost_tracker.check_budget("video.generate_batch", batch_estimate)
 
-            def render_clip(i: int, scene: dict[str, Any]) -> Path:
+            def render_clip(i: int, scene: dict[str, Any]) -> list[Path]:
                 # fal_client's synchronous client is not shared across worker
                 # threads; each concurrent request gets its own gateway.
                 worker_gateway = FalGateway(settings.fal_key)
@@ -489,30 +549,30 @@ def run_pipeline(
                     settings.video_cost_per_second_usd,
                     gateway=worker_gateway,
                 )
-                tmp_clip_path = generated_dir / "raw" / f"clip_{i:02d}.mp4"
                 # Same prompt the base image was actually built from — not
                 # scene["visual_prompt"] (see providers/video.py's docstring
                 # on why animating with that raw, separate field risks
                 # describing a different shot than what's in the frame).
                 motion_prompt = get_scene_image_prompt(scene, mascot)
-                return worker_provider.generate_scene_video(
-                    scene, base_image_paths[i], i, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+                return _render_scene_clips(
+                    worker_provider, scene, base_image_paths[i], scene_audio[i].duration,
+                    i, generated_dir, cost_tracker, motion_prompt,
                 )
 
-            clip_paths: list[Path | None] = [None] * len(script["scenes"])
+            clip_paths_per_scene: list[list[Path] | None] = [None] * len(script["scenes"])
             with ThreadPoolExecutor(max_workers=min(2, len(script["scenes"]))) as executor:
                 pending = {
                     executor.submit(render_clip, i, scene): i
                     for i, scene in enumerate(script["scenes"])
                 }
                 for future in as_completed(pending):
-                    clip_paths[pending[future]] = future.result()
+                    clip_paths_per_scene[pending[future]] = future.result()
 
-            def clip_source(i: int, _scene: dict[str, Any]) -> Path:
-                path = clip_paths[i]
-                if path is None:
+            def clip_source(i: int, _scene: dict[str, Any]) -> list[Path]:
+                paths = clip_paths_per_scene[i]
+                if paths is None:
                     raise RuntimeError(f"animated clip {i} did not complete")
-                return path
+                return paths
 
             generated_result = assembly.assemble_animated(
                 scenes=script["scenes"],
@@ -755,10 +815,10 @@ def regenerate_scene(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )
 
-            tmp_clip_path = generated_dir / "raw" / f"clip_{scene_index:02d}.mp4"
             motion_prompt = get_scene_image_prompt(scene, mascot)
-            clip_path = video_provider.generate_scene_video(
-                scene, base_image_path, scene_index, tmp_clip_path, cost_tracker, motion_prompt=motion_prompt
+            clip_paths = _render_scene_clips(
+                video_provider, scene, base_image_path, new_duration,
+                scene_index, generated_dir, cost_tracker, motion_prompt,
             )
             timed_overlays, new_box = assembly.build_timed_caption_overlays(
                 scene["narration"],
@@ -767,7 +827,7 @@ def regenerate_scene(
                 caution_text=caution_text if is_last_scene else None,
             )
             new_seg_path = assembly.build_scene_video_segment_from_clip(
-                clip_path,
+                clip_paths,
                 new_duration,
                 None,
                 scene_index,

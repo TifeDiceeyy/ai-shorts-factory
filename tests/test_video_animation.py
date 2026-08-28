@@ -78,7 +78,7 @@ def test_assemble_animated_pads_short_clips_and_burns_captions(tmp_path):
     audio = synthesize_scenes(tts, scenes, tmp_path / "audio", tracker)
 
     def clip_source(i, scene):
-        return video_provider.generate_scene_video(scene, hero, i, tmp_path / f"raw_{i}.mp4", tracker)
+        return [video_provider.generate_scene_video(scene, hero, i, tmp_path / f"raw_{i}.mp4", tracker)]
 
     result = assemble_animated(
         scenes=scenes, clip_source=clip_source, audio=audio, workdir=tmp_path / "work", out_mp4=tmp_path / "out.mp4"
@@ -111,7 +111,24 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
             video_calls.append((scene_index, hero_image_path.name, motion_prompt))
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(b"fake_video_bytes")
+            # A real (if trivial) clip with genuine per-frame motion — not
+            # literal fake bytes and not a solid/frozen color — so pipeline's
+            # _render_scene_clips (which now probes every real clip via
+            # assembly.usable_clip_seconds) sees the clip's full 6s as usable
+            # and doesn't decide a second real clip is needed. Duration=6s at
+            # this mocked scene's target of 5.0s stretches to exactly cover
+            # it (stretch_factor ~0.83, under the cap), matching this test's
+            # "exactly one video call per scene" assertion below.
+            import subprocess
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", "nullsrc=s=320x240:d=6:r=30",
+                    "-vf", "geq=random(1)*255:random(2)*255:random(3)*255",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ],
+                check=True,
+            )
             return out_path
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *args, **kwargs: FakeImageProvider())
@@ -258,7 +275,19 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
 
         def generate_scene_video(self, scene, hero_image_path, scene_index, out_path, cost_tracker, motion_prompt=""):
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(b"fake_video_bytes")
+            # Real (moving) clip, not literal fake bytes — see the sibling
+            # test above for why: pipeline's _render_scene_clips now probes
+            # every real clip via assembly.usable_clip_seconds for real.
+            import subprocess
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", "nullsrc=s=320x240:d=6:r=30",
+                    "-vf", "geq=random(1)*255:random(2)*255:random(3)*255",
+                    "-pix_fmt", "yuv420p", str(out_path),
+                ],
+                check=True,
+            )
             return out_path
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())

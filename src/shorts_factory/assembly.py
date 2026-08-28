@@ -313,8 +313,34 @@ def _leading_freeze_seconds(clip_path: Path, clip_duration: float) -> float:
 CUT_IN_MIN_PAD_SECONDS = 0.75
 
 
+def usable_clip_seconds(clip_path: Path) -> float:
+    """How much of this raw clip is real, non-frozen motion — the leading
+    freeze skipped, everything after it counted. Public so pipeline.py can
+    decide whether a scene needs a second real clip without reaching into
+    this module's freeze-detection internals."""
+    clip_duration = probe_duration(clip_path)
+    skip_seconds = _leading_freeze_seconds(clip_path, clip_duration)
+    return max(1.0 / FPS, clip_duration - skip_seconds)
+
+
+def extract_last_frame(clip_path: Path, out_path: Path) -> Path:
+    """Grabs the raw clip's final frame as a still image — used as the
+    continuation source for a second real video-generation call when the
+    first clip's motion doesn't cover the whole scene (see
+    pipeline._render_scene_clips)."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    clip_duration = probe_duration(clip_path)
+    timestamp = max(0.0, clip_duration - 1.0 / FPS)
+    _run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-ss", f"{timestamp:.3f}", "-i", str(clip_path),
+        "-frames:v", "1", str(out_path),
+    ])
+    return out_path
+
+
 def build_scene_video_segment_from_clip(
-    clip_path: Path,
+    clip_paths: list[Path],
     duration: float,
     caption_overlay: Image.Image | None,
     index: int,
@@ -323,30 +349,28 @@ def build_scene_video_segment_from_clip(
     timed_caption_overlays: list[TimedCaptionOverlay] | None = None,
     image_path: Path | None = None,
 ) -> Path:
-    """Same role as build_scene_video_segment(), for an animated clip
-    instead of a static frame: skips any leading static/frozen hold in the
-    source clip (see _leading_freeze_seconds), scales to frame size,
+    """Same role as build_scene_video_segment(), for one or more animated
+    clips instead of a static frame: skips any leading static/frozen hold in
+    each source clip (see _leading_freeze_seconds), scales to frame size,
     composites timed caption overlays, and retimes the usable source motion
     to the scene's measured narration duration.
 
-    Usable motion plays up to MAX_CLIP_STRETCH_FACTOR stretched — beyond that
-    a stretch reads as slow-motion rather than real playback ("try to
-    continue reasonably" stops there). Any time left over is NOT covered by
-    holding the last frame: that produced real, mostly-static shots (a real
-    Kling clip observed 2026-08-27/28 spent 6.29s of an 8.5s scene in a
-    held-frame pad — most of the shot). Instead, once real motion can't
-    reasonably continue, hard-cut to a fresh sticker-style pop-in-and-hold
-    beat on the scene's own base image (image_path) — the exact same visual
-    language build_scene_video_segment_from_still() uses, so an ai_video
-    scene that runs out of real motion mid-shot reads as an intentional edit
-    cut, not a stall. image_path is optional (and CUT_IN_MIN_PAD_SECONDS
-    gates it even when given) so callers/tests that don't supply a scene
-    image keep the older held-frame-only behavior unchanged."""
+    clip_paths is an ORDERED list (usually 1, sometimes 2 — see
+    pipeline._render_scene_clips): each clip's usable motion plays up to
+    MAX_CLIP_STRETCH_FACTOR stretched against whatever time is still left
+    ("try to continue reasonably" stops there) before moving to the next
+    clip in the list. Only once every clip is exhausted and real time is
+    still left over does it hard-cut to a static sticker-style pop-in-and-
+    hold beat on the scene's own base image (image_path) — the same visual
+    language build_scene_video_segment_from_still() uses — rather than
+    holding a clip's last frame indefinitely (a real Kling clip observed
+    2026-08-27/28 spent 6.29s of an 8.5s scene in exactly that held-frame
+    state — most of the shot). image_path is optional (and
+    CUT_IN_MIN_PAD_SECONDS gates it even when given), so callers/tests that
+    don't supply a scene image keep the older held-frame-only behavior for
+    whatever's left after the last clip."""
     segments_dir.mkdir(parents=True, exist_ok=True)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
-
-    clip_duration = probe_duration(clip_path)
-    skip_seconds = _leading_freeze_seconds(clip_path, clip_duration)
 
     if timed_caption_overlays is None:
         if caption_overlay is None:
@@ -362,51 +386,77 @@ def build_scene_video_segment_from_clip(
         timed.image.save(path)
         overlay_paths.append(path)
 
-    # Stretching short usable motion to fill a long scene reads as slow-motion
-    # once the factor gets large (a 1.2s clip stretched to 8.5s is a ~7x
-    # crawl that looks nearly static). Cap the stretch; anything left over is
-    # handled below (hard cut, or a held-frame pad if no image_path/too short).
-    usable_duration = max(1.0 / FPS, clip_duration - skip_seconds)
-    natural_stretch = duration / usable_duration
-    stretch_factor = min(natural_stretch, MAX_CLIP_STRETCH_FACTOR)
-    played_duration = usable_duration * stretch_factor
-    pad_duration = max(0.0, duration - played_duration)
-
     oversized_w = round(FRAME_WIDTH * KEN_BURNS_HEADROOM)
     oversized_h = round(FRAME_HEIGHT * KEN_BURNS_HEADROOM)
-    use_cut_in = image_path is not None and pad_duration > CUT_IN_MIN_PAD_SECONDS
 
-    motion_filter = (
-        f"[0:v]trim=start={skip_seconds:.3f}:duration={usable_duration:.3f},"
-        f"setpts={stretch_factor:.8f}*(PTS-STARTPTS),"
-        f"scale={oversized_w}:{oversized_h},fps={FPS}"
-        + ("" if use_cut_in else (f",tpad=stop_mode=clone:stop_duration={pad_duration:.3f}" if pad_duration > 0.05 else ""))
+    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    motion_filters: list[str] = []
+    motion_labels: list[str] = []
+    remaining = duration
+
+    for clip_path in clip_paths:
+        if remaining <= 0.05:
+            break
+        cmd.extend(["-i", str(clip_path)])
+        clip_index = len(motion_labels)
+        clip_duration = probe_duration(clip_path)
+        skip_seconds = _leading_freeze_seconds(clip_path, clip_duration)
+        usable_duration = max(1.0 / FPS, clip_duration - skip_seconds)
+        natural_stretch = remaining / usable_duration
+        stretch_factor = min(natural_stretch, MAX_CLIP_STRETCH_FACTOR)
+        played_duration = usable_duration * stretch_factor
+        remaining = max(0.0, remaining - played_duration)
+
+        label = f"motion{clip_index}"
+        motion_labels.append(label)
         # A continuous slow zoom guarantees visible motion for a held tail
         # (a held frame is not literally static on screen) and adds a small
-        # floor of motion even where the source clip's own animation is too
-        # subtle to read as movement.
-        + f",zoompan=z='1.0+{KEN_BURNS_ZOOM_PER_FRAME}*on':"
-        + "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-        + f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1[motion0]"
-    )
+        # floor of motion even where a clip's own animation is too subtle
+        # to read as movement.
+        motion_filters.append(
+            f"[{clip_index}:v]trim=start={skip_seconds:.3f}:duration={usable_duration:.3f},"
+            f"setpts={stretch_factor:.8f}*(PTS-STARTPTS),"
+            f"scale={oversized_w}:{oversized_h},fps={FPS},"
+            f"zoompan=z='1.0+{KEN_BURNS_ZOOM_PER_FRAME}*on':"
+            "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+            f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1[{label}]"
+        )
 
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(clip_path)]
-    overlay_input_offset = 1
+    pad_duration = remaining
+    clips_used = len(motion_labels)
+    use_cut_in = image_path is not None and pad_duration > CUT_IN_MIN_PAD_SECONDS
 
     if use_cut_in:
         cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(image_path)])
-        overlay_input_offset = 2
-        cut_in_filter = (
-            f"[1:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
+        motion_filters.append(
+            f"[{clips_used}:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
             f"zoompan=z='{_pop_in_zoom_expr()}':"
             "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
             f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1,"
             f"trim=duration={pad_duration:.3f}[cutin0]"
         )
-        base_filter = ";".join([motion_filter, cut_in_filter, "[motion0][cutin0]concat=n=2:v=1:a=0[base0]"])
-    else:
-        base_filter = motion_filter.replace("[motion0]", "[base0]")
+        motion_labels.append("cutin0")
+        clips_used += 1
+    elif pad_duration > 0.05 and motion_filters:
+        # Sub-threshold remainder (or no image_path given): extend the LAST
+        # clip's own hold via tpad instead of a separate cut — a near-
+        # invisible extra cut isn't worth it. Insert right before that
+        # clip's zoompan stage so the Ken Burns floor also covers the hold.
+        last_filter = motion_filters[-1]
+        insertion_point = last_filter.index(",zoompan=")
+        motion_filters[-1] = (
+            last_filter[:insertion_point]
+            + f",tpad=stop_mode=clone:stop_duration={pad_duration:.3f}"
+            + last_filter[insertion_point:]
+        )
 
+    if len(motion_labels) > 1:
+        concat_inputs = "".join(f"[{label}]" for label in motion_labels)
+        base_filter = ";".join([*motion_filters, f"{concat_inputs}concat=n={len(motion_labels)}:v=1:a=0[base0]"])
+    else:
+        base_filter = motion_filters[0].replace(f"[{motion_labels[0]}]", "[base0]")
+
+    overlay_input_offset = clips_used
     for overlay_path in overlay_paths:
         cmd.extend(["-loop", "1", "-i", str(overlay_path)])
     overlay_filters = []
@@ -824,7 +874,7 @@ def assemble(
 
 def assemble_animated(
     scenes: list[dict[str, Any]],
-    clip_source: Callable[[int, dict[str, Any]], Path],
+    clip_source: Callable[[int, dict[str, Any]], list[Path]],
     audio: list[SceneAudio],
     workdir: Path,
     out_mp4: Path,
@@ -833,10 +883,11 @@ def assemble_animated(
     image_source: Callable[[int, dict[str, Any]], Path] | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
-    a raw, uncaptioned, arbitrary-duration animated clip path for that scene
-    (see providers/video.py). Captioning and duration-fitting happen here —
-    same division of responsibility as assemble()'s frame_source, the caller
-    only supplies the per-scene visual content.
+    an ordered list of one or more raw, uncaptioned animated clip paths for
+    that scene (see pipeline._render_scene_clips, providers/video.py).
+    Captioning and duration-fitting happen here — same division of
+    responsibility as assemble()'s frame_source, the caller only supplies
+    the per-scene visual content.
     image_source(index, scene), if given, returns that scene's already-
     generated base image — passed through to build_scene_video_segment_from_clip
     as the hard-cut-in beat for whatever time is left once a clip's real
@@ -855,7 +906,7 @@ def assemble_animated(
     segment_paths: list[Path] = []
 
     for i, scene in enumerate(scenes):
-        clip_path = clip_source(i, scene)
+        clip_paths = clip_source(i, scene)
         timed_overlays, box = build_timed_caption_overlays(
             scene["narration"],
             audio[i].duration,
@@ -865,7 +916,7 @@ def assemble_animated(
         caption_boxes.append(box)
 
         seg_path = build_scene_video_segment_from_clip(
-            clip_path,
+            clip_paths,
             audio[i].duration,
             None,
             i,

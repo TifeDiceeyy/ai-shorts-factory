@@ -108,7 +108,7 @@ def test_build_scene_video_segment_from_clip_skips_the_leading_freeze(tmp_path):
     _frozen_then_moving_clip(clip, freeze_seconds=3.0, motion_seconds=2.0)
     overlay, _box = captions.caption_overlay_png("x", style="comic_punch_orange")
 
-    seg = assembly.build_scene_video_segment_from_clip(clip, duration=4.0, caption_overlay=overlay, index=0, segments_dir=tmp_path)
+    seg = assembly.build_scene_video_segment_from_clip([clip], duration=4.0, caption_overlay=overlay, index=0, segments_dir=tmp_path)
 
     frame_path = tmp_path / "frame.png"
     subprocess.run(
@@ -132,7 +132,7 @@ def test_duration_fitting_keeps_motion_changing_through_final_second(tmp_path):
     _continuously_moving_clip(clip, duration=2.0)
     overlay, _box = captions.caption_overlay_png("moving", style="comic_punch_orange")
     seg = assembly.build_scene_video_segment_from_clip(
-        clip, duration=5.0, caption_overlay=overlay, index=0, segments_dir=tmp_path
+        [clip], duration=5.0, caption_overlay=overlay, index=0, segments_dir=tmp_path
     )
 
     frames = []
@@ -164,7 +164,7 @@ def test_padded_remainder_hard_cuts_to_the_scene_image_instead_of_holding_the_cl
     # duration=6.0, MAX_CLIP_STRETCH_FACTOR=1.8 -> played_duration=3.6s,
     # pad_duration=2.4s (well above the 0.75s cut-in threshold).
     seg = assembly.build_scene_video_segment_from_clip(
-        clip, duration=6.0, caption_overlay=overlay, index=0, segments_dir=tmp_path, image_path=image_path
+        [clip], duration=6.0, caption_overlay=overlay, index=0, segments_dir=tmp_path, image_path=image_path
     )
 
     frame_path = tmp_path / "post_cut.png"
@@ -180,4 +180,62 @@ def test_padded_remainder_hard_cuts_to_the_scene_image_instead_of_holding_the_cl
     assert g > r + 40 and g > b + 40, (
         f"expected the padded remainder to show the scene's still image (greenish), got RGB=({r},{g},{b}) "
         "— looks like the old clip-hold behavior instead of a hard cut"
+    )
+
+
+def _bright_noise_clip(path, duration=2.0):
+    """Per-frame noise like _continuously_moving_clip, but with luma (Y)
+    forced high (~220-250) every frame instead of full-range random — gives
+    a second clip a reliably distinct AVERAGE brightness from clip1's
+    full-range random noise (mean luma ~127), immune to any single random
+    pixel/frame coincidentally matching. geq's default plane order is
+    Y:Cb:Cr, not R:G:B — confirmed the hard way: an earlier attempt at a
+    "red-only" fixture using geq=random*255:0:0 rendered solid GREEN, since
+    Cb=0:Cr=0 in YUV pushes toward green, not red."""
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", f"nullsrc=s=320x240:d={duration}:r=30",
+            "-vf", "geq=220+random(1)*30:random(2)*255:random(3)*255",
+            "-pix_fmt", "yuv420p",
+            str(path),
+        ],
+        check=True,
+    )
+
+
+def test_second_clip_plays_real_motion_before_falling_back_to_a_static_cut(tmp_path):
+    """Regression test, direct user feedback (2026-08-28): once clip 1's
+    real motion runs out, the NEXT beat should also be real motion where
+    reasonable (a second real clip), not an immediate static hold — the
+    static cut-in is only the last resort after every available clip is
+    exhausted. clip_paths=[clip1, clip2] with clip2 given a reliably bright
+    signature clip1's own full-range noise (mean luma ~127) doesn't match."""
+    from PIL import ImageStat
+
+    clip1 = tmp_path / "clip1.mp4"
+    _continuously_moving_clip(clip1, duration=2.0)  # usable ~2.0s
+    clip2 = tmp_path / "clip2.mp4"
+    _bright_noise_clip(clip2, duration=2.0)  # usable ~2.0s
+    overlay, _box = captions.caption_overlay_png("x", style="comic_punch_orange")
+
+    # duration=6.0: clip1 stretch-caps at 1.8x -> played=3.6s, remaining=2.4s;
+    # clip2 covers that at 1.2x stretch (under the cap) -> played=2.4s exactly,
+    # remaining=0 — no static cut-in should even trigger here.
+    seg = assembly.build_scene_video_segment_from_clip(
+        [clip1, clip2], duration=6.0, caption_overlay=overlay, index=0, segments_dir=tmp_path
+    )
+
+    frame_path = tmp_path / "clip2_check.png"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", "5.0", "-i", str(seg), "-frames:v", "1", str(frame_path)],
+        check=True,
+    )
+    # Average over a region (not one pixel) — robust against any single
+    # random pixel, unlike a specific-color check.
+    frame = Image.open(frame_path).convert("L").crop((0, 900, 1080, 1400))
+    mean_luma = ImageStat.Stat(frame).mean[0]
+    assert mean_luma > 180, (
+        f"expected clip2's bright signature (mean luma > 180) at t=5.0, got {mean_luma:.1f} — "
+        "looks like clip1 was held/padded instead of cutting to a second real clip"
     )
