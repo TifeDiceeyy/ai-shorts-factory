@@ -324,18 +324,27 @@ def usable_clip_seconds(clip_path: Path) -> float:
 
 
 def extract_last_frame(clip_path: Path, out_path: Path) -> Path:
-    """Grabs the raw clip's final frame as a still image — used as the
+    """Grabs a frame near the raw clip's end as a still image — used as the
     continuation source for a second real video-generation call when the
     first clip's motion doesn't cover the whole scene (see
-    pipeline._render_scene_clips)."""
+    pipeline._render_scene_clips).
+
+    Seeking to within one frame of the exact end (clip_duration - 1/FPS)
+    silently produced zero output frames on a real Kling clip (ffmpeg exited
+    0 with no error, no file written) — the seek landed past the last frame
+    ffmpeg would actually decode. 0.15s of margin (well over one frame at
+    30fps) fixed it; still verified explicitly below rather than trusting
+    exit code 0 to mean a frame was actually written."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     clip_duration = probe_duration(clip_path)
-    timestamp = max(0.0, clip_duration - 1.0 / FPS)
+    timestamp = max(0.0, clip_duration - 0.15)
     _run([
         "ffmpeg", "-y", "-loglevel", "error",
         "-ss", f"{timestamp:.3f}", "-i", str(clip_path),
         "-frames:v", "1", str(out_path),
     ])
+    if not out_path.exists():
+        raise RuntimeError(f"extract_last_frame produced no output for {clip_path} at t={timestamp:.3f}")
     return out_path
 
 

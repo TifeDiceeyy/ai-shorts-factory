@@ -95,12 +95,15 @@ class Mascot:
             corner = "bottom-left" if layout == "split_bottom_left" else "bottom-right"
             opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
             prompt_parts = [
-                "Split-canvas 3D explainer composition on a stark pure solid white background (#FFFFFF).",
-                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (small, occupying no more than 16% of vertical height, with lots of surrounding empty white space) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+                "Split-canvas flat cel-shaded cartoon explainer composition, drawn in the SAME flat "
+                "illustration style as the mascot — bold black ink outlines, flat clean shading, NOT a "
+                "3D render, NOT photoreal, NOT glossy CGI — on a stark pure solid white background (#FFFFFF).",
+                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying roughly 40% of vertical height, clearly visible and recognizable, not tiny) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
             ]
             if props:
                 prompt_parts.append(
-                    f"In the {opp_corner} quadrant, a large floating 3D object sticker shows {props} with crisp tactile textures."
+                    f"In the {opp_corner} quadrant, a large floating illustrated object/diagram, drawn flat "
+                    f"and cel-shaded (not a rendered 3D sticker), shows {props}."
                 )
             if fx:
                 prompt_parts.append(f"Visual FX: {fx}.")

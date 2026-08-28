@@ -46,8 +46,14 @@ NONVERBAL_CONTINUOUS_MOTION = (
 )
 
 
+# Confirmed for real (2026-08-28): the NONVERBAL_CONTINUOUS_MOTION prompt
+# instruction alone did not stop Kling from opening/moving the mouth in a
+# real generated clip — negative_prompt is a second, independent lever
+# (fal.ai's Kling docs list it separately from the main prompt) worth
+# stacking rather than relying on prompt wording alone.
 KLING_NEGATIVE_PROMPT = (
     "static, frozen, still image, motionless, frozen pose, no movement, paused, "
+    "talking, speaking, open mouth, moving mouth, moving lips, lip sync, mouth movement, "
     "blur, distort, low quality"
 )
 # fal.ai's documented default is 0.5 (confirmed via API docs, 2026-08-27). Raising

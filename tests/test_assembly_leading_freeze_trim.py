@@ -239,3 +239,21 @@ def test_second_clip_plays_real_motion_before_falling_back_to_a_static_cut(tmp_p
         f"expected clip2's bright signature (mean luma > 180) at t=5.0, got {mean_luma:.1f} — "
         "looks like clip1 was held/padded instead of cutting to a second real clip"
     )
+
+
+def test_extract_last_frame_actually_produces_a_file(tmp_path):
+    """Regression test: seeking to within one frame of the exact end
+    (clip_duration - 1/FPS) silently produced zero output frames on a real
+    Kling clip — ffmpeg exited 0 with no error and no file written, the
+    seek landed past the last frame ffmpeg would actually decode. Would
+    have crashed pipeline._render_scene_clips's upload of a nonexistent
+    file with a confusing FileNotFoundError deep inside fal_client, far
+    from the real cause."""
+    clip = tmp_path / "clip.mp4"
+    _continuously_moving_clip(clip, duration=5.1)  # same duration as the real clip that hit this
+    out_path = tmp_path / "last_frame.png"
+
+    result = assembly.extract_last_frame(clip, out_path)
+
+    assert result.exists()
+    assert result.stat().st_size > 0
