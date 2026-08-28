@@ -155,6 +155,7 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         youtube_token_file="",
         telegram_bot_token="",
         telegram_allowed_user_ids=(),
+        animation_mode="ai_video",
     )
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
@@ -291,6 +292,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
         llm_cost_per_script_usd=0.0, tts_cost_per_1k_chars_usd=0.0, image_cost_per_image_usd=0.0,
         video_cost_per_second_usd=0.05, youtube_client_secrets_file="", youtube_token_file="",
         telegram_bot_token="", telegram_allowed_user_ids=(),
+        animation_mode="ai_video",
     )
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
@@ -317,9 +319,10 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
 
 
 def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path, monkeypatch):
-    """Regression test: the non-animate (VIDEO_PROVIDER=stub, IMAGE_PROVIDER=fal)
-    path independently called the image model once per mascot scene using only
-    a text prompt — no shared reference image. A stochastic image model given
+    """Regression test: the image-generation path (now the sticker default —
+    ANIMATION_MODE=sticker, IMAGE_PROVIDER=fal, no video provider at all)
+    independently called the image model once per mascot scene using only a
+    text prompt — no shared reference image. A stochastic image model given
     the same character description twice can render a visibly different
     character each time. Confirmed for real 2026-08-21: an unrelated reference
     video showed 4 different character designs across mascot-labeled scenes
@@ -346,12 +349,17 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
 
-    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
+    def fake_assemble_stickers(scenes, image_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
         for i, s in enumerate(scenes):
-            frame_source(i, s)
+            image_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
 
-    monkeypatch.setattr(assembly, "assemble", fake_assemble)
+    # assemble() also runs unconditionally for the zero-cost placeholder
+    # render stage (before the real animate/sticker/static stage), regardless
+    # of animation mode — must be faked too or it hits real ffmpeg against
+    # the fake (nonexistent) audio paths synthesize_scenes returns below.
+    monkeypatch.setattr(assembly, "assemble", lambda *a, **k: {"caption_boxes": []})
+    monkeypatch.setattr(assembly, "assemble_stickers", fake_assemble_stickers)
     monkeypatch.setattr(
         assembly,
         "synthesize_scenes",
@@ -476,6 +484,7 @@ def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
         youtube_token_file="",
         telegram_bot_token="",
         telegram_allowed_user_ids=(),
+        animation_mode="ai_video",
     )
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 

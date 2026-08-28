@@ -406,6 +406,147 @@ def build_scene_video_segment_from_clip(
     return out_path
 
 
+# Motion-graphics "sticker" compositor — replaces continuous AI-video (Kling/
+# Hailuo) animation. Root cause of the switch (2026-08-27): a real reference
+# short in this niche uses static character/prop stills with a snappy
+# scale-bounce pop-in and hard cuts, not continuous AI "performance" —
+# confirmed against real Kling output that was frozen for its ENTIRE raw
+# duration on 3 of 6 scenes even with aggressive motion prompting. A pop-in
+# on a still image is guaranteed to never read as static (it's not depending
+# on an AI model's motion at all) and costs zero video-generation spend.
+POP_IN_UP_FRAMES = 5          # 0 -> overshoot, in output frames (30fps => 0.167s)
+POP_IN_SETTLE_FRAMES = 8      # overshoot -> rest, in output frames (30fps => 0.267s)
+POP_IN_START_SCALE = 0.70
+POP_IN_OVERSHOOT_SCALE = 1.12
+POP_IN_REST_SCALE = 1.00
+# zoompan crops from an oversized, white-padded canvas; needs enough margin
+# to support the smallest (zoomed-out) pop-in scale without running out of
+# source pixels. 1/POP_IN_START_SCALE = 1.43x is the hard minimum; 1.6x
+# leaves real margin.
+STICKER_HEADROOM = 1.6
+
+
+def _pop_in_zoom_expr() -> str:
+    up_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_START_SCALE) / POP_IN_UP_FRAMES
+    settle_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_REST_SCALE) / (POP_IN_SETTLE_FRAMES - POP_IN_UP_FRAMES)
+    return (
+        f"if(lt(on,{POP_IN_UP_FRAMES}),{POP_IN_START_SCALE}+{up_slope}*on,"
+        f"if(lt(on,{POP_IN_SETTLE_FRAMES}),{POP_IN_OVERSHOOT_SCALE}-{settle_slope}*(on-{POP_IN_UP_FRAMES}),"
+        f"{POP_IN_REST_SCALE}))"
+    )
+
+
+def build_scene_video_segment_from_still(
+    image_path: Path,
+    duration: float,
+    index: int,
+    segments_dir: Path,
+    *,
+    timed_caption_overlays: list[TimedCaptionOverlay],
+) -> Path:
+    """Sticker-style scene segment: a still image pops in (scale-bounce
+    overshoot, ~0.27s) then holds for the rest of the scene's duration —
+    the motion-graphics grammar (static art + snap transitions), not a
+    continuous AI-generated "performance". Never reads as frozen/static in
+    the way a stalled I2V clip can, because there's no continuous motion
+    being depended on in the first place."""
+    segments_dir.mkdir(parents=True, exist_ok=True)
+    out_path = segments_dir / f"seg_{index:02d}.mp4"
+
+    overlay_paths: list[Path] = []
+    for cue_index, timed in enumerate(timed_caption_overlays):
+        path = segments_dir / f"caption_overlay_{index:02d}_{cue_index:02d}.png"
+        timed.image.save(path)
+        overlay_paths.append(path)
+
+    oversized_w = round(FRAME_WIDTH * STICKER_HEADROOM)
+    oversized_h = round(FRAME_HEIGHT * STICKER_HEADROOM)
+    base_filter = (
+        f"[0:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
+        f"zoompan=z='{_pop_in_zoom_expr()}':"
+        "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+        f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
+    )
+    overlay_filters = []
+    prior_label = "base0"
+    for cue_index, timed in enumerate(timed_caption_overlays):
+        out_label = f"captioned{cue_index}"
+        overlay_filters.append(
+            f"[{prior_label}][{cue_index + 1}:v]overlay=0:0:"
+            f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
+        )
+        prior_label = out_label
+
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-loop", "1", "-framerate", str(FPS), "-i", str(image_path),
+    ]
+    for overlay_path in overlay_paths:
+        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
+    cmd.extend([
+        "-filter_complex", ";".join([base_filter, *overlay_filters]),
+        "-map", f"[{prior_label}]",
+        "-t", f"{duration:.3f}",
+        "-r", str(FPS),
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "medium", "-threads", "1",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact",
+        "-metadata", "creation_time=1970-01-01T00:00:00Z",
+        str(out_path),
+    ])
+    _run(cmd)
+    return out_path
+
+
+def assemble_stickers(
+    scenes: list[dict[str, Any]],
+    image_source: Callable[[int, dict[str, Any]], Path],
+    audio: list[SceneAudio],
+    workdir: Path,
+    out_mp4: Path,
+    caption_style: str | None = None,
+    caution_text: str | None = None,
+) -> dict[str, Any]:
+    """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
+    image_source(index, scene) -> that scene's already-generated still image
+    (no video provider involved at all — see build_scene_video_segment_from_still).
+    Same caption/duration-fitting responsibility split as the other two
+    assemble variants."""
+    segments_dir = workdir / "segments"
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    if len(audio) != len(scenes):
+        raise ValueError(f"expected {len(scenes)} audio entries, got {len(audio)}")
+
+    caption_boxes: list[CaptionBox] = []
+    segment_paths: list[Path] = []
+
+    for i, scene in enumerate(scenes):
+        image_path = image_source(i, scene)
+        timed_overlays, box = build_timed_caption_overlays(
+            scene["narration"],
+            audio[i].duration,
+            caption_style=caption_style,
+            caution_text=caution_text if i == len(scenes) - 1 else None,
+        )
+        caption_boxes.append(box)
+
+        seg_path = build_scene_video_segment_from_still(
+            image_path,
+            audio[i].duration,
+            i,
+            segments_dir,
+            timed_caption_overlays=timed_overlays,
+        )
+        segment_paths.append(seg_path)
+
+    tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)
+    return {
+        "caption_boxes": caption_boxes,
+        **tail,
+    }
+
+
 def concat_video_segments(segment_paths: list[Path], workdir: Path, out_path: Path) -> Path:
     list_file = workdir / "segments.txt"
     with open(list_file, "w", encoding="utf-8") as f:

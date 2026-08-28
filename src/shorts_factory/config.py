@@ -59,6 +59,14 @@ class Settings:
     telegram_bot_token: str
     telegram_allowed_user_ids: tuple[int, ...]
     default_mascot_id: str = "mascot_4"
+    # "sticker" (default, 2026-08-27): still images pop-in/hard-cut, motion-
+    # graphics style — no video provider call, zero video spend. "ai_video":
+    # legacy continuous I2V animation via VIDEO_PROVIDER (Kling/Hailuo) —
+    # kept working, opt-in only; real Kling output was confirmed frozen for
+    # its entire raw duration on half a test video's scenes even with
+    # aggressive motion prompting, which the sticker approach sidesteps
+    # entirely by not depending on AI-generated motion at all.
+    animation_mode: str = "sticker"
 
     stub_fields: list[str] = field(default_factory=list)
 
@@ -214,5 +222,6 @@ def load_settings() -> Settings:
         telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
         telegram_allowed_user_ids=tuple(telegram_ids),
         default_mascot_id=_env("DEFAULT_MASCOT", "mascot_4"),
+        animation_mode=_env("ANIMATION_MODE", "sticker").strip().lower(),
         stub_fields=stub_fields,
     )

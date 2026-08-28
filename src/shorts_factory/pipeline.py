@@ -221,8 +221,14 @@ def run_pipeline(
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     result.artifacts_dir = artifacts_dir
 
-    animate = not settings.video.is_stub
-    if animate and settings.image.is_stub:
+    # "sticker" (default): still images pop-in/hard-cut, no video provider
+    # call at all. "ai_video" (opt-in, legacy): continuous I2V animation via
+    # VIDEO_PROVIDER. See Settings.animation_mode's docstring for why sticker
+    # is now the default.
+    sticker_mode = settings.animation_mode == "sticker" and not settings.image.is_stub
+    ai_video_mode = settings.animation_mode == "ai_video" and not settings.video.is_stub
+    animate = sticker_mode or ai_video_mode
+    if ai_video_mode and settings.image.is_stub:
         raise ValueError(
             "VIDEO_PROVIDER is real but IMAGE_PROVIDER is stub — animation needs a real "
             "hero image to animate; set IMAGE_PROVIDER=fal too"
@@ -415,7 +421,29 @@ def run_pipeline(
         final_mp4 = artifacts_dir / f"{topic}.mp4"
 
         stage = "image_video_generation" if animate else "image_generation"
-        if animate:
+        if sticker_mode:
+            # No video provider at all — see assembly.assemble_stickers()'s
+            # docstring for why. Base images are the same per-scene renders
+            # the ai_video path used as I2V source frames; here they ARE the
+            # final visual content, popped in and held rather than animated.
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
+
+            def sticker_image_source(i: int, scene: dict[str, Any]) -> Path:
+                return _scene_base_image_path(
+                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
+
+            generated_result = assembly.assemble_stickers(
+                scenes=script["scenes"],
+                image_source=sticker_image_source,
+                audio=scene_audio,
+                workdir=generated_dir,
+                out_mp4=final_mp4,
+                caption_style=script["caption_style"],
+                caution_text=script["caution_text"],
+            )
+        elif ai_video_mode:
             video_provider = get_video_provider(
                 settings.video.provider,
                 settings.credential_for(settings.video),
@@ -654,7 +682,9 @@ def regenerate_scene(
 
     audio_dir = workdir / "audio"
     generated_dir = workdir / "generated"
-    animate = not settings.video.is_stub
+    sticker_mode = settings.animation_mode == "sticker" and not settings.image.is_stub
+    ai_video_mode = settings.animation_mode == "ai_video" and not settings.video.is_stub
+    animate = sticker_mode or ai_video_mode
     uses_fal = any(p.provider.strip().lower() == "fal" for p in (settings.tts, settings.image, settings.video))
     fal_gateway = FalGateway(settings.fal_key) if uses_fal else None
 
@@ -689,7 +719,27 @@ def regenerate_scene(
             style_preset=settings.image_style,
         )
 
-        if animate:
+        if sticker_mode:
+            # See assembly.assemble_stickers()'s docstring — no video provider.
+            hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
+            hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
+            base_image_path = _scene_base_image_path(
+                image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
+            )
+            timed_overlays, new_box = assembly.build_timed_caption_overlays(
+                scene["narration"],
+                new_duration,
+                caption_style=caption_style,
+                caution_text=caution_text if is_last_scene else None,
+            )
+            new_seg_path = assembly.build_scene_video_segment_from_still(
+                base_image_path,
+                new_duration,
+                scene_index,
+                generated_dir / "segments",
+                timed_caption_overlays=timed_overlays,
+            )
+        elif ai_video_mode:
             video_provider = get_video_provider(
                 settings.video.provider,
                 settings.credential_for(settings.video),

@@ -52,7 +52,10 @@ def test_real_llm_schema_failure_falls_back_to_verified_claim_script():
 def test_animate_with_stub_image_refuses(tmp_path, monkeypatch):
     """A real hero image is required to animate — silently animating a
     meaningless stub gradient would waste real video-generation spend on
-    nothing worth looking at."""
+    nothing worth looking at. ai_video mode only — sticker mode (the
+    default) needs no video provider at all, so this guard is specific to
+    opting into ANIMATION_MODE=ai_video."""
+    monkeypatch.setenv("ANIMATION_MODE", "ai_video")
     monkeypatch.setenv("VIDEO_PROVIDER", "fal")
     monkeypatch.setenv("VIDEO_MODEL", "fal-ai/minimax/hailuo-02/standard/image-to-video")
     monkeypatch.setenv("IMAGE_PROVIDER", "stub")
