@@ -37,11 +37,12 @@ LUMA_CLIP_SECONDS = 5.0
 # Generous margin above the slowest observed model.
 VIDEO_GEN_TIMEOUT_S = 1200
 NONVERBAL_CONTINUOUS_MOTION = (
-    "Continuous natural nonverbal motion from the first frame through the final frame: expressive eyes, "
-    "eyebrows, head turns, hand gestures, body movement, moving props, particles, and environmental effects. "
-    "The character must not speak or lip-sync: no talking mouth shapes, no mouthing words, and no speech-like "
-    "jaw movement. Keep the mouth naturally closed or in a stable non-speaking expression. Never settle into "
-    "a frozen pose; movement continues smoothly until the clip ends."
+    "Continuous natural nonverbal motion from the first frame through the final frame. Permitted movement: "
+    "hand and arm gestures, movement of any hand-held prop (e.g. a staff or tool), eye movement including "
+    "blinking and gaze shifts, and leg or weight-shift movement. The mouth must remain fully closed at all "
+    "times — no opening, no talking, no mouthing words, no lip movement, and no jaw movement whatsoever. The "
+    "character must not speak or lip-sync to the narration under any circumstance: no talking mouth shapes. "
+    "Never settle into a frozen pose; movement continues smoothly until the clip ends."
 )
 
 

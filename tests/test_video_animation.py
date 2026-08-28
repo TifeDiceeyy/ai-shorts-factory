@@ -116,7 +116,7 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *args, **kwargs: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *args, **kwargs: FakeVideoProvider())
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None):
         boxes = []
         for i, s in enumerate(scenes):
             clip_source(i, s)
@@ -264,7 +264,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *a, **k: FakeVideoProvider())
 
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None):
         for i, s in enumerate(scenes):
             clip_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}

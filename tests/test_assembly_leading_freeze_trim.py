@@ -38,6 +38,17 @@ def _frozen_then_moving_clip(path, freeze_seconds=3.0, motion_seconds=2.0):
     )
 
 
+def _solid_still_image(path, color=(0, 200, 0)):
+    """A distinctive, recognizable still — used to prove the padded
+    remainder shows THIS image (a real cut) rather than a held/zoomed frame
+    from the noise-based clip."""
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (1080, 1920), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((300, 700, 780, 1200), fill=color)
+    img.save(path)
+
+
 def _continuously_moving_clip(path, duration=5.0):
     """Per-frame random noise — guarantees a large frame-to-frame pixel
     difference throughout, unlike testsrc's subtle continuous gradient
@@ -133,3 +144,40 @@ def test_duration_fitting_keeps_motion_changing_through_final_second(tmp_path):
         )
         frames.append(Image.open(path).convert("RGB").crop((0, 0, 1080, 500)))
     assert ImageChops.difference(frames[0], frames[1]).getbbox() is not None
+
+
+def test_padded_remainder_hard_cuts_to_the_scene_image_instead_of_holding_the_clip(tmp_path):
+    """Regression test, direct user feedback (2026-08-28): once real usable
+    motion runs out and can't reasonably continue, the scene should hard-cut
+    to something else rather than "wait it out" holding the same shot. A
+    real Kling clip observed 2026-08-27/28 spent 6.29s of an 8.5s scene in
+    the old held-frame (tpad + Ken Burns) pad — most of the shot. When an
+    image_path is supplied and the remainder is worth cutting for
+    (> CUT_IN_MIN_PAD_SECONDS), the remainder must show the scene's own
+    still image (a real edit cut), not the clip's last frame held/zoomed."""
+    clip = tmp_path / "clip.mp4"
+    _continuously_moving_clip(clip, duration=2.0)  # usable_duration ~2.0s
+    image_path = tmp_path / "scene.png"
+    _solid_still_image(image_path, color=(0, 200, 0))
+    overlay, _box = captions.caption_overlay_png("x", style="comic_punch_orange")
+
+    # duration=6.0, MAX_CLIP_STRETCH_FACTOR=1.8 -> played_duration=3.6s,
+    # pad_duration=2.4s (well above the 0.75s cut-in threshold).
+    seg = assembly.build_scene_video_segment_from_clip(
+        clip, duration=6.0, caption_overlay=overlay, index=0, segments_dir=tmp_path, image_path=image_path
+    )
+
+    frame_path = tmp_path / "post_cut.png"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", "5.0", "-i", str(seg), "-frames:v", "1", str(frame_path)],
+        check=True,
+    )
+    frame = Image.open(frame_path).convert("RGB")
+    # t=5.0 is well inside the pad window [3.6, 6.0] and well past the
+    # ~0.27s pop-in settle — the frame center should show the still image's
+    # green rectangle, not noise.
+    r, g, b = frame.getpixel((frame.width // 2, frame.height // 2))
+    assert g > r + 40 and g > b + 40, (
+        f"expected the padded remainder to show the scene's still image (greenish), got RGB=({r},{g},{b}) "
+        "— looks like the old clip-hold behavior instead of a hard cut"
+    )

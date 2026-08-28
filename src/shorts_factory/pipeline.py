@@ -522,6 +522,7 @@ def run_pipeline(
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
+                image_source=lambda i, _scene: base_image_paths[i],
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.
@@ -772,6 +773,7 @@ def regenerate_scene(
                 scene_index,
                 generated_dir / "segments",
                 timed_caption_overlays=timed_overlays,
+                image_path=base_image_path,
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.

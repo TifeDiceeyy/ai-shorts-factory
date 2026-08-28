@@ -96,7 +96,7 @@ class Mascot:
             opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
             prompt_parts = [
                 "Split-canvas 3D explainer composition on a stark pure solid white background (#FFFFFF).",
-                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (small, occupying no more than 22% of vertical height, with lots of surrounding empty white space) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (small, occupying no more than 16% of vertical height, with lots of surrounding empty white space) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
             ]
             if props:
                 prompt_parts.append(
@@ -112,7 +112,7 @@ class Mascot:
             return " ".join(prompt_parts)
         else:
             prompt_parts = [
-                f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 40% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
+                f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 28% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
                 f"Role: {scene_role or 'explainer'}. Emotion: {emotion or 'friendly enthusiastic expression'}.",
             ]
             if action:
@@ -135,7 +135,7 @@ MASCOT_1 = Mascot(
         "Full-body FLAT 2D cel-shaded cartoon illustration of a Roman legionary mascot character standing in a "
         "friendly explanatory pose facing camera, one hand gesturing forward with open palm. Bold black ink "
         "outlines, flat clean cel shading — NOT a 3D render, NOT photoreal, NOT glossy CGI. "
-        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "The character is small and centered vertically in frame, occupying no more than 28% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "The character is fully clothed: wearing a classic polished bronze helmet with red brush crest, "
@@ -172,7 +172,7 @@ MASCOT_2 = Mascot(
         "Full-body FLAT 2D cel-shaded chibi cartoon illustration standing in a friendly explanatory gesture "
         "with one hand raised open-palmed. Thick black ink line art, flat clean cel shading — NOT a 3D render, "
         "NOT photoreal, NOT glossy CGI. "
-        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "The character is small and centered vertically in frame, occupying no more than 28% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "The character has cute chibi proportions with an oversized expressive head and animated large cartoon eyes. "
@@ -209,7 +209,7 @@ MASCOT_3 = Mascot(
         "Full-body FLAT 2D cel-shaded cartoon illustration combining a smooth brown bean face with a rugged "
         "medieval scavenger explorer. Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT "
         "photoreal, NOT glossy CGI, NOT cinematic lighting. "
-        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "The character is small and centered vertically in frame, occupying no more than 28% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "Smooth rounded bean head with prominent expressive brow ridges, large animated green eyes, and a classic vintage handlebar mustache. "
@@ -246,7 +246,7 @@ MASCOT_4 = Mascot(
         "Full-body FLAT 2D cel-shaded cartoon illustration of a stylized human dwarf / halfling scavenger explorer. "
         "Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT CGI, NOT Pixar/Dreamworks-style "
         "rendering, NOT photoreal, NOT glossy materials. A hand-drawn illustration, not a 3D-rendered asset. "
-        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "The character is small and centered vertically in frame, occupying no more than 28% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "Charming expressive facial features with tousled wavy brown hair, warm expressive animated eyes, "
@@ -288,7 +288,7 @@ MASCOT_5 = Mascot(
     hero_prompt=(
         "Full-body FLAT 2D cel-shaded cartoon illustration of a wilderness bushcraft alchemist and survival "
         "herbalist. Bold black ink outlines, flat clean cel shading — NOT a 3D render, NOT CGI, NOT photoreal. "
-        "The character is small and centered vertically in frame, occupying no more than 40% of vertical height, "
+        "The character is small and centered vertically in frame, occupying no more than 28% of vertical height, "
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "Expressive animated cartoon face with determined friendly eyes and animated brow. "
