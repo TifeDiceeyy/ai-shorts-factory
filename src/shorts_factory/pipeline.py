@@ -256,12 +256,16 @@ def run_pipeline(
     topic: str,
     idea: dict[str, Any] | None = None,
     artifacts_root: Path | None = None,
-    mascot_id: str | None = None,
 ) -> PipelineResult:
     """idea, if given, is the concept/angle/hook the human picked during
     /plan's ideation step (as a dict, see ideation.ideas_to_dicts) — it
     steers script framing (brief_builder.build_brief_from_citations),
     never facts. None preserves the old topic-only behavior.
+
+    The mascot is always chosen automatically from the story (see
+    select_mascot_for_story()/generate_custom_mascot() below) — there is no
+    way to override it manually; that override existed once but was removed
+    per explicit user request (2026-08-28).
 
     artifacts_root, if given, overrides where output is written (default
     REPO_ROOT / "artifacts") — tests MUST pass a tmp_path here. Without
@@ -381,20 +385,16 @@ def run_pipeline(
         )
 
         # Mascot resolution happens here (after the brief exists, not right
-        # after the safety gate) so story-matching (raw_mascot_id in
-        # ("auto", "random", "story") or simply not given) can use the
-        # brief's concept/angle/claims text, not just the bare topic string.
-        raw_mascot_id = mascot_id or (idea.get("mascot_id") if idea else None)
-        if raw_mascot_id and str(raw_mascot_id).strip().lower() not in ("auto", "random", "story", ""):
-            mascot = get_mascot(raw_mascot_id)
-        else:
-            mascot = select_mascot_for_story(topic, brief=brief)
-            if mascot is None:
-                # Nothing among the 5 registered mascots or any previously
-                # generated custom one fits this topic at all — design and
-                # persist a brand-new one instead of forcing an unrelated
-                # mascot onto a story it doesn't suit.
-                mascot = generate_custom_mascot(topic, brief, llm, cost_tracker)
+        # after the safety gate) so story-matching can use the brief's
+        # concept/angle/claims text, not just the bare topic string. Always
+        # automatic — no human override (see run_pipeline's docstring).
+        mascot = select_mascot_for_story(topic, brief=brief)
+        if mascot is None:
+            # Nothing among the 5 registered mascots or any previously
+            # generated custom one fits this topic at all — design and
+            # persist a brand-new one instead of forcing an unrelated
+            # mascot onto a story it doesn't suit.
+            mascot = generate_custom_mascot(topic, brief, llm, cost_tracker)
         result.mascot_id = mascot.id
 
         effective_visual_style = (

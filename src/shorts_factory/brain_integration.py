@@ -60,19 +60,19 @@ _TERMINAL_PUNCT = (".", "!", '"', "'", ")")
 
 def load_brain():
     """Returns a Brain instance over the already-built local index, or None
-    if it hasn't been built on this machine (auto_build=False — building
-    requires the source PDFs, which aren't part of this repo; a missing
-    brain is a legitimate, unexceptional state, not an error). Brain's own
-    default data_dir resolves to src/shorts_factory/data (wrong — that
-    directory doesn't exist in this repo; the real built index lives at
-    REPO_ROOT/data/brain), so BRAIN_DATA_DIR must be passed explicitly."""
+    if it hasn't been built on this machine (a missing brain is a
+    legitimate, unexceptional state, not an error — the brain has no
+    ingestion capability of its own anymore; see brain/__init__.py's
+    docstring). Brain's own default data_dir resolves to
+    src/shorts_factory/data (wrong — that directory doesn't exist in this
+    repo; the real built index lives at REPO_ROOT/data/brain), so
+    BRAIN_DATA_DIR must be passed explicitly."""
     from .brain import Brain
 
     try:
-        brain = Brain(data_dir=BRAIN_DATA_DIR, auto_build=False)
+        return Brain(data_dir=BRAIN_DATA_DIR)
     except RuntimeError:
         return None
-    return brain if brain.is_built else None
 
 
 def _clean_facts(facts: list[str]) -> list[str]:

@@ -225,7 +225,9 @@ def test_sticker_mode_is_the_default_when_image_is_real_and_costs_no_video_spend
     assert test_settings.animation_mode == "sticker"
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
-    result = pipeline.run_pipeline("soap", mascot_id="mascot_4", artifacts_root=tmp_path)
+    # No manual mascot override exists anymore — "soap" is one of mascot_4's
+    # own keywords, so story-matching resolves to it deterministically.
+    result = pipeline.run_pipeline("soap", artifacts_root=tmp_path)
 
     assert result.verification is not None
     assert result.cost_report is not None

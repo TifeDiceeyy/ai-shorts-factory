@@ -3,9 +3,12 @@
 Two kinds of surface live here:
 1. The original review/approve/publish commands over already-rendered videos.
 2. A guided planning flow (aiogram FSM) that drives the rest of the pipeline
-   from Telegram: pick or propose a topic, generate ideas/hooks, run
-   retrieval, then generate the video — each step is a human-confirmed
-   button press, never automatic. See PlanningStates below.
+   from Telegram: pick or propose a topic, run retrieval, then generate the
+   video — each step is a human-confirmed button press, never automatic.
+   See PlanningStates below. (The idea/hook-selection step that used to sit
+   between topic and retrieval was removed 2026-08-28, per explicit user
+   request — "once a story question is prompted... check the brain and
+   write story," skipping the intermediate concept/angle choice.)
 
 Only one retrieval-or-generate job (the two expensive, blocking calls) runs
 at a time, guarded by _job_lock — there is no job queue; a second request
@@ -36,8 +39,6 @@ from aiogram.types import (
 from .config import load_settings, require_budget_approval_if_paid
 from .cost_tracker import CostTracker
 from .dashboard import review_state
-from .ideation import Hook, Idea, generate_ideas, ideas_to_dicts, record_idea_chosen
-from .mascots import get_mascot, list_mascots
 from .pipeline import REPO_ROOT, PipelineResult, run_pipeline
 from .providers.fal import FalGateway
 from .providers.llm import get_llm_provider
@@ -58,28 +59,8 @@ class TelegramNotConfigured(Exception):
 class PlanningStates(StatesGroup):
     choosing_topic = State()
     confirming_new_topic = State()
-    choosing_idea = State()
-    choosing_mascot = State()
     confirming_retrieval = State()
     confirming_generate = State()
-
-
-def _idea_from_dict(d: dict) -> Idea:
-    """Inverse of ideation.ideas_to_dicts — reconstructs one Idea so
-    record_idea_chosen() can be called after a round-trip through FSM state."""
-    return Idea(
-        topic=d["topic"],
-        concept=d["concept"],
-        angle=d["angle"],
-        hooks=[Hook(text=h["text"], variant_index=h["variant_index"]) for h in d["hooks"]],
-        payoff=d["payoff"],
-        series=d["series"],
-        safety_class=d["safety_class"],
-        visual_potential_score=d["visual_potential_score"],
-        source_availability=d["source_availability"],
-        similarity_to_recent=d["similarity_to_recent"],
-        rank_score=d["rank_score"],
-    )
 
 
 class TelegramController:
@@ -190,16 +171,6 @@ class TelegramController:
         )
         return f"Registered {proposal['topic']!r} as {proposal['safety_class'].upper()}."
 
-    # --- Ideation ----------------------------------------------------------
-
-    def ideate(self, topic: str, n: int = 3) -> list[Idea]:
-        return generate_ideas(topic, n)
-
-    def choose_idea(self, idea_dict: dict) -> str:
-        idea = _idea_from_dict(idea_dict)
-        record_idea_chosen(idea)
-        return f"Chosen: {idea.concept}"
-
     def needs_retrieval(self, topic: str) -> bool:
         path = REPO_ROOT / "data" / topic.replace(" ", "_") / f"{topic.replace(' ', '_')}.citations.json"
         return not path.exists()
@@ -221,21 +192,12 @@ class TelegramController:
         cost_tracker.write_report(cost_report_path)
         return {"result": result, "spent": cost_tracker.total_spent_usd, "cap": settings.budget_cap_usd}
 
-    def mascots_text(self) -> str:
-        lines = ["🎭 Selectable Mascots:"]
-        for m in list_mascots():
-            lines.append(f"• {m.name}: {m.short_desc}")
-        return "\n".join(lines)
-
-    def run_generate(
-        self, topic: str, idea: dict | None = None, mascot_id: str | None = None
-    ) -> PipelineResult:
-        return run_pipeline(topic, idea=idea, mascot_id=mascot_id)
+    def run_generate(self, topic: str, idea: dict | None = None) -> PipelineResult:
+        return run_pipeline(topic, idea=idea)
 
 
 HELP = (
-    "/plan — pick or propose a topic, choose mascot, get ideas, generate a video\n"
-    "/mascots — view and preview available character mascots (1 to 5)\n"
+    "/plan — pick or propose a topic, generate a video\n"
     "/cancel — abort the current /plan flow\n"
     "/status\n/video <topic>\n/approve <topic>\n"
     "/reject <topic> | <reason>\n/publish <topic>\n\n"
@@ -250,25 +212,6 @@ def _confirm_cancel_kb(prefix: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Cancel", callback_data=f"{prefix}_cancel"),
         ]]
     )
-
-
-def _mascot_kb() -> InlineKeyboardMarkup:
-    rows = []
-    for m in list_mascots():
-        rows.append([InlineKeyboardButton(text=m.name, callback_data=f"mascot_{m.id}")])
-    # "auto" is a sentinel (see pipeline.run_pipeline / mascots.select_mascot_for_story),
-    # never a real mascot_id — the callback handler below must special-case it,
-    # not resolve it through get_mascot() like the numbered buttons.
-    rows.append([InlineKeyboardButton(text="🎲 Story-Matched / Random", callback_data="mascot_auto")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def _idea_kb(idea_dicts: list[dict]) -> InlineKeyboardMarkup:
-    rows = []
-    for i, idea in enumerate(idea_dicts):
-        label = idea["hooks"][0]["text"] if idea["hooks"] else idea["concept"]
-        rows.append([InlineKeyboardButton(text=label[:64], callback_data=f"idea_{i}")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _main_kb() -> ReplyKeyboardMarkup:
@@ -294,43 +237,13 @@ def build_router(controller: TelegramController) -> Router:
     job_lock = asyncio.Lock()
     job_state = _JobState()
 
-    async def enter_ideation(message: Message, state: FSMContext, topic: str) -> None:
-        try:
-            ideas = await asyncio.to_thread(controller.ideate, topic, 3)
-        except Exception as exc:
-            await message.answer(f"Refused: {exc}")
-            await state.clear()
-            return
-        if not ideas:
-            await message.answer("No ideas generated.")
-            await state.clear()
-            return
-        idea_dicts = ideas_to_dicts(ideas)
-        await state.set_state(PlanningStates.choosing_idea)
-        await state.update_data(topic=topic, ideas=idea_dicts)
-        lines = [f"Ideas for {topic!r}:"]
-        for i, idea in enumerate(idea_dicts):
-            hook = idea["hooks"][0]["text"] if idea["hooks"] else idea["concept"]
-            lines.append(f"{i + 1}. {idea['concept']} — \"{hook}\"")
-        await message.answer("\n".join(lines), reply_markup=_idea_kb(idea_dicts))
-
-    async def enter_mascot_selection(message: Message, state: FSMContext, topic: str) -> None:
-        await state.set_state(PlanningStates.choosing_mascot)
-        await state.update_data(topic=topic)
-        await message.answer(
-            "🎭 Choose a character mascot for this video (Mascot 1 to 5):",
-            reply_markup=_mascot_kb(),
-        )
-
     async def enter_generate_confirm(message: Message, state: FSMContext, topic: str) -> None:
         await state.set_state(PlanningStates.confirming_generate)
         await state.update_data(topic=topic)
-        stored = await state.get_data()
-        mascot_id = stored.get("chosen_mascot_id")
-        mascot_label = "a story-matched mascot (chosen automatically from the topic)" if mascot_id == "auto" else get_mascot(mascot_id).name
         await message.answer(
-            f"Ready to generate {topic!r} using {mascot_label}. Real cost is ~$0.30/video once real providers are "
-            "configured (stub providers cost $0) — enforced against BUDGET_CAP_USD either way. Generate now?",
+            f"Ready to generate {topic!r} — the mascot is chosen automatically from the story. Real cost is "
+            "~$0.30/video once real providers are configured (stub providers cost $0) — enforced against "
+            "BUDGET_CAP_USD either way. Generate now?",
             reply_markup=_confirm_cancel_kb("generate"),
         )
 
@@ -353,7 +266,7 @@ def build_router(controller: TelegramController) -> Router:
             return
         status = controller.topic_status(topic)
         if status["state"] == "registered":
-            await enter_ideation(message, state, status["topic"])
+            await enter_retrieval_or_generate(message, state, status["topic"])
             return
         if status["state"] == "red":
             await message.answer(f"Topic {topic!r} is classified RED — permanently blocked, nothing registered.")
@@ -413,14 +326,11 @@ def build_router(controller: TelegramController) -> Router:
         if job_lock.locked():
             await message.answer(f"A job is already running ({job_state.topic}). Try again shortly.")
             return
-        stored = await state.get_data()
-        chosen_idea = stored.get("chosen_idea")
-        chosen_mascot_id = stored.get("chosen_mascot_id")
         async with job_lock:
             job_state.topic = f"generate:{topic}"
             await message.answer(f"Generating {topic!r}… this can take a few minutes.")
             try:
-                result = await asyncio.to_thread(controller.run_generate, topic, chosen_idea, chosen_mascot_id)
+                result = await asyncio.to_thread(controller.run_generate, topic)
             except Exception as exc:
                 logger.exception("Telegram generation failed for topic %r", topic)
                 await message.answer(f"Refused: {exc}")
@@ -455,8 +365,17 @@ def build_router(controller: TelegramController) -> Router:
                 )
             if result.verification:
                 lines.append(f"Verification: {'PASS' if result.verification['overall_pass'] else 'FAIL'}")
-            lines.append("Use /video, /approve, /reject, /publish to continue.")
+            lines.append("Use /approve, /reject, /publish to continue.")
             await message.answer("\n".join(lines))
+            # Send the actual video file too, not just the status text —
+            # previously the operator had to know to separately type
+            # /video <topic> to ever see it (confirmed real UX gap 2026-08-28:
+            # user generated a real video and it never appeared in chat).
+            # Same lookup /video itself uses (controller.video_path); if the
+            # file is somehow missing despite a "successful" result, let it
+            # raise into the outer handler's "Refused: ..." reporting rather
+            # than silently skip sending anything.
+            await message.answer_video(FSInputFile(controller.video_path(topic)))
         await state.clear()
 
     @router.message()
@@ -481,9 +400,6 @@ def build_router(controller: TelegramController) -> Router:
             if command in ("/start", "/help"):
                 reply = HELP
                 reply_markup = _main_kb()
-            elif command in ("/mascot", "/mascots"):
-                reply = controller.mascots_text()
-                reply_markup = _mascot_kb()
             elif command == "/plan":
                 await state.set_state(PlanningStates.choosing_topic)
                 known = ", ".join(controller.known_topics()) or "none yet"
@@ -538,37 +454,10 @@ def build_router(controller: TelegramController) -> Router:
                 if data == "newtopic_confirm":
                     reply = controller.confirm_new_topic(proposal)
                     await message.answer(reply)
-                    await enter_ideation(message, state, proposal["topic"])
+                    await enter_retrieval_or_generate(message, state, proposal["topic"])
                 elif data == "newtopic_cancel":
                     await message.answer("Cancelled.")
                     await state.clear()
-            elif current_state == PlanningStates.choosing_idea.state:
-                stored = await state.get_data()
-                ideas = stored.get("ideas") or []
-                topic = stored.get("topic")
-                if data.startswith("idea_"):
-                    idx = int(data.split("_", 1)[1])
-                    chosen_idea = ideas[idx]
-                    reply = controller.choose_idea(chosen_idea)
-                    await message.answer(reply)
-                    await state.update_data(chosen_idea=chosen_idea)
-                    await enter_mascot_selection(message, state, topic)
-            elif current_state == PlanningStates.choosing_mascot.state:
-                stored = await state.get_data()
-                topic = stored.get("topic")
-                if data == "mascot_auto":
-                    # Store the literal sentinel — run_pipeline's own
-                    # mascot resolution (via select_mascot_for_story) picks
-                    # the actual mascot later, once the topic's brief exists.
-                    await state.update_data(chosen_mascot_id="auto")
-                    await message.answer("Selected: story-matched / random — picked automatically once generation starts.")
-                    await enter_retrieval_or_generate(message, state, topic)
-                elif data.startswith("mascot_"):
-                    mascot_id = data.replace("mascot_", "", 1)
-                    mascot = get_mascot(mascot_id)
-                    await state.update_data(chosen_mascot_id=mascot.id)
-                    await message.answer(f"Selected {mascot.name}.")
-                    await enter_retrieval_or_generate(message, state, topic)
             elif current_state == PlanningStates.confirming_retrieval.state:
                 stored = await state.get_data()
                 topic = stored.get("topic")
@@ -585,15 +474,6 @@ def build_router(controller: TelegramController) -> Router:
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")
                     await state.clear()
-            elif data == "mascot_auto":
-                await message.answer(
-                    "🎲 Story-Matched / Random\nPicks whichever of the 5 mascots best fits the topic's "
-                    "theme once generation actually starts (falls back to a random pick if nothing matches)."
-                )
-            elif data.startswith("mascot_"):
-                mascot_id = data.replace("mascot_", "", 1)
-                mascot = get_mascot(mascot_id)
-                await message.answer(f"🎭 {mascot.name}\n{mascot.short_desc}\n\nStyle Description:\n{mascot.visual_style}")
         except Exception as exc:
             await message.answer(f"Refused: {exc}")
 

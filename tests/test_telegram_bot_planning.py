@@ -65,17 +65,6 @@ def test_confirm_new_topic_refuses_red_proposal(controller):
     assert controller.topic_status("candle making")["state"] == "unknown"
 
 
-def test_ideate_and_choose_idea_roundtrip(controller, tmp_path, monkeypatch):
-    monkeypatch.setattr("shorts_factory.ideation.IDEA_HISTORY_PATH", tmp_path / "idea_history.json")
-    from shorts_factory.ideation import ideas_to_dicts
-
-    ideas = controller.ideate("soap", 2)
-    assert len(ideas) == 2
-    idea_dicts = ideas_to_dicts(ideas)
-    reply = controller.choose_idea(idea_dicts[0])
-    assert reply == f"Chosen: {idea_dicts[0]['concept']}"
-
-
 def test_needs_retrieval_true_when_no_citation_store(controller):
     assert controller.needs_retrieval("a topic with definitely no citations yet") is True
 

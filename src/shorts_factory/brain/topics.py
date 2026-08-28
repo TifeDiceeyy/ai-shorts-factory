@@ -1,17 +1,10 @@
-"""Topic inventory: the conceptual map the idea generator draws from.
+"""Curated topic inventory used to expand retrieval queries.
 
-Three sources are merged:
-  1. curated seed topics (core rebuilding-civilisation knowledge areas)
-  2. PDF bookmarks/outline entries (chapter titles)
-  3. heading-like lines detected in the text
-"""
+Only the seed list + lookup survive here — the outline/heading-mining
+machinery that used to merge in PDF-derived topics only ever ran from
+Brain.build() (removed 2026-08-28, dead: nothing in the real pipeline
+calls it, and it depended on the also-removed extract.py)."""
 from __future__ import annotations
-
-import re
-from collections import Counter
-
-from . import config
-from .extract import Book, extract_outline
 
 # Curated knowledge areas, with keywords used to boost retrieval and idea
 # generation. These are the "hooks" a faceless Shorts channel lives on.
@@ -33,86 +26,6 @@ SEED_TOPICS = [
     {"name": "glass & optics", "keywords": ["glass", "lens", "microscope", "telescope", "optics", "mirror", "light"]},
     {"name": "textiles & clothing", "keywords": ["textile", "cloth", "wool", "cotton", "spinning", "weaving", "clothing", "fiber"]},
 ]
-
-_HEADING_RE = re.compile(
-    r"^(chapter\s+\d+|part\s+\d+|section\s+\d+|[ivxlcdm]+\.\s*\d*|appendix|introduction|conclusion|"
-    r"how to|the art of|a (short|brief) history|rebuilding|reinventing)",
-    re.IGNORECASE,
-)
-
-_NUMBER_PREFIX_RE = re.compile(r"^\d+(\.\d+)*\s*[:\-.]?\s*")
-_JUNK_TOPIC_RE = re.compile(
-    r"quick brown fox|fc3000|user-serviceable|repair guide|table \d+|figure \d+|"
-    r"chapter \d+|section \d+",
-    re.IGNORECASE,
-)
-
-
-def _clean_topic_title(raw: str) -> str:
-    """Turn a raw outline/heading entry into a usable topic name."""
-    t = (raw or "").strip()
-    if not t:
-        return ""
-    if _JUNK_TOPIC_RE.search(t):
-        return ""
-    t = _NUMBER_PREFIX_RE.sub("", t).strip()
-    t = re.sub(r"\s+", " ", t)
-    if not t or len(t) > 80:
-        return ""
-    return t
-
-
-def seed_topics() -> list[dict]:
-    return [dict(t) for t in SEED_TOPICS]
-
-
-def topics_from_outline(pdfs: list) -> list[dict]:
-    out = []
-    seen = set()
-    for path in pdfs:
-        for title in extract_outline(path):
-            clean = _clean_topic_title(title)
-            key = clean.lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            out.append({"name": clean, "keywords": [], "source": "outline"})
-    return out
-
-
-def topics_from_headings(books: list[Book]) -> list[dict]:
-    """Heading-like lines that occur a handful of times (not boilerplate)."""
-    counter = Counter()
-    for book in books:
-        for page in book.pages:
-            for line in page.splitlines():
-                line = line.strip()
-                if 4 <= len(line) <= 90 and _HEADING_RE.match(line):
-                    counter[line] += 1
-    out = []
-    for line, count in counter.items():
-        if 1 <= count <= 40:  # keep real headings, not page furniture
-            clean = _clean_topic_title(line)
-            if clean:
-                out.append({"name": clean, "keywords": [], "source": "heading"})
-    return out
-
-
-def build_topics(pdfs: list, books: list[Book]) -> list[dict]:
-    topics = seed_topics()
-    topics += topics_from_outline(pdfs)
-    topics += topics_from_headings(books)
-    # Dedupe by name
-    seen: set[str] = set()
-    unique = []
-    for t in topics:
-        key = t["name"].strip().lower()
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        t["name"] = t["name"].strip()
-        unique.append(t)
-    return unique
 
 
 def topics_for_idea(topic_name: str) -> dict | None:

@@ -61,26 +61,16 @@ def test_regenerate_scene_requires_prior_full_run(tmp_path):
         regenerate_scene("charcoal-never-rendered-xyz", 0, artifacts_root=tmp_path)
 
 
-def test_run_pipeline_persists_mascot_and_regenerate_uses_it(tmp_path):
+def test_run_pipeline_persists_the_auto_selected_mascot_and_regenerate_reads_it_back(tmp_path, monkeypatch):
+    """No manual mascot override exists anymore (removed 2026-08-28, per
+    explicit user request) — the mascot is always resolved automatically
+    via select_mascot_for_story(topic, brief=...), using the brief's
+    concept/angle/claims text, not just the bare topic string. "charcoal"
+    is one of mascot_4's own keywords (MASCOT_STORY_KEYWORDS), so this
+    resolves deterministically rather than needing a seeded random pick.
+    regenerate_scene must then read that same mascot back from script.json
+    (history), not re-resolve it."""
     import json
-    # Run pipeline with explicit non-default mascot
-    full = run_pipeline("charcoal", mascot_id="mascot_2", artifacts_root=tmp_path)
-    assert full.mascot_id == "mascot_2"
-
-    script_file = tmp_path / "charcoal" / "charcoal.script.json"
-    assert script_file.exists()
-    script_data = json.loads(script_file.read_text(encoding="utf-8"))
-    assert script_data.get("mascot_id") == "mascot_2"
-
-    # Regenerate scene and assert it picks up mascot_2 from script.json
-    regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
-    assert regen.mascot_id == "mascot_2"
-
-
-def test_run_pipeline_picks_mascot_via_story_matching_when_none_given(tmp_path, monkeypatch):
-    """Regression test: an explicit mascot_id must skip story-matching
-    entirely; leaving it unset must NOT silently fall back to a fixed
-    default — it must go through select_mascot_for_story(topic, brief=...)."""
     from shorts_factory import pipeline
 
     calls = []
@@ -92,14 +82,19 @@ def test_run_pipeline_picks_mascot_via_story_matching_when_none_given(tmp_path, 
 
     monkeypatch.setattr(pipeline, "select_mascot_for_story", spy_select)
 
-    run_pipeline("charcoal", artifacts_root=tmp_path)
+    full = run_pipeline("charcoal", artifacts_root=tmp_path)
+    assert full.mascot_id == "mascot_4"
     assert len(calls) == 1
     assert calls[0][0] == "charcoal"
     assert calls[0][1] is not None  # the brief was passed, not just the bare topic
 
-    calls.clear()
-    run_pipeline("charcoal", mascot_id="mascot_2", artifacts_root=(tmp_path / "explicit"))
-    assert calls == [], "an explicit mascot_id must not trigger story-matching at all"
+    script_file = tmp_path / "charcoal" / "charcoal.script.json"
+    assert script_file.exists()
+    script_data = json.loads(script_file.read_text(encoding="utf-8"))
+    assert script_data.get("mascot_id") == "mascot_4"
+
+    regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
+    assert regen.mascot_id == "mascot_4"
 
 
 def test_run_pipeline_generates_a_custom_mascot_when_nothing_matches(tmp_path, monkeypatch):

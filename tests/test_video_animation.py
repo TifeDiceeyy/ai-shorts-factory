@@ -176,7 +176,9 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     )
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
-    res = pipeline.run_pipeline("soap", mascot_id="mascot_4", artifacts_root=tmp_path)
+    # No manual mascot override exists anymore — "soap" is one of mascot_4's
+    # own keywords, so story-matching resolves to it deterministically.
+    res = pipeline.run_pipeline("soap", artifacts_root=tmp_path)
     assert res.mascot_id == "mascot_4"
 
     # 1. Hero image was generated once with scene_index "hero"
@@ -330,12 +332,19 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
     # Same topic, same artifacts_root (tmp_path) — mimics regenerating the
-    # same video days apart after the mascot changed.
-    pipeline.run_pipeline("soap", mascot_id="mascot_1", artifacts_root=tmp_path)
+    # same video days apart after the mascot changed. No manual override
+    # exists anymore, so force two different auto-selected mascots directly
+    # via select_mascot_for_story (this test is about hero-cache isolation
+    # between mascots, not about how a mascot gets chosen).
+    from shorts_factory.mascots import get_mascot as _get_mascot_for_stub
+
+    monkeypatch.setattr(pipeline, "select_mascot_for_story", lambda *a, **k: _get_mascot_for_stub("mascot_1"))
+    pipeline.run_pipeline("soap", artifacts_root=tmp_path)
     hero_calls_after_first = image_calls.count("hero")
     assert hero_calls_after_first == 1
 
-    pipeline.run_pipeline("soap", mascot_id="mascot_2", artifacts_root=tmp_path)
+    monkeypatch.setattr(pipeline, "select_mascot_for_story", lambda *a, **k: _get_mascot_for_stub("mascot_2"))
+    pipeline.run_pipeline("soap", artifacts_root=tmp_path)
     # A second "hero" image call must have happened for mascot_2 — if the
     # stale-reuse bug were back, this would stay at 1 (mascot_1's hero
     # silently reused) instead of becoming 2.
@@ -417,7 +426,9 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
     )
     monkeypatch.setattr(pipeline, "load_settings", lambda: test_settings)
 
-    res = pipeline.run_pipeline("soap", mascot_id="mascot_4", artifacts_root=tmp_path)
+    # No manual mascot override exists anymore — "soap" is one of mascot_4's
+    # own keywords, so story-matching resolves to it deterministically.
+    res = pipeline.run_pipeline("soap", artifacts_root=tmp_path)
 
     # Hero image generated exactly once.
     hero_calls = [c for c in image_calls if c[0] == "hero"]

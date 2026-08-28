@@ -13,7 +13,6 @@ from shorts_factory.mascots import (
     Mascot,
 )
 from shorts_factory.pipeline import run_pipeline
-from shorts_factory.telegram_bot import TelegramController
 
 
 def test_all_five_mascots_registered_and_structured():
@@ -226,16 +225,6 @@ def test_select_mascot_for_story_reuses_a_previously_generated_custom_mascot(tmp
     assert found.id == mascot_id
 
 
-def test_telegram_controller_mascots_text(tmp_path):
-    controller = TelegramController((1,), tmp_path)
-    text = controller.mascots_text()
-    assert "Mascot 1" in text
-    assert "Mascot 2" in text
-    assert "Mascot 3" in text
-    assert "Mascot 4" in text
-    assert "Mascot 5" in text
-
-
 def test_mascot_build_scene_prompt_split_canvas_and_centered():
     m = get_mascot("mascot_4")
 
@@ -431,6 +420,11 @@ def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     from shorts_factory import verify
     monkeypatch.setattr(verify, "run_verification", fake_verify)
 
-    result = run_pipeline("soap", artifacts_root=tmp_path, mascot_id="mascot_2")
-    assert result.mascot_id == "mascot_2"
+    # No manual mascot override exists anymore (removed 2026-08-28, per
+    # explicit user request) — the mascot is always resolved automatically
+    # via select_mascot_for_story(). "soap" is one of mascot_4's own
+    # keywords (MASCOT_STORY_KEYWORDS), so it deterministically resolves to
+    # mascot_4 rather than needing a seeded random pick.
+    result = run_pipeline("soap", artifacts_root=tmp_path)
+    assert result.mascot_id == "mascot_4"
     assert (tmp_path / "soap" / "soap.script.json").exists()
