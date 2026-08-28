@@ -1,0 +1,23 @@
+{
+  "budget_cap_usd": 20.0,
+  "total_spent_usd": 0.016,
+  "under_cap": true,
+  "entries": [
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['how was roman concrete made ingredients volcanic ash']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787945133.0574222
+    },
+    {
+      "provider": "tavily",
+      "operation": "search.tavily['why is roman concrete more durable than modern concrete']",
+      "estimated_cost_usd": 0.008,
+      "actual_cost_usd": 0.008,
+      "is_stub": false,
+      "timestamp": 1787945134.970324
+    }
+  ]
+}

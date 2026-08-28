@@ -37,12 +37,14 @@ LUMA_CLIP_SECONDS = 5.0
 # Generous margin above the slowest observed model.
 VIDEO_GEN_TIMEOUT_S = 1200
 NONVERBAL_CONTINUOUS_MOTION = (
-    "Continuous natural nonverbal motion from the first frame through the final frame. Permitted movement: "
-    "hand and arm gestures, movement of any hand-held prop (e.g. a staff or tool), eye movement including "
-    "blinking and gaze shifts, and leg or weight-shift movement. The mouth must remain fully closed at all "
-    "times — no opening, no talking, no mouthing words, no lip movement, and no jaw movement whatsoever. The "
-    "character must not speak or lip-sync to the narration under any circumstance: no talking mouth shapes. "
-    "Never settle into a frozen pose; movement continues smoothly until the clip ends."
+    "Permitted nonverbal movement only: subtle breathing, blinking and gaze shifts, and — where the scene's "
+    "own motion instruction calls for it — hand/arm gestures, movement of a hand-held prop, or a slight leg/"
+    "weight-shift. The mouth must remain fully closed at all times — no opening, no talking, no mouthing "
+    "words, no lip movement, and no jaw movement whatsoever. The character must not speak or lip-sync to the "
+    "narration under any circumstance: no talking mouth shapes. The frame overall must never go completely "
+    "static for the whole clip — but that continuous motion should come from breathing/blinking or an "
+    "animated prop/environment (per the scene's own motion instruction), not from the character bouncing, "
+    "hopping, or performing repeated idle movement."
 )
 
 
@@ -57,10 +59,10 @@ KLING_NEGATIVE_PROMPT = (
     "blur, distort, low quality"
 )
 # fal.ai's documented default is 0.5 (confirmed via API docs, 2026-08-27). Raising
-# it pushes the model to follow NONVERBAL_CONTINUOUS_MOTION's "never settle into
-# a frozen pose" instruction more literally, at the cost of some prompt creativity —
-# an explicit trade we want here since under-animation (not over-literalness) is
-# the failure mode we've actually hit.
+# it pushes the model to follow the motion prompt (NONVERBAL_CONTINUOUS_MOTION +
+# Mascot.build_scene_motion_prompt) more literally, at the cost of some prompt
+# creativity — an explicit trade we want here since under-animation (not
+# over-literalness) is the failure mode we've actually hit.
 KLING_CFG_SCALE = 0.7
 
 

@@ -132,6 +132,104 @@ class Mascot:
             )
             return " ".join(prompt_parts)
 
+    def build_scene_motion_prompt(
+        self,
+        scene_type: str = "mascot",
+        props: str | None = None,
+        fx: str | None = None,
+        action: str = "",
+        narration: str = "",
+    ) -> str:
+        """Motion prompt for the continuous-AI-video path (ai_video mode,
+        Hailuo/Kling) — deliberately SEPARATE from build_scene_prompt()'s
+        still-image composition prompt. Reusing the still-image prompt
+        verbatim as the motion source (the prior approach) produced a
+        bouncing mascot plus completely frozen props: that prompt only
+        describes a static composition, it never says what should keep
+        moving or how.
+
+        Encodes the pipeline-wide motion/bounce rules from user feedback
+        2026-08-28: the mascot stays planted (tiny breath+blink only, no
+        hop/bob/squash-stretch/repeating idle bounce); when the mascot is
+        mostly still, whatever OBJECT is actually in frame keeps moving on
+        its own loop (steam/drips/dust/swirl/etc., matched generically off
+        this scene's fx/props/action/narration — never hardcoded to one
+        topic); any pop-in is a single short scale-in on first appearance,
+        never a repeating bounce."""
+        object_fx = _object_fx_for(fx, props, action, narration)
+
+        if scene_type in ("ingredient_grid", "process_action"):
+            # No mascot in these scene types at all (see build_scene_prompt)
+            # — the props/equipment are the only thing in frame, so they
+            # carry all the motion.
+            parts = [
+                "No character present in this shot."
+                f" {action or 'The equipment/materials'} moves under its own action, as if operated by an "
+                "invisible presence.",
+            ]
+            if scene_type == "ingredient_grid" and props:
+                parts.append(
+                    f"The items ({props}) appear one at a time, staggered roughly 0.6-0.9 seconds apart in "
+                    "the order they'd naturally be named — never all bundled into the opening frame at once. "
+                    "Each item pops in with a single short scale-in the instant it appears, then holds."
+                )
+            if object_fx:
+                parts.append(f"Once settled, continuous looping motion: {object_fx}.")
+            parts.append(
+                "No bounce or wobble after each item's initial pop-in — the frame stays alive through this "
+                "per-item motion, not repeated bouncing."
+            )
+            return " ".join(parts)
+
+        parts = [
+            "The mascot stays planted in place — only a tiny natural breath and occasional blink, no "
+            "hopping, bobbing, squash-and-stretch, or repeating idle bounce of any kind.",
+        ]
+        if action:
+            parts.append(f"Mascot action (a calm, purposeful gesture, not bouncy): {action}.")
+        if object_fx:
+            parts.append(
+                f"Since the mascot itself stays mostly still, keep the frame alive through the props/"
+                f"environment instead: {object_fx}, continuously, for the whole clip."
+            )
+        elif props:
+            parts.append(
+                f"Keep {props} subtly and continuously animated (matching its own real physical behavior) "
+                "so the frame never goes fully static."
+            )
+        parts.append(
+            "If a new object or prop enters partway through the clip, it pops in with a single short "
+            "scale-in the instant it appears, then holds (aside from its own looping motion above) — never "
+            "a second bounce for something already on screen, never a repeating springy idle."
+        )
+        return " ".join(parts)
+
+
+# Generic keyword -> looping object/prop motion, used by
+# build_scene_motion_prompt() to give the video model something concrete to
+# animate on the PROPS themselves when the mascot stays still. Deliberately
+# generic across any topic's props (not hardcoded to one topic, e.g. Roman
+# concrete) — matched against whatever combination of this scene's fx/props/
+# action/narration text is available.
+_OBJECT_FX_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
+    (("volcano", "volcanic", "ash", "pyroclastic"), "fine volcanic ash drifting and gently settling"),
+    (("smoke", "steam", "vapor", "vapour"), "steam/smoke gently rising and curling"),
+    (("water", "drip", "wet", "damp", "liquid", "ripple", "pour"), "water rippling, dripping, or pouring steadily"),
+    (("lime", "powder", "dust", "sand", "grain", "mineral"), "fine powder/dust settling and drifting"),
+    (("mix", "mixing", "stir", "slurry", "blend", "paste", "mortar"), "the mixture slowly swirling and blending"),
+    (("fire", "flame", "ember", "burn", "forge", "furnace", "heat"), "flames flickering and embers glowing"),
+    (("bubble", "boil", "ferment"), "small bubbles steadily rising and popping"),
+    (("spark", "electric", "current", "voltage"), "small sparks flickering intermittently"),
+]
+
+
+def _object_fx_for(*texts: str | None) -> str | None:
+    haystack = " ".join(t for t in texts if t).lower()
+    for keywords, fx_desc in _OBJECT_FX_KEYWORDS:
+        if any(kw in haystack for kw in keywords):
+            return fx_desc
+    return None
+
 
 MASCOT_1 = Mascot(
     id="mascot_1",

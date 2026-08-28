@@ -4,7 +4,13 @@ stub TTS provider hides this because it generates audio at exactly the
 requested length by construction, so this test uses a fake provider that
 deliberately produces audio LONGER than scripted, simulating what a real
 voice will do, and proves the final render follows the real audio."""
-from shorts_factory.assembly import assemble, probe_duration, solid_color_frame, synthesize_scenes
+from shorts_factory.assembly import (
+    NARRATION_SPEED_FACTOR,
+    assemble,
+    probe_duration,
+    solid_color_frame,
+    synthesize_scenes,
+)
 from shorts_factory.cost_tracker import CostTracker
 from shorts_factory.providers.tts import TTSProvider
 
@@ -60,11 +66,13 @@ def test_video_duration_follows_actual_audio_not_scripted_estimate(tmp_path):
 
     scene_audio = synthesize_scenes(provider, FIXTURE_SCENES, tmp_path / "audio", tracker)
 
-    # The measured durations must reflect the FAKE provider's real output,
-    # not the script's nominal 2.0s guess.
+    # The measured durations must reflect the FAKE provider's real output
+    # (also passed through the pipeline's own narration speed-up, same as
+    # any real TTS clip — see assembly.NARRATION_SPEED_FACTOR), not the
+    # script's nominal 2.0s guess.
     assert scene_audio[0].duration != 2.0
-    assert abs(scene_audio[0].duration - ACTUAL_SECONDS[0]) < 0.05
-    assert abs(scene_audio[1].duration - ACTUAL_SECONDS[1]) < 0.05
+    assert abs(scene_audio[0].duration - ACTUAL_SECONDS[0] / NARRATION_SPEED_FACTOR) < 0.05
+    assert abs(scene_audio[1].duration - ACTUAL_SECONDS[1] / NARRATION_SPEED_FACTOR) < 0.05
     assert scene_audio[0].scripted_duration == 2.0
 
     out_mp4 = tmp_path / "out.mp4"
@@ -76,7 +84,7 @@ def test_video_duration_follows_actual_audio_not_scripted_estimate(tmp_path):
         out_mp4=out_mp4,
     )
 
-    expected_total = ACTUAL_SECONDS[0] + ACTUAL_SECONDS[1]
+    expected_total = (ACTUAL_SECONDS[0] + ACTUAL_SECONDS[1]) / NARRATION_SPEED_FACTOR
     scripted_total = sum(s["duration"] for s in FIXTURE_SCENES)
     actual_rendered = probe_duration(out_mp4)
 

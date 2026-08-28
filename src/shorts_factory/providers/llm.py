@@ -474,7 +474,17 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "Mascot scales down to ~35-40% height in bottom corner, pointing enthusiastically UP at a large floating flat-illustrated prop/diagram in the opposite top quadrant. "
         "Every scene's visual_prompt must describe what is on screen, the exact action, emotions, and visual FX. "
         "Do not describe or request any text, words, letters, labels, or signs in visual_prompt — captions are added separately. "
-        "Include sfx (e.g. 'pop', 'whoosh', 'sizzle', 'ding', 'bubbling', 'splash', or null) for the audio beat."
+        "Include sfx (e.g. 'pop', 'whoosh', 'sizzle', 'ding', 'bubbling', 'splash', or null) for the audio beat. "
+        "PACING & MOTION (every video, this pipeline animates each scene as a short continuous clip): scene 1 "
+        "should center on the mascot alone — empty white space around it is fine, do not open on a crowded "
+        "ingredient dump. In later scenes, introduce props/ingredients one at a time, matching the order "
+        "they're actually named in that scene's own narration, rather than describing every item as already "
+        "present in the opening frame — an ingredient_grid scene is still fine for showing several items "
+        "together, but describe each as its own named item, not a static pile. The mascot itself should read "
+        "as calm and settled rather than constantly bouncing: describe purposeful gestures (pointing, "
+        "holding, nodding, a thoughtful stroke of the chin) rather than energetic hopping, bobbing, or "
+        "repeated bounce. Any single prop or object should be introduced once (a brief entrance), not "
+        "described as repeatedly popping in and out."
     )
     return (
         "Create a factual YouTube Short script lasting 40-50 seconds. Return JSON only. "

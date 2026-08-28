@@ -1,0 +1,4039 @@
+{
+  "generated_at": "2026-08-28T19:25:35.916661+00:00",
+  "citation_count": 224,
+  "verified_count": 63,
+  "citations": [
+    {
+      "claim_id": "roman concrete-claim-01",
+      "claim_text": "It is often used for basic road design, but concrete can be used in more complex projects.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-02",
+      "claim_text": "The structure was largely built using reinforced concrete [3].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-03",
+      "claim_text": "Although the Ancient Roman Civilization were not the ones to discover concrete, they were the first people to widely use concrete as a building material [8].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-04",
+      "claim_text": "The Roman civilization began as an Italic settlement on the Italian Peninsula in 753 BCE.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-05",
+      "claim_text": "At its height in 117 CE, the Roman civilization covered 5 million square kilometers while ruling over 50 to 90 million people which was about 20% of Earth\u2019s population at the time.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-06",
+      "claim_text": "The Romans controlled parts of Africa, Europe, and the Middle East.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-07",
+      "claim_text": "The Ancient Romans used their concrete to build structures such as the famous Pantheon Dome or harbors in the Mediterranean Sea such as the Caesarea Maritima.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-08",
+      "claim_text": "There are other Ancient Roman concrete structures or ruins that can still be seen today.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-09",
+      "claim_text": "This durability is due to the unique concrete mixture the Ancient Romans utilized.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-10",
+      "claim_text": "The longevity of Ancient Roman concrete was a mystery to many researchers until 2014 when researchers came to a conclusion on its origin [9].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-11",
+      "claim_text": "The Ancient Roman\u2019s concrete consisted of a mix of volcanic ash or also known as Pozzolana, lime, and water to make a mortar [13].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-12",
+      "claim_text": "The mortar was then mixed with the aggregate, often chunks of rock, to create Ancient Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-13",
+      "claim_text": "Once the mortar and aggregates mixed, they needed to be placed and eventually would harden to give the concrete its strength.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-14",
+      "claim_text": "The volcanic ash or Pozzolana contains both silica and alumina which proved crucial for a chemical reaction.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-15",
+      "claim_text": "When saltwater comes into contact with Ancient Roman Concrete, a chemical reaction happens between the Pozzolana, lime, and saltwater to create a rare crystal called Tobermorite [11].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-16",
+      "claim_text": "Roman scholar Pliny the Elder described the concrete in contact with salt water as \u201ca single stone mass, impregnable to the waves and every day stronger.\u201d This phenomenon is caused by the concrete structure cracking.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-17",
+      "claim_text": "This allows seawater to encounter the Pozzolana and lime of the concrete and start the chemical reaction.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-18",
+      "claim_text": "This process strengthens the concrete because the crystals allow the concrete to flex rather than shatter when stressed.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-19",
+      "claim_text": "Over time more cracks occur in the concrete, allowing more and more saltwater to flow into the cracks, causing more Tobermorite crystal formations.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-20",
+      "claim_text": "This creates a \u201crock-like concrete that thrives in open chemical exchange with seawater\u201d according to Marie Jackson from the University of Utah [9].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-21",
+      "claim_text": "The Pantheon Dome is one of the most famous structures built from Ancient Roman concrete that can be seen in-person today.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-22",
+      "claim_text": "The Pantheon Dome was designed as a temple for the Roman gods.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-23",
+      "claim_text": "And today it is the largest unreinforced concrete dome.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-24",
+      "claim_text": "The Romans were very cautious and creative when designing and constructing the Pantheon Dome.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-25",
+      "claim_text": "The aggregates used in the concrete became lighter as the dome was constructed towards the middle.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-26",
+      "claim_text": "The Caesarea Maritima was a city and harbor on the Mediterranean Sea in present-day Israel built by the Ancient Romans.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-27",
+      "claim_text": "To protect the harbor from the elements, two breakwaters were constructed from Ancient Roman concrete [6].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-28",
+      "claim_text": "The first method was to drive stakes into the ocean floor to create a box and then fill it with Ancient Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-29",
+      "claim_text": "The boxes were then filled with Ancient Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-30",
+      "claim_text": "The Ancient Romans constructed barges, floated them out to position, sank the barges, and filled them with Ancient Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-31",
+      "claim_text": "Researches concluded that the concrete did not and have enough time to set before the lime was washed-out by-passing waves.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-32",
+      "claim_text": "Also, after taking cores from the remaining concrete, researchers concluded that the concrete was not mixed well enough.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-33",
+      "claim_text": "The widespread use of concrete fell with the demise of the Ancient Roman civilization.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-34",
+      "claim_text": "However, concrete became popular again once Portland cement was created by Joseph Aspdin in England in 1824 [19].",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-35",
+      "claim_text": "Currently, researchers are exploring how the Ancient Roman concrete technology can be utilized to make modern concrete more durable.  * [Citations](#citations)",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-36",
+      "claim_text": "3, Zahra, et al. \u201cWhy Modern Mortar Crumbles, but Roman Concrete Lasts Millennia.\u201d Science | AAAS, 3 July 2017, https://www.sciencemag.org/news/2017/07/why-modern-mortar-crumbles-roman-concrete-lasts-millennia.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-37",
+      "claim_text": "Ancient Roman Concrete Stands the Test of Time. /topics-resources/content/Ancient-Roman-Concrete-Stands-Test-Time.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-38",
+      "claim_text": "Blakemore, Erin. \u201cWhy Ancient Roman Concrete Is So Strong.\u201d Smithsonian, https://www.smithsonianmag.com/smart-news/why-ancient-roman-concrete-so-strong-180963946/.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-39",
+      "claim_text": "History of Cement. https://www.understanding-cement.com/history.html.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-40",
+      "claim_text": "How Seawater Strengthens Ancient Roman Concrete | UNews. https://unews.utah.edu/roman-concrete/.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-41",
+      "claim_text": "Jackson, Marie D., et al. \u201cMechanical Resilience and Cementitious Processes in Imperial Roman Architectural Mortar.\u201d Proceedings of the National Academy of Sciences, Dec.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-42",
+      "claim_text": "Researchers Discover Secret Recipe of Roman Concrete That Allowed It to Endure for over 2,000 Years. https://www.ancient-origins.net/news-history-archaeology/researchers-discover-secret-recipe-roman-concrete-020141.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-43",
+      "claim_text": "Pruitt, Sarah. \u201cThe Secrets of Ancient Roman Concrete.\u201d HISTORY, https://www.history.com/news/the-secrets-of-ancient-roman-concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-44",
+      "claim_text": "ROMAN CONCRETE. https://archserve.id.ucsb.edu/courses/arthistory/152k/concrete.html.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-45",
+      "claim_text": "Roman Concrete. https://www.romae-vitam.com/roman-concrete.html.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-46",
+      "claim_text": "15. \u201cRoman Empire.\u201d Ancient History Encyclopedia, https://www.ancient.eu/Roman\\_Empire/.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-47",
+      "claim_text": "16. \u201cScientists Figure Out How Ancient Rome\u2019s Concrete Has Survived 2,000 Years.\u201d Time, https://time.com/4846153/ancient-rome-concrete-cement-seawater/.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-48",
+      "claim_text": "The Pantheon by David Moore. http://www.romanconcrete.com/docs/chapt01/chapt01.htm.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-49",
+      "claim_text": "The Riddle of Ancient Roman Concrete, David Moore, PE. http://www.romanconcrete.com/docs/spillway/spillway.htm.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-50",
+      "claim_text": "The History of Concrete \u2013 InterNACHI\u00ae. https://www.nachi.org/history-of-concrete.htm.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-51",
+      "claim_text": "Most modern concrete is a mix of Portland cement and aggregates\u2014materials such as sand or crushed stone that are not intended to chemically react over time.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-52",
+      "claim_text": "To better understand the longer-term chemical processes in the concrete, researchers studied samples from ancient pier and breakwater sites using a variety of techniques, including electron microscopy and Raman spectroscopy.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-53",
+      "claim_text": "The results indicate that Al-tobermorite and a related zeolite mineral called phillipsite continue to form over millennia as seawater percolates through the massive structures, reinforcing the cementing matrix in a kind of regenerative process that strengthens the concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-54",
+      "claim_text": "The researchers suggest that a reformulated recipe for Roman concrete could be tested for applications such as seawalls and other ocean-facing structures, and may be useful for safeguarding hazardous wastes, since Al-tobermorite has special cation-exchange properties.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-55",
+      "claim_text": "The work ultimately could lead to a wider adoption of concrete manufacturing techniques with less environmental impact than modern cement manufacturing processes, which require high-temperature kilns.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-56",
+      "claim_text": "The ancient Romans had a recipe for concrete that won\u2019t corrode in seawater.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-57",
+      "claim_text": "Jackson, \u201c[Drilling Into The Secrets Of Roman Concrete](https://www.sciencefriday.com/person/marie-d-jackson/).\u201d  **Work performed at ALS [Beamline 12.3.2](https://als.lbl.gov/beamlines/12-3-2/).**  M.D.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-58",
+      "claim_text": "Wenk, \u201c[Phillipsite and Al-tobermorite mineral cements produced through low-temperature water-rock reactions in Roman marine concrete](https://ammin.geoscienceworld.org/content/102/7/1435),\u201d *Am.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-59",
+      "claim_text": "An unexpected ancient manufacturing strategy may hold the key to designing concrete that lasts for millennia.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-60",
+      "claim_text": "[Press Inquiries](#press-inquiries)  ### Press Contact:  Abby  Abazorius  Email:  [abbya@mit.edu](mailto:abbya@mit.edu)  Phone:  617-253-2709  MIT News Office  ### Media Download  [![On left, Roman concrete structures of Privernum, Italy with icy puddles, orange sky, and rural location.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-61",
+      "claim_text": "A large-area elemental map (Calcium: red, Silicon: blue, Aluminum: green) of a 2 cm fragment of ancient Roman concrete (right) collected from the archaeological site of Privernum, Italy (left).",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-62",
+      "claim_text": "A calcium-rich lime clast (in red), which is responsible for the unique self-healing properties in this ancient material, is clearly visible in the lower region of the image.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-63",
+      "claim_text": "A calcium-rich lime clast (in red), which is responsible for the unique self-healing properties in this ancient material, is clearly visible in the lower region of the large-area elemental map (Calcium: red, Silicon: blue, Aluminum: green) of a 2 cm fragment of ancient Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-64",
+      "claim_text": "![On left, Roman concrete structures of Privernum, Italy with icy puddles, orange sky, and rural location.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-65",
+      "claim_text": "The ancient Romans were masters of engineering, constructing vast networks of roads, aqueducts, ports, and massive buildings, whose remains have survived for two millennia.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-66",
+      "claim_text": "Many of these structures were built with concrete: Rome\u2019s famed Pantheon, which has the world\u2019s largest unreinforced concrete dome and was dedicated in 128 C.E., is still intact, and some ancient Roman aqueducts still deliver water to Rome today.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-67",
+      "claim_text": "Meanwhile, many modern concrete structures have crumbled after a few decades.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-68",
+      "claim_text": "Now, a team of investigators from MIT, Harvard University, and laboratories in Italy and Switzerland, has made progress in this field, discovering ancient concrete-manufacturing strategies that incorporated several key self-healing functionalities.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-69",
+      "claim_text": "For many years, researchers have assumed that the key to the ancient concrete\u2019s durability was based on one ingredient: pozzolanic material such as volcanic ash from the area of Pozzuoli, on the Bay of Naples.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-70",
+      "claim_text": "This specific kind of ash was even shipped all across the vast Roman empire to be used in construction, and was described as a key ingredient for concrete in accounts by architects and historians at the time.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-71",
+      "claim_text": "Under closer examination, these ancient samples also contain small, distinctive, millimeter-scale bright white mineral features, which have been long recognized as a ubiquitous component of Roman concretes.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-72",
+      "claim_text": "Upon further characterization of these lime clasts, using high-resolution multiscale imaging and chemical mapping techniques pioneered in Masic\u2019s research lab, the researchers gained new insights into the potential functionality of these lime clasts.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-73",
+      "claim_text": "Historically, it had been assumed that when lime was incorporated into Roman concrete, it was first combined with water to form a highly reactive paste-like material, in a process known as slaking.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-74",
+      "claim_text": "But this process alone could not account for the presence of the lime clasts.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-75",
+      "claim_text": "Masic wondered: \u201cWas it possible that the Romans might have actually directly used lime in its more reactive form, known as quicklime?\u201d",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-76",
+      "claim_text": "Studying samples of this ancient concrete, he and his team determined that the white inclusions were, indeed, made out of various forms of calcium carbonate.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-77",
+      "claim_text": "And spectroscopic examination provided clues that these had been formed at extreme temperatures, as would be expected from the exothermic reaction produced by using quicklime instead of, or in addition to, the slaked lime in the mixture.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-78",
+      "claim_text": "\u201cThe benefits of hot mixing are twofold,\u201d Masic says. \u201cFirst, when the overall concrete is heated to high temperatures, it allows chemistries that are not possible if you only used slaked lime, producing high-temperature-associated compounds that would not otherwise form.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-79",
+      "claim_text": "During the hot mixing process, the lime clasts develop a characteristically brittle nanoparticulate architecture, creating an easily fractured and reactive calcium source, which, as the team proposed, could provide a critical self-healing functionality.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-80",
+      "claim_text": "As soon as tiny cracks start to form within the concrete, they can preferentially travel through the high-surface-area lime clasts.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-81",
+      "claim_text": "This material can then react with water, creating a calcium-saturated solution, which can recrystallize as calcium carbonate and quickly fill the crack, or react with pozzolanic materials to further strengthen the composite material.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-82",
+      "claim_text": "Previous support for this hypothesis was found through the examination of other Roman concrete samples that exhibited calcite-filled cracks.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-83",
+      "claim_text": "To prove that this was indeed the mechanism responsible for the durability of the Roman concrete, the team produced samples of hot-mixed concrete that incorporated both ancient and modern formulations, deliberately cracked them, and then ran water through the cracks.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-84",
+      "claim_text": "An identical chunk of concrete made without quicklime never healed, and the water just kept flowing through the sample.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-85",
+      "claim_text": "Through the extended functional lifespan and the development of lighter-weight concrete forms, he hopes that these efforts could help reduce the environmental impact of cement production, which currently accounts for about 8 percent of global greenhouse gas emissions.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-86",
+      "claim_text": "Along with other new formulations, such as concrete that can actually absorb carbon dioxide from the air, another current research focus of the Masic lab, these improvements could help to reduce concrete\u2019s global climate impact.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-87",
+      "claim_text": "Admir Masic speaks with *New York Times*reporter Amos Zeeberg about his research studying the benefits of lime clasts \u2013 a material used in ancient Roman infrastructure.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-88",
+      "claim_text": "Admir Masic. ~~\u201c~~If we add 50 or 100 years to concrete\u2019s lifespan, \u201cwe will require less demolition, less maintenance and less material in the long run.\u201d  [Full story via Associated Press](https://apnews.com/article/ancient-cement-plaster-concrete-roman-maya-copan-f5799b0009acc8145805610ee1972ac9) \u2192  ### Wired",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-89",
+      "claim_text": "This \u201cdiscovery could have implications for reducing carbon emissions and creating modern climate-resilient infrastructure,\u201d writes Cusick.  [Full story via Scientific American](https://www.scientificamerican.com/article/ancient-roman-concrete-has-self-healing-capabilities/) \u2192",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-90",
+      "claim_text": "Admir Masic explains that the findings are \u201can important next step in improving the sustainability of modern concretes through a Roman-inspired strategy.\u201d",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-91",
+      "claim_text": "Scientists from MIT and other institutions have uncovered an ingredient called quicklime used in ancient Roman techniques for manufacturing concrete that may have given the material self-healing properties, reports Jacklin Kwan for *Science Magazine*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-92",
+      "claim_text": "Admir Masic.  [Full story via The Guardian](https://www.theguardian.com/science/2023/jan/06/self-healing-roman-concrete-could-aid-modern-construction-study-suggests) \u2192  ### CNN",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-93",
+      "claim_text": "MIT researchers have discovered that ancient Romans used lime clasts when manufacturing concrete, giving the material self-healing properties, reports Katie Hunt for CNN.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-94",
+      "claim_text": "\"Concrete allowed the Romans to have an architectural revolution,\" explains Prof.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-95",
+      "claim_text": "\"Romans were able to create and turn the cities into something that is extraordinary and beautiful to live in.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-96",
+      "claim_text": "And that revolution basically changed completely the way humans live.\"  [Full story via CNN](https://www.cnn.com/style/article/roman-concrete-mystery-ingredient-scn/index.html) \u2192  ### Fast Company",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-97",
+      "claim_text": "*Fast Company* reporter Adele Peters writes that researchers from MIT and other institutions have found that a technique employed by ancient Romans for manufacturing concrete contains self-healing properties and could be used to help reduce concrete\u2019s global carbon footprint.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-98",
+      "claim_text": "The ancient concrete method could open the \u201copportunity to build infrastructure that is self-healing infrastructure,\u201d explains Prof.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-99",
+      "claim_text": "Admir Masic.  [Full story via Fast Company](https://www.fastcompany.com/90831179/this-ancient-roman-building-technique-could-help-cut-carbon-emissions) \u2192  ## Related Links",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-100",
+      "claim_text": "[Read full story](/2026/startup-dmat-brings-ancient-roman-concrete-technology-0819) \u2192  * [More news on MIT News homepage](/) \u2192  [Massachusetts Institute of Technology](http://web.mit.edu)  [Massachusetts Institute of Technology](http://web.mit.edu)   77 Massachusetts Avenue, Cambridge, MA, USA  Recommended Links:",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-101",
+      "claim_text": "Like its [modern equivalent](https://en.wikipedia.org/wiki/Concrete \"Concrete\"), Roman concrete was based on a [hydraulic-setting cement](https://en.wikipedia.org/wiki/Hydraulic_cement \"Hydraulic cement\") added to an [aggregate](https://en.wikipedia.org/wiki/Construction_aggregate \"Construction aggregate\").",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-102",
+      "claim_text": "It was previously thought that its strength was enhanced by the incorporation of [pozzolanic ash](https://en.wikipedia.org/wiki/Pozzolana \"Pozzolana\") where available (particularly in the [Bay of Naples](https://en.wikipedia.org/wiki/Bay_of_Naples \"Bay of Naples\")).",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-103",
+      "claim_text": "It was often used in combination with facings and other supports,[[4]](#cite_note-romanaqueducts.info-4) and interiors were further decorated by [stucco](https://en.wikipedia.org/wiki/Stucco \"Stucco\"), [fresco](https://en.wikipedia.org/wiki/Fresco \"Fresco\") paintings, or colored marble.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-104",
+      "claim_text": "Further innovative developments in the material, part of the so-called [concrete revolution](https://en.wikipedia.org/wiki/Roman_architectural_revolution \"Roman architectural revolution\"), contributed to structurally complicated forms.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-105",
+      "claim_text": "The most prominent example of these is the [Pantheon](https://en.wikipedia.org/wiki/Pantheon,_Rome \"Pantheon, Rome\") dome, the world's largest and oldest unreinforced concrete dome.[[5]](#cite_note-Ancient_Roman_Concrete-5)",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-106",
+      "claim_text": "Vitruvius specifies a ratio of 1 part lime to 3 parts pozzolana for mortar used in buildings and a 1:2 ratio for underwater work.[[10]](#cite_note-FOOTNOTELechtmanHobbs1986-10)[[11]](#cite_note-11)",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-107",
+      "claim_text": "A building site from 79 CE was uncovered at Pompeii in 2025, which contained unmixed Roman concrete building materials as well as the concreted structures.[[14]](#cite_note-14)  ## Material properties  [[edit](/w/index.php?title=Roman_concrete&action=edit&section=2 \"Edit section: Material properties\")]",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-108",
+      "claim_text": "The composition of the aggregate varied, and included pieces of rock, [ceramic](https://en.wikipedia.org/wiki/Ceramic \"Ceramic\") tile, lime clasts, and brick rubble from the remains of previously demolished buildings.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-109",
+      "claim_text": "Pozzolana makes the concrete more resistant to salt water than modern-day concrete.[[16]](#cite_note-16) Pozzolanic mortar had a high content of [alumina](https://en.wikipedia.org/wiki/Alumina \"Alumina\") and [silica](https://en.wikipedia.org/wiki/Silica \"Silica\").",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-110",
+      "claim_text": "Research in 2023 found that lime clasts, previously considered a sign of poor aggregation technique, react with water seeping into any cracks.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-111",
+      "claim_text": "Concrete and, in particular, the hydraulic mortar responsible for its cohesion, was a type of structural ceramic whose utility derived largely from its [rheological plasticity](https://en.wikipedia.org/wiki/Rheology \"Rheology\") in the paste state.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-112",
+      "claim_text": "The setting and hardening of hydraulic cements derived from hydration of materials and the subsequent chemical and physical interaction of these hydration products.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-113",
+      "claim_text": "This differed from the setting of [slaked lime mortars](https://en.wikipedia.org/wiki/Lime_mortar \"Lime mortar\"), the most common cements of the pre-Roman world.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-114",
+      "claim_text": "Once set, Roman concrete exhibited little plasticity, although it retained some resistance to tensile stresses.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-115",
+      "claim_text": "The setting of [pozzolanic cements](https://en.wikipedia.org/wiki/Geopolymer \"Geopolymer\") has much in common with setting of their modern counterpart, [Portland cement](https://en.wikipedia.org/wiki/Portland_cement \"Portland cement\").",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-116",
+      "claim_text": "The high silica composition of Roman pozzolana cements is very close to that of modern cement to which blast furnace [slag](https://en.wikipedia.org/wiki/Slag \"Slag\"), [fly ash](https://en.wikipedia.org/wiki/Fly_ash \"Fly ash\"), or [silica fume](https://en.wikipedia.org/wiki/Silica_fume \"Silica fume\") have been added.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-117",
+      "claim_text": "As seawater percolated within the tiny cracks in the Roman concrete, it reacted with [phillipsite](https://en.wikipedia.org/wiki/Phillipsite \"Phillipsite\") naturally found in the volcanic rock and created [aluminous](https://en.wikipedia.org/wiki/Aluminium \"Aluminium\") tobermorite crystals.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-118",
+      "claim_text": "In contrast, modern concrete exposed to saltwater deteriorates within decades.[[18]](#cite_note-WashPost2017-18)[[19]](#cite_note-JacksonMulcahy2017-19)[[20]](#cite_note-20)",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-119",
+      "claim_text": "For an environment as prone to [earthquakes](https://en.wikipedia.org/wiki/Earthquake \"Earthquake\") as the [Italian Peninsula](https://en.wikipedia.org/wiki/Italian_Peninsula \"Italian Peninsula\"), interruptions and internal constructions within walls and domes created discontinuities in the concrete mass.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-120",
+      "claim_text": "It was in this sense that bricks and concrete were flexible.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-121",
+      "claim_text": "Another technology used to improve the [strength](https://en.wikipedia.org/wiki/Strength_of_materials \"Strength of materials\") and stability of concrete was its gradation in domes.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-122",
+      "claim_text": "[[edit](/w/index.php?title=Roman_concrete&action=edit&section=4 \"Edit section: Modern use\")]",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-123",
+      "claim_text": "Scientific studies of Roman concrete since 2010 have attracted both media and industry attention.[[24]](#cite_note-24) Because of its unusual durability, longevity, and lessened environmental footprint, corporations and municipalities are starting to explore the use of Roman-style concrete in North America.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-124",
+      "claim_text": "This involves replacing the volcanic ash with coal [fly ash](https://en.wikipedia.org/wiki/Fly_ash \"Fly ash\") that has similar properties.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-125",
+      "claim_text": "Proponents say that concrete made with fly ash can cost up to 60% less, because it requires less cement.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-126",
+      "claim_text": "However, Roman concrete was still gaining its strength for several decades after construction had been completed.[[18]](#cite_note-WashPost2017-18)",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-127",
+      "claim_text": "## References  [[edit](/w/index.php?title=Roman_concrete&action=edit&section=6 \"Edit section: References\")]",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-128",
+      "claim_text": "\"Etruscan and Early Roman Architecture\". *Yale/Pelican history of art*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-129",
+      "claim_text": "4. [\u2191](#cite_ref-romanaqueducts.info_4-0) [\"Aqua Clopedia, a picture dictionary on Roman aqueducts: Roman concrete / opus caementicium\"](http://www.romanaqueducts.info/picturedictionary/pd_onderwerpen/concrete2.htm). *romanaqueducts.info*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-130",
+      "claim_text": "5. [\u2191](#cite_ref-Ancient_Roman_Concrete_5-0) Moore, David (February 1993). [\"The Riddle of Ancient Roman Concrete\"](http://www.romanconcrete.com/docs/spillway/spillway.htm). *S Dept. of the Interior, Bureau of Reclamation, Upper Colorado Region*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-131",
+      "claim_text": "6. [\u2191](#cite_ref-6) Henig, Martin, ed. (1983). *A Handbook of Roman Art*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-132",
+      "claim_text": "\"On the Structure of the Roman Pantheon\". *The Art Bulletin*. **68** (1).",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-133",
+      "claim_text": "12. [\u2191](#cite_ref-12) Oleson et al., 2004, The ROMACONS Project: A Contribution to the Historican and Engineering Analysis of the Hydrauilc Concrete in Roman Maritime Structures, International Journal of Nautical Archaeology 33.2: 199-229 13. [\u2191](#cite_ref-13) Hohlfelder, R.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-134",
+      "claim_text": "18. [1](#cite_ref-WashPost2017_18-0) [2](#cite_ref-WashPost2017_18-1) Guarino, Ben (4 July 2017). [\"Ancient Romans made world's 'most durable' concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-135",
+      "claim_text": "We might use it to stop rising seas\"](https://www.washingtonpost.com/news/speaking-of-science/wp/2017/07/04/ancient-romans-made-worlds-most-durable-concrete-we-might-use-it-to-stop-rising-seas/). *[The Washington Post](https://en.wikipedia.org/wiki/The_Washington_Post \"The Washington Post\")*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-136",
+      "claim_text": "20. [\u2191](#cite_ref-20) McGrath, Matt (4 July 2017). [\"Scientists explain ancient Rome's long-lasting concrete\"](https://www.bbc.co.uk/news/science-environment-40494248). *BBC News*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-137",
+      "claim_text": "Monteiro, [\"Unlocking the secrets of Al-tobermorite in Roman seawater concrete\"](https://pubs.geoscienceworld.org/msa/ammin/article-abstract/98/10/1669/45726), *American Mineralogist*, Volume 98, pp.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-138",
+      "claim_text": "28. [\u2191](#cite_ref-28) [\"Renaissance of Roman Concrete: Cutting carbon emissions\"](https://www.constructionspecifier.com/renaissance-of-roman-concrete-cutting-carbon-emissions/3/). *constructionspecifier.com*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-139",
+      "claim_text": "## Further reading  [[edit](/w/index.php?title=Roman_concrete&action=edit&section=7 \"Edit section: Further reading\")]",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-140",
+      "claim_text": "* Adam, Jean-Pierre; Mathews, Anthony (2014). *Roman Building*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-141",
+      "claim_text": "\"Roman Concrete and the Roman Architectural Revolution\".",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 7,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-142",
+      "claim_text": "American Ceramics Society. [ISBN](https://en.wikipedia.org/wiki/ISBN_(identifier) \"ISBN (identifier)\")\u00a0[0-916094-88-X](https://en.wikipedia.org/wiki/Special:BookSources/0-916094-88-X \"Special:BookSources/0-916094-88-X\"). * MacDonald, William Lloyd (1982). *The Architecture of the Roman Empire, v.2, an Urban Appraisal*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-143",
+      "claim_text": "* Hunt, Katie (2023-01-06). [\"Why Roman concrete outlasts its modern counterpart\"](https://www.cnn.com/style/article/roman-concrete-mystery-ingredient-scn/index.html). *CNN*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-144",
+      "claim_text": "Retrieved 2023-01-07. * Preuss, Paul (2013-06-04). [\"Roman Seawater Concrete Holds the Secret to Cutting Carbon Emissions\"](https://newscenter.lbl.gov/2013/06/04/roman-concrete/). *Berkeley Lab News Center*.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-145",
+      "claim_text": "Retrieved from \"<https://en.wikipedia.org/w/index.php?title=Roman_concrete&oldid=1358938062>\"  [Categories](/wiki/Help:Category \"Help:Category\"):",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-146",
+      "claim_text": "Modern Concrete  By  [charlesflitton](https://kilgorecompanies.com/blog/author/charlesflitton/)  ![construction jobs](/app/uploads/2022/08/AdobeStock_481256414-2500x1667.jpeg)  construction jobs",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-147",
+      "claim_text": "Concrete in construction has been in existence for centuries.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-148",
+      "claim_text": "Roman concrete is one of the most impressive innovations in history, giving rise to some of the most iconic buildings, like the Pantheon, the largest un-reinforced concrete Dome in the World.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-149",
+      "claim_text": "As a result of the industrialization of the 20th and 21st Century, seeking efficiency in construction, modern concretes developed.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-150",
+      "claim_text": "This blog post will explore some critical differences between Roman and modern concrete.  ## **Roman Concrete**  Roman concrete is made from a mixture of volcanic ash with lime and seawater to make mortar.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-151",
+      "claim_text": "An aggregate, chunks of volcanic rock, are then incorporated into the concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-152",
+      "claim_text": "The use of seawater as a mixing and curing agent has proven to be a [secret recipe](https://www.ancient-origins.net/news-history-archaeology/researchers-discover-secret-recipe-roman-concrete-020141) for Roman concrete\u2019s unique strength and durability that gets better with age.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-153",
+      "claim_text": "Roman concrete is not only solid but durable due to the way it sets and cures.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-154",
+      "claim_text": "The hydration process of Roman concrete undergoes centuries.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-155",
+      "claim_text": "Roman concrete is also salt resistant, making it ideal for buildings in coastal areas.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-156",
+      "claim_text": "Roman concrete is more environmentally friendly because production does not emit toxic gases.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-157",
+      "claim_text": "This concrete is less likely to crack under stress due to less water in the concrete mixture with no reinforcement steels.  ### **Cons of Roman Concrete**  A significant setback on Roman concrete is that it takes longer to set and cure, which can be problematic for construction projects.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-158",
+      "claim_text": "Due to the unavailability of materials around the world like volcanic ash, producing Roman concrete is difficult.  ## **Modern Concrete**  Modern concrete consists of Portland cement, stone aggregates, and sand mixed with fresh water.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "The Ancient Roman Secret to Concrete Resilience in Seawater",
+          "url": "https://als.lbl.gov/ancient-roman-secret-concrete-resilience-seawater",
+          "domain": "als.lbl.gov"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-159",
+      "claim_text": "The main advantage of modern concrete is that it sets and dries quickly compared to Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-160",
+      "claim_text": "The steel corrosion inside concrete can cause the concrete to expand and crack.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-161",
+      "claim_text": "**Cell Press**\u2014Ancient Roman concrete, which was used to build aqueducts, bridges, and buildings across the empire, has endured for over two thousand years.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-162",
+      "claim_text": "In a study publishing July 25 in the Cell Press journal\u00a0*iScience*, researchers investigated whether switching back to Roman concrete could improve the sustainability of modern-day concrete production.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-163",
+      "claim_text": "However, the authors suggest that the heightened durability of Roman concrete might make it a more sustainable option because it could reduce the need for replacement and maintenance.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-164",
+      "claim_text": "\u201cStudying Roman concrete can teach us how to use materials in a way that can maximize the longevity of our structures, because sustainability goes hand-by-hand with durability,\u201d says author and engineer Daniela Martinez of Universidad del Norte in Colombia.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-165",
+      "claim_text": "Making more sustainable concrete remains an important challenge in the race to decarbonize the construction industry.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-166",
+      "claim_text": "Modern concrete production contributes to air pollution and is responsible for approximately 8% of global anthropogenic CO2 emissions and 3% of the total global energy demand.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-167",
+      "claim_text": "Since previous studies have suggested that Roman concrete might be more sustainable than modern concrete, the researchers decided to put this hypothesis to the test.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-168",
+      "claim_text": "The key raw ingredient in both Ancient Roman and modern concrete is limestone.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-169",
+      "claim_text": "When heated to extremely high temperatures, limestone decomposes to produce CO2 and calcium oxide, which can be combined with other key minerals and water to form a paste that binds the concrete (or mortar) together.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-170",
+      "claim_text": "Whereas the Romans incorporated locally available rocks, volcanic debris called \u201cpozzolan,\u201d and recycled rubble from demolition projects into their concrete, modern concrete is made by mixing cement with various types of sand and gravel.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-171",
+      "claim_text": "To compare the sustainability of producing Roman and modern concrete, the researchers used models to estimate the volume of raw materials required (e.g., limestone and water) for each concrete type and the amount of CO2 and air pollutants produced.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-172",
+      "claim_text": "Since Roman concrete was not made uniformly, they compared multiple ancient recipes that used different proportions of limestone and pozzolan.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-173",
+      "claim_text": "For the Roman recipes, they also compared the sustainability of ancient and modern production techniques and the use of different forms of energy (e.g., fossil fuels, wood or other biomass, or renewable energy).",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-174",
+      "claim_text": "To their surprise, the researchers showed that, per volume of concrete, producing Roman concrete results in similar\u2014and, in some cases, more\u2014CO2 compared to modern concrete formulations.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-175",
+      "claim_text": "These reductions, which ranged from 11%\u201398%, were present whether Roman concrete production was fueled by fossil fuels, biomass, or renewable energy, but renewable energy resulted in the biggest reductions.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-176",
+      "claim_text": "# [Practical Engineering](/ \"Practical Engineering\")  # [Was Roman Concrete Better?](/blog/2019/3/9/was-roman-concrete-better)  [by Grady Hillhouse](/blog?author=55ac34e2e4b07d0961f919be)  The largest unreinforced concrete dome in world is on the Pantheon.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-177",
+      "claim_text": "It\u2019s not a modern marvel, but rather an ancient Roman temple built almost two thousand years ago.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-178",
+      "claim_text": "In today\u2019s episode, we\u2019re taking a look at the factors that affect the design life of concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-179",
+      "claim_text": "If you haven\u2019t seen the previous videos in this series about concrete, here\u2019s a quick synopsis.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-180",
+      "claim_text": "We\u2019ve talked about how concrete\u2019s made, why it often needs reinforcement, and how that reinforcement can sometimes lead to deterioration.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-181",
+      "claim_text": "Concrete reinforced with steel bars is the foundation of our modern society.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-182",
+      "claim_text": "The reinforcement is required to give the concrete strength against tensile stress.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-183",
+      "claim_text": "We use steel as reinforcement because of its strength, its similar thermal behavior, its availability, and low cost.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-184",
+      "claim_text": "Not only does this corrosion reduce the strength of the reinforcement itself, but its by-product, iron oxide, expands.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-185",
+      "claim_text": "This expansion creates stresses in the concrete that lead to cracking, spalling, and eventually the complete loss of serviceability - i.e. failure.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-186",
+      "claim_text": "In fact, corrosion of embedded steel reinforcement is the most common form of concrete deterioration.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-187",
+      "claim_text": "The Romans got around this problem in a very clever way: they didn\u2019t put steel in their concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-188",
+      "claim_text": "They harnessed the power of a few clever structural engineering tricks like the arch and the dome to make sure sure that their concrete was always resisting compression and never tension, minimizing the need for reinforcement.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-189",
+      "claim_text": "One of those clever tricks was just making their structures massive, and I mean that literally, because the simplest way to keep concrete in compression is to put heavy stuff on top of it, for example, more concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-190",
+      "claim_text": "Most large concrete dams are gravity or arch structures that rely on their own weight and geometry for stability.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-191",
+      "claim_text": "So, even with the tremendous pressure of the water behind the structure, there are no tensile stresses in the concrete, and thus no need for reinforcement.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-192",
+      "claim_text": "But lack of steel reinforcement isn\u2019t the potential only reason Roman concrete structures have lasted for so long.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-193",
+      "claim_text": "One of the other commonly-cited suggestions for the supremacy of Roman concrete is its chemistry.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-194",
+      "claim_text": "Maybe they just had a better recipe for their concrete that somehow got lost over time, and now those of us in the modern era are fated to live with substandard infrastructure.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-195",
+      "claim_text": "In fact, in 2017, scientists found that indeed the combination of seawater and volcanic ash used in ancient roman concrete structures can create extremely durable minerals that aren\u2019t normally found in modern concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-196",
+      "claim_text": "But that\u2019s not to say that we can\u2019t make resilient concrete in this modern age.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Roman Concrete vs. Modern Concrete | Kilgore Companies",
+          "url": "https://kilgorecompanies.com/blog/2022/08/26/roman-concrete-vs-modern-concrete",
+          "domain": "kilgorecompanies.com"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-197",
+      "claim_text": "In fact, the science of concrete recipes, also known as mix design, has advanced to levels a Roman engineer could only dream of.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-198",
+      "claim_text": "One of most basic, but also most important factors in concrete\u2019s chemistry is the ratio of water to cement.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-199",
+      "claim_text": "I did an experiment in a previous video that showed how concrete\u2019s strength goes down as you add more water.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-200",
+      "claim_text": "Extra water dilutes the cement paste in the mix and weakens the concrete as it cures.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-201",
+      "claim_text": "The Romans knew about the importance of this water to cement ratio.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        },
+        {
+          "title": "Is ancient Roman concrete more sustainable than modern concrete? \u2013 Popular Archeology",
+          "url": "https://popular-archaeology.com/article/is-ancient-roman-concrete-more-sustainable-than-modern-concrete",
+          "domain": "popular-archaeology.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-202",
+      "claim_text": "In historical manuscripts, Roman architects described their process of mixing concrete to have as little water as possible, then pounding it into place using special tamping tools.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-203",
+      "claim_text": "Interestingly enough, we have a modern process that closely mimics that of the ancient Romans.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-204",
+      "claim_text": "Roller Compacted Concrete uses similar ingredients to conventional concrete, but with much less water, creating a very dry mix.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-205",
+      "claim_text": "RCC mixes also usually include ash, another similarity to Roman concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-206",
+      "claim_text": "Modern structures like highway overpasses and skyscrapers would be impossible without reinforced concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-207",
+      "claim_text": "So, generally we like our concrete to be more viscous or soupy.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-208",
+      "claim_text": "It flows through pumps and into the complex formwork and around the reinforcement so much more easily.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-209",
+      "claim_text": "So, one way we get around this water content problem in the modern age is through chemical admixtures, special substances that can be added to a concrete mix to affect its properties.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-210",
+      "claim_text": "Water reducing admixtures, sometimes called superplasticizers, decrease the viscosity of the concrete mix.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-211",
+      "claim_text": "This allows concrete to remain workable with much lower water content, avoiding dilution of the cement so that the concrete can cure much stronger.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-212",
+      "claim_text": "I mixed up three batches of concrete to demonstrate how this works.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-213",
+      "claim_text": "Notice how the concrete flows nicely into the mold without the need for much agitation or compaction.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-214",
+      "claim_text": "This is a fairly standard test for concrete strength, but I\u2019m not running a testing lab in my garage so take these numbers with a grain of salt.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-215",
+      "claim_text": "The sample breaks at around 2000 psi or 14 MPa, a relatively average compressive strength for 7-day-old concrete.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-216",
+      "claim_text": "It would be impossible to use this in any complicated formwork or around reinforcement.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-217",
+      "claim_text": "Just a tiny amount of this powder is all it takes, and all of a sudden, the concrete flows easily in my hand.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-218",
+      "claim_text": "In many cases, you can get a workable concrete mix with 25% less water using chemical admixtures.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-219",
+      "claim_text": "The miracle of modern chemistry has given us a wide variety of admixtures like superplasticizers to improve the characteristics of concrete beyond a Roman engineer\u2019s wildest dreams.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-220",
+      "claim_text": "So why does it seem that our concrete doesn\u2019t last nearly as long as it should.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "roman concrete-claim-221",
+      "claim_text": "And, lifespan is just one of the many criteria engineers must consider when designing concrete structures.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-222",
+      "claim_text": "Most infrastructure is paid for by taxes, and the cost of building to Roman standards is rarely impossible, but often beyond what the public would consider reasonable.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-223",
+      "claim_text": "But, as we discussed, the technology of concrete continues to advance.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "roman concrete-claim-224",
+      "claim_text": "Maybe today\u2019s concrete will outlast that of the Romans.",
+      "topic": "roman concrete",
+      "sources": [
+        {
+          "title": "Was Roman Concrete Better? \u2014 Practical Engineering",
+          "url": "https://practical.engineering/blog/2019/3/9/was-roman-concrete-better",
+          "domain": "practical.engineering"
+        },
+        {
+          "title": "Roman Concrete \u2013 Ancient Engineering Technologies \u2013 UW\u2013Madison",
+          "url": "https://ancientengrtech.wisc.edu/roman-concrete",
+          "domain": "ancientengrtech.wisc.edu"
+        },
+        {
+          "title": "Riddle solved: Why was Roman concrete so durable? | MIT News | Massachusetts Institute of Technology",
+          "url": "https://news.mit.edu/2023/roman-concrete-durability-lime-casts-0106",
+          "domain": "news.mit.edu"
+        },
+        {
+          "title": "Roman concrete - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Roman_concrete",
+          "domain": "en.wikipedia.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    }
+  ],
+  "_meta": {
+    "topic": "roman concrete",
+    "chunk_count": 162,
+    "claim_count": 224,
+    "queries_used": [
+      "how was roman concrete made ingredients volcanic ash",
+      "why is roman concrete more durable than modern concrete"
+    ],
+    "output_path": "/Volumes/Mac Ex1/All Projects/ai-shorts-factory/data/roman_concrete/roman_concrete.citations.json",
+    "private_book_chunk_ids": [],
+    "book_text_exposed": false
+  }
+}

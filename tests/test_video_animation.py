@@ -208,17 +208,21 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         assert base_image_name == f"raw_{s_idx:02d}.png"
 
     # 4. Regression test: the motion prompt sent to the video model must be
-    # the SAME prompt the base image was actually built from (see
-    # pipeline.get_scene_image_prompt), not the scene's separate raw
-    # visual_prompt field — animating with mismatched text risks describing
-    # a different shot than what's actually in the frame being animated.
+    # the DEDICATED motion prompt (see pipeline.get_scene_motion_prompt),
+    # not the scene's separate raw visual_prompt field, AND not the still-
+    # image composition prompt either — reusing the image prompt as the
+    # motion source (a prior fix, see Q2 in the 2026-08-21 external review)
+    # fixed a prompt/image mismatch but introduced a different bug: that
+    # prompt only describes a static composition, so real output showed the
+    # mascot bouncing while props stayed completely frozen.
     from shorts_factory.mascots import get_mascot
-    from shorts_factory.pipeline import get_scene_image_prompt
+    from shorts_factory.pipeline import get_scene_image_prompt, get_scene_motion_prompt
     mascot = get_mascot("mascot_4")
     for s_idx, _base_image_name, motion_prompt in video_calls:
-        expected = get_scene_image_prompt(scenes[s_idx], mascot)
+        expected = get_scene_motion_prompt(scenes[s_idx], mascot)
         assert motion_prompt == expected
         assert motion_prompt != scenes[s_idx].get("visual_prompt")
+        assert motion_prompt != get_scene_image_prompt(scenes[s_idx], mascot)
 
 
 def test_hero_cache_key_changes_with_model_or_style_or_prompt():

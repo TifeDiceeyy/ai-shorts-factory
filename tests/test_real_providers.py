@@ -299,6 +299,23 @@ def test_fal_llm_script_prompt_tells_llm_the_exact_average_duration_to_hit():
     assert "7.5 seconds per scene" in prompt  # 45.0 / 6
 
 
+def test_fal_llm_script_prompt_says_scene_one_is_mascot_first():
+    """User feedback 2026-08-28: scene 1 should center the mascot alone
+    (empty space is fine), not open on a crowded ingredient dump — and
+    later scenes should introduce props one at a time as they're named,
+    not all bundled into the opening frame. The script-writing prompt sent
+    to the real LLM must say so explicitly, pipeline-wide (every topic),
+    not as a one-off tweak to a single generated script."""
+    script = sample_script()
+    fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    provider.generate_script({"topic": "soap", "claims": []}, "English", "style", CostTracker(1))
+    prompt = fal.client.calls[0][1]["arguments"]["prompt"]
+    assert "scene 1 should center on the mascot alone" in prompt
+    assert "introduce props/ingredients one at a time" in prompt
+    assert "rather than energetic hopping, bobbing, or repeated bounce" in prompt
+
+
 def test_fal_llm_script_prompt_has_no_idea_instruction_when_none_given():
     script = sample_script()
     fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})
@@ -394,8 +411,12 @@ def test_fal_video_uses_motion_prompt_not_raw_visual_prompt(tmp_path):
     visual_prompt whenever any structured field is present). Animating with
     text describing a different shot than what's in the frame risked Kling/
     Hailuo producing motion inconsistent with the actual image. The caller
-    now passes the SAME prompt the image was built from as motion_prompt,
-    which must take priority."""
+    now passes a caller-provided motion_prompt (see pipeline.
+    get_scene_motion_prompt — a dedicated motion prompt, not the raw
+    visual_prompt and not the still-image composition prompt either), which
+    must take priority — this test only checks that whatever motion_prompt
+    is given wins over the raw visual_prompt field, independent of how the
+    caller constructs it."""
     hero_path = tmp_path / "hero.png"
     hero_path.write_bytes(b"fake png bytes")
     fal = gateway({"video": {"url": "https://example.test/clip.mp4"}})
@@ -413,7 +434,7 @@ def test_fal_video_uses_motion_prompt_not_raw_visual_prompt(tmp_path):
     assert args["prompt"].startswith("small mascot in the bottom-left corner pointing up at a floating soap bar")
     assert "stale description" not in args["prompt"]
     assert "must not speak or lip-sync" in args["prompt"]
-    assert "movement continues smoothly until the clip ends" in args["prompt"]
+    assert "must never go completely static" in args["prompt"]
 
 
 def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):

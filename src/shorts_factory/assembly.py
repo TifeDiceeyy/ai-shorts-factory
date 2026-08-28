@@ -188,6 +188,32 @@ def build_scene_frame(
     return frame_path, box
 
 
+# User feedback 2026-08-28: narration reads a bit slow across the whole
+# video. Applied as a pitch-preserving tempo change (ffmpeg `atempo`), not a
+# raw resample (which would also raise pitch — "chipmunk" effect) and not an
+# ElevenLabs API `speed` param (fal.ai's eleven-v3 endpoint schema doesn't
+# reliably expose one, unlike some other TTS models' endpoints there).
+# `atempo` accepts 0.5-2.0 in a single filter node with no chaining needed
+# for this modest a change. Applied globally (every scene, every provider)
+# since the request was for the whole video, not one clip.
+NARRATION_SPEED_FACTOR = 1.10
+
+
+def _apply_narration_speed(path: Path, factor: float = NARRATION_SPEED_FACTOR) -> None:
+    if factor == 1.0:
+        return
+    tmp_path = path.with_suffix(".sped.wav")
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(path),
+        "-af", f"atempo={factor:.4f}",
+        "-fflags", "+bitexact", "-flags:a", "+bitexact",
+        str(tmp_path),
+    ]
+    _run(cmd)
+    tmp_path.replace(path)
+
+
 def _trim_edge_silence(path: Path) -> None:
     """Trims leading/trailing near-silence from a narration clip in place,
     leaving an 80ms buffer at each edge — NOT internal pauses (natural
@@ -228,6 +254,7 @@ def build_scene_audio(
     out_path = audio_dir / f"scene_{index:02d}.wav"
     result = tts_provider.synthesize_scene(scene, index, out_path, cost_tracker)
     _trim_edge_silence(result)
+    _apply_narration_speed(result)
     return result
 
 

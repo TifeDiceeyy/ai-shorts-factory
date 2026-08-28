@@ -283,6 +283,93 @@ def test_mascot_build_scene_prompt_split_canvas_and_centered():
     assert "clamped wooden mold" in prompt_action
 
 
+def test_build_scene_motion_prompt_forbids_repeating_bounce():
+    """User feedback 2026-08-28: the mascot should stay planted (tiny
+    breath+blink only) and never perform a repeating bounce/hop/bob — the
+    motion prompt sent to the video model must say so explicitly, for both
+    mascot scenes and object-only scenes (ingredient_grid/process_action)."""
+    m = get_mascot("mascot_4")
+
+    mascot_prompt = m.build_scene_motion_prompt(
+        scene_type="mascot", action="pointing forward", fx="green toxic chemical smoke",
+    )
+    assert "planted" in mascot_prompt
+    assert "no hopping, bobbing, squash-and-stretch, or repeating idle bounce" in mascot_prompt
+    assert "never a second bounce" in mascot_prompt
+    assert "never a repeating springy idle" in mascot_prompt
+
+    grid_prompt = m.build_scene_motion_prompt(scene_type="ingredient_grid", props="Limestone rock, Volcanic ash")
+    assert "No bounce or wobble after each item's initial pop-in" in grid_prompt
+
+
+def test_build_scene_motion_prompt_asks_for_object_fx_when_mascot_matches_a_category():
+    """When the mascot is mostly still, the frame must stay alive through
+    the PROPS/environment instead — generic keyword matching (not
+    hardcoded to any one topic), covering volcano/ash, water/drip,
+    lime/powder, and mix/slurry as explicitly named in the user's brief."""
+    m = get_mascot("mascot_4")
+
+    volcano = m.build_scene_motion_prompt(scene_type="mascot", fx="volcanic ash cloud")
+    assert "volcanic ash drifting" in volcano
+
+    water = m.build_scene_motion_prompt(scene_type="mascot", props="a dripping water jug")
+    assert "water rippling, dripping, or pouring" in water
+
+    lime = m.build_scene_motion_prompt(scene_type="mascot", props="a sack of lime powder")
+    assert "powder/dust settling" in lime
+
+    mix = m.build_scene_motion_prompt(scene_type="mascot", action="mixing the slurry with a paddle")
+    assert "mixture slowly swirling and blending" in mix
+
+    # No matching category and no props at all -> no fabricated object FX,
+    # falls back to the mascot's own subtle motion only.
+    plain = m.build_scene_motion_prompt(scene_type="mascot", action="nodding")
+    assert "keep the frame alive through the props/environment" not in plain
+
+
+def test_build_scene_motion_prompt_object_only_scenes_have_no_character():
+    """ingredient_grid/process_action scenes never show the mascot (see
+    build_scene_prompt) — the motion prompt must say so too, so the video
+    model doesn't invent one, and must describe the equipment/materials as
+    the thing carrying all the motion."""
+    m = get_mascot("mascot_4")
+    prompt = m.build_scene_motion_prompt(
+        scene_type="process_action", action="pouring thick slurry into a wooden mold",
+    )
+    assert "No character present" in prompt
+    assert "pouring thick slurry into a wooden mold" in prompt
+
+
+def test_get_scene_motion_prompt_differs_from_the_still_image_prompt():
+    """Regression test for the pipeline-wiring half of the fix: the motion
+    prompt used for ai_video generation must be a genuinely different,
+    dedicated prompt — not the still-image composition prompt reused
+    verbatim (the prior bug: reusing it produced a bouncing mascot and
+    completely frozen props, since that prompt only describes a static
+    composition)."""
+    from shorts_factory.pipeline import get_scene_image_prompt, get_scene_motion_prompt
+
+    mascot = get_mascot("mascot_4")
+    scene = {
+        "narration": "The dwarf mixes lime powder into the bubbling cauldron.",
+        "caption": "Mixing lime powder",
+        "duration": 6.0,
+        "scene_type": "mascot",
+        "mascot_role": "chemist",
+        "mascot_emotion": "focused",
+        "action": "stirring the cauldron",
+        "props": "lime powder, wooden paddle",
+        "fx": None,
+    }
+    image_prompt = get_scene_image_prompt(scene, mascot)
+    motion_prompt = get_scene_motion_prompt(scene, mascot)
+    assert motion_prompt != image_prompt
+    assert "planted" in motion_prompt
+    assert "powder/dust settling" in motion_prompt
+    # The still-image prompt never mentions the bounce/planted rules at all.
+    assert "planted" not in image_prompt
+
+
 def test_get_scene_image_prompt_carries_the_scenes_action_through():
     """Regression test: pipeline.get_scene_image_prompt() reads
     scene.get("action", "") and build_scene_prompt()'s process_action

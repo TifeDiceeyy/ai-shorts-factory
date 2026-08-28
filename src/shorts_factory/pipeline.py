@@ -103,6 +103,25 @@ def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
     return scene.get("visual_prompt", mascot.hero_prompt)
 
 
+def get_scene_motion_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
+    """Motion prompt for ai_video mode's continuous animation (Kling/
+    Hailuo) — deliberately SEPARATE from get_scene_image_prompt() (the
+    still-image composition prompt). Reusing the still-image prompt as the
+    motion source (the prior approach, see Q2 in the 2026-08-21 external
+    review) fixed a prompt/image mismatch but introduced a different bug:
+    that prompt only describes a static composition, so the video model had
+    nothing telling it what should actually move — real output showed the
+    mascot bouncing/hopping while props stayed completely frozen. See
+    mascots.Mascot.build_scene_motion_prompt()'s docstring for the fix."""
+    return mascot.build_scene_motion_prompt(
+        scene_type=scene.get("scene_type", "mascot"),
+        props=scene.get("props"),
+        fx=scene.get("fx"),
+        action=scene.get("action", ""),
+        narration=scene.get("narration", ""),
+    )
+
+
 def _hero_cache_key(mascot: Mascot, image_model: str, image_style: str) -> str:
     """Short hash covering everything that changes what the hero image
     looks like: the mascot's own hero_prompt text, the image model, and the
@@ -302,24 +321,43 @@ def run_pipeline(
 
     stage = "brief"
     try:
-        # Real runs must consume a verified citation store. Hand-authored briefs
-        # remain available only to the zero-cost Phase 0 renderer test.
+        # Real runs must consume a verified citation store OR sufficient
+        # local brain coverage. Hand-authored briefs remain available only
+        # to the zero-cost Phase 0 renderer test.
         citation_path = REPO_ROOT / "data" / topic.replace(" ", "_") / f"{topic.replace(' ', '_')}.citations.json"
         if settings.any_provider_is_real:
-            if not citation_path.exists():
-                raise FileNotFoundError(
-                    f"real generation requires verified citations at {citation_path}; run retrieve.sh first"
-                )
-            from .brief_builder import build_brief_from_citations
+            brief = None
+            # "Questions should go through brain first" — try the local,
+            # zero-cost book knowledge base before falling back to real,
+            # paid Tavily retrieval. See brain_integration.brain_covers_topic's
+            # docstring for the (real but imperfect, keyword-based) coverage
+            # heuristic; when it's wrong, this just falls through to the
+            # citations.json path below, unchanged from before.
+            from .brain_integration import brain_covers_topic, build_brief_from_brain, load_brain
 
-            citation_store = json.loads(citation_path.read_text(encoding="utf-8"))
-            brief = build_brief_from_citations(
-                topic,
-                citation_store,
-                safety_class.value,
-                caution=caution_line(topic),
-                idea=idea,
-            )
+            brain = load_brain()
+            if brain is not None:
+                covered, research = brain_covers_topic(brain, topic)
+                if covered:
+                    brief = build_brief_from_brain(
+                        topic, research, safety_class.value, caution=caution_line(topic), idea=idea,
+                    )
+            if brief is None:
+                if not citation_path.exists():
+                    raise FileNotFoundError(
+                        f"real generation requires verified citations at {citation_path} "
+                        "(brain coverage was insufficient for this topic); run retrieve.sh first"
+                    )
+                from .brief_builder import build_brief_from_citations
+
+                citation_store = json.loads(citation_path.read_text(encoding="utf-8"))
+                brief = build_brief_from_citations(
+                    topic,
+                    citation_store,
+                    safety_class.value,
+                    caution=caution_line(topic),
+                    idea=idea,
+                )
         else:
             brief_path = REPO_ROOT / "data" / topic / f"{topic}.brief.json"
             brief = json.loads(brief_path.read_text(encoding="utf-8"))
@@ -554,11 +592,11 @@ def run_pipeline(
                     settings.video_cost_per_second_usd,
                     gateway=worker_gateway,
                 )
-                # Same prompt the base image was actually built from — not
-                # scene["visual_prompt"] (see providers/video.py's docstring
-                # on why animating with that raw, separate field risks
-                # describing a different shot than what's in the frame).
-                motion_prompt = get_scene_image_prompt(scene, mascot)
+                # A dedicated MOTION prompt, not the still-image composition
+                # prompt (get_scene_image_prompt) — see get_scene_motion_prompt's
+                # docstring: reusing the image prompt as the motion source
+                # produced a bouncing mascot and completely frozen props.
+                motion_prompt = get_scene_motion_prompt(scene, mascot)
                 return _render_scene_clips(
                     worker_provider, scene, base_image_paths[i], scene_audio[i].duration,
                     i, generated_dir, cost_tracker, motion_prompt,
@@ -822,7 +860,9 @@ def regenerate_scene(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )
 
-            motion_prompt = get_scene_image_prompt(scene, mascot)
+            # A dedicated MOTION prompt, not the still-image composition
+            # prompt — see get_scene_motion_prompt's docstring.
+            motion_prompt = get_scene_motion_prompt(scene, mascot)
             clip_paths = _render_scene_clips(
                 video_provider, scene, base_image_path, new_duration,
                 scene_index, generated_dir, cost_tracker, motion_prompt,
