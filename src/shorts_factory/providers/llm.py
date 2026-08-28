@@ -446,8 +446,14 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         " Write every narration line the way a real person would SAY it out loud to a friend, not the way "
         "a textbook would print it. Short sentences. Contractions. No dense multi-clause chemistry-textbook "
         "sentences (e.g. avoid constructions like 'X, a strong base, does Y to the Z holding W together in "
-        "V' — say it as two short plain sentences instead). Still 100% bound to the supplied claims; "
-        "rephrase for how it sounds spoken, never add or soften the underlying fact."
+        "V' — say it as two short plain sentences instead). "
+        "HIGH ENERGY, not flat or monotone: write with real excitement and urgency, like a creator who's "
+        "genuinely hyped to show you this, not a narrator reading a report. Favor short punchy exclamations "
+        "and curiosity-driving phrasing ('Here's the wild part —', 'This is where it gets crazy —', 'You "
+        "will not believe this —') over neutral, even-toned statements. Vary sentence rhythm — mix quick "
+        "punchy fragments with normal sentences, don't let every line fall into the same flat cadence. "
+        "Still 100% bound to the supplied claims; rephrase for energy and how it sounds spoken, never add "
+        "or soften the underlying fact."
     )
     visual_instruction = (
         " SCENE-ADAPTIVE MASCOT & STORYBOARD ENGINE: "

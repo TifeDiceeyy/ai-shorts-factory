@@ -71,6 +71,81 @@ def test_pop_in_produces_visible_size_change_then_holds_steady(tmp_path):
     )
 
 
+def _max_channel_diff(a: Image.Image, b: Image.Image) -> int:
+    from PIL import ImageStat
+    stat = ImageStat.Stat(ImageChops.difference(a, b))
+    return max(hi for _lo, hi in stat.extrema)
+
+
+def test_pop_in_repeats_at_every_caption_cue_start_not_just_once(tmp_path):
+    """Editing-rhythm fix: a scene with multiple caption cues must re-pop
+    the image at each cue's start, not hold one static pop-in for the whole
+    scene (the prior behavior — ~1 picture/pose change per 6.5s vs. a real
+    reference short's ~1 per 2.8s).
+
+    Chaining concat+setpts+multiple sequential overlay stages (needed for
+    the per-cue caption punch, see _append_caption_cue_stage) introduces a
+    real but small (~4 output frame / ~0.13s) ffmpeg filtergraph latency
+    before a new cue's pop visibly appears — confirmed directly against
+    this exact segment by decoding every frame and diffing against a known
+    rest-state reference (real pop: max per-channel delta 200+; encoder
+    noise on an otherwise-static region: max delta 1-2). So instead of
+    asserting an exact single instant, scan a window around each cue
+    boundary and require a real (not noise-level) content change somewhere
+    in it — proving the pop re-fires without over-fitting to an exact,
+    ffmpeg-internals-dependent frame offset."""
+    img = _still_image(tmp_path)
+    narration = "one two three four five six seven eight nine ten eleven twelve"
+    overlays, _box = assembly.build_timed_caption_overlays(narration, 6.0)
+    assert len(overlays) >= 3, "test needs multiple cues to prove the pop repeats"
+    seg = assembly.build_scene_video_segment_from_still(
+        img, 6.0, 0, tmp_path / "segments", timed_caption_overlays=overlays
+    )
+
+    region = (0, FRAME_HEIGHT // 2, FRAME_WIDTH, FRAME_HEIGHT)
+    real_change_threshold = 50  # well above the 1-2 unit encoder noise floor, well below a real ~210 pop delta
+    for cue, next_cue in zip(overlays, overlays[1:]):
+        settled = _frame_at(seg, cue.start + 0.55, tmp_path / f"settled_{cue.start:.2f}.png").crop(region)
+        sampled_diffs = []
+        for offset in (0.03, 0.08, 0.13, 0.18, 0.23, 0.28):
+            frame = _frame_at(
+                seg, next_cue.start + offset, tmp_path / f"popped_{next_cue.start:.2f}_{offset:.2f}.png"
+            ).crop(region)
+            sampled_diffs.append(_max_channel_diff(settled, frame))
+        assert max(sampled_diffs) >= real_change_threshold, (
+            f"expected a fresh pop-in visible somewhere in the first ~0.3s after cue start "
+            f"{next_cue.start:.2f}s, but every sampled frame stayed within encoder noise of the "
+            f"previous cue's settled frame (max delta {max(sampled_diffs)}) — the pop only fired once"
+        )
+
+
+def test_caption_overlay_scale_punches_at_its_own_cue_start(tmp_path):
+    """Each caption cue must visibly grow/shrink (a "pop") right as it
+    appears, not just snap straight to full size and hold static — the
+    caption-side half of the editing-rhythm fix (the image side is covered
+    by test_pop_in_repeats_at_every_caption_cue_start_not_just_once).
+    Sampled right after the SECOND cue's start so a possible leftover
+    scale from the first cue's own pop can't be mistaken for it."""
+    img = _still_image(tmp_path)
+    narration = "one two three four five six seven eight nine ten eleven twelve"
+    overlays, _box = assembly.build_timed_caption_overlays(narration, 6.0)
+    assert len(overlays) >= 2, "test needs a second cue to sample its own pop in isolation"
+    seg = assembly.build_scene_video_segment_from_still(
+        img, 6.0, 0, tmp_path / "segments", timed_caption_overlays=overlays
+    )
+    cue = overlays[1]
+    pad = 60
+    region = (
+        max(0, cue.box.left - pad), max(0, cue.box.top - pad),
+        min(FRAME_WIDTH, cue.box.right + pad), min(FRAME_HEIGHT, cue.box.bottom + pad),
+    )
+    just_popped = _frame_at(seg, cue.start + 0.03, tmp_path / "cap_just_popped.png")
+    settled = _frame_at(seg, cue.start + 0.5, tmp_path / "cap_settled.png")
+    assert ImageChops.difference(just_popped.crop(region), settled.crop(region)).getbbox() is not None, (
+        "expected the caption to visibly scale-punch right at its cue start, not appear already settled"
+    )
+
+
 def test_output_duration_matches_requested_duration(tmp_path):
     img = _still_image(tmp_path)
     overlays, _box = assembly.build_timed_caption_overlays("short narration here", 3.25)
@@ -155,3 +230,73 @@ def test_sticker_mode_is_the_default_when_image_is_real_and_costs_no_video_spend
     assert result.verification is not None
     assert result.cost_report is not None
     assert all(e["provider"] != "fake_vid" for e in result.cost_report["entries"])
+
+
+def test_subscribe_cta_composited_only_onto_final_cue_overlay(tmp_path):
+    """subscribe_cta_text (unlike caution_text) must land on the LAST cue's
+    overlay only — it's an end-of-video call to action, not a repeated
+    badge. Build the same narration/duration with and without a CTA and
+    diff every cue: every cue except the last must be pixel-identical."""
+    narration = "This is a longer sentence with several distinct words to caption across many cues."
+    duration = 8.0
+    baseline_overlays, _ = assembly.build_timed_caption_overlays(narration, duration)
+    cta_overlays, _ = assembly.build_timed_caption_overlays(
+        narration, duration, subscribe_cta_text="SUBSCRIBE!"
+    )
+    assert len(baseline_overlays) == len(cta_overlays)
+    assert len(baseline_overlays) >= 2, "test needs multiple cues to prove the CTA isn't applied to all of them"
+
+    for i in range(len(baseline_overlays) - 1):
+        assert ImageChops.difference(baseline_overlays[i].image, cta_overlays[i].image).getbbox() is None, (
+            f"cue {i} (not the last cue) must be unaffected by subscribe_cta_text"
+        )
+    assert ImageChops.difference(baseline_overlays[-1].image, cta_overlays[-1].image).getbbox() is not None, (
+        "the last cue must visibly differ once the CTA is composited onto it"
+    )
+
+
+def test_subscribe_cta_appears_near_the_end_of_the_assembled_video_not_earlier(tmp_path):
+    """End-to-end proof through assemble_stickers: a frame near the very end
+    of the final video shows the red CTA text, an early frame from the same
+    scene does not."""
+    from shorts_factory.providers.tts import StubTTSProvider
+    from shorts_factory.cost_tracker import CostTracker
+
+    scenes = [
+        {"narration": "Could you make a metal tool from scratch right now today?", "caption": "Could you?", "duration": 4.0},
+        {"narration": "Ancient humans used smelting to purify raw ore into metal.", "caption": "Smelting!", "duration": 4.0},
+    ]
+    tracker = CostTracker(budget_cap_usd=1.0)
+    audio = assembly.synthesize_scenes(StubTTSProvider(), scenes, tmp_path / "audio", tracker)
+
+    img = _still_image(tmp_path, color=(200, 100, 50))
+
+    def image_source(i, scene):
+        return img
+
+    out_mp4 = tmp_path / "out.mp4"
+    assembly.assemble_stickers(
+        scenes, image_source, audio, tmp_path / "work", out_mp4,
+        caption_style="comic_punch_orange", subscribe_cta_text="SUBSCRIBE!",
+    )
+
+    total_duration = assembly.probe_duration(out_mp4)
+    late_frame = _frame_at(out_mp4, max(0.0, total_duration - 0.3), tmp_path / "f_late.png")
+    early_frame = _frame_at(out_mp4, 0.5, tmp_path / "f_early.png")
+
+    # SUBSCRIBE_CTA_STYLE is bright red (255, 45, 45) text near the bottom —
+    # look for a strong-red pixel cluster in the bottom third only.
+    bottom = (0, int(FRAME_HEIGHT * 0.66), FRAME_WIDTH, FRAME_HEIGHT)
+
+    def has_strong_red(frame: Image.Image) -> bool:
+        region = frame.crop(bottom)
+        px = region.load()
+        for y in range(0, region.height, 4):
+            for x in range(0, region.width, 4):
+                r, g, b = px[x, y]
+                if r > 180 and g < 110 and b < 110:
+                    return True
+        return False
+
+    assert has_strong_red(late_frame), "expected the red SUBSCRIBE CTA near the end of the video"
+    assert not has_strong_red(early_frame), "the CTA must not appear on an early frame"

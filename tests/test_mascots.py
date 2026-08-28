@@ -325,7 +325,7 @@ def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     # Mock assembly.assemble to avoid needing external ffmpeg in quick unit tests
     from shorts_factory import assembly
 
-    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None, caution_text=None):
+    def fake_assemble(scenes, frame_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, subscribe_cta_text=None):
         out_mp4.parent.mkdir(parents=True, exist_ok=True)
         out_mp4.write_bytes(b"dummy_mp4")
         return {"caption_boxes": []}

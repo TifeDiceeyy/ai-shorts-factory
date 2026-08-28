@@ -571,3 +571,35 @@ def caution_badge_overlay_png(text: str) -> Image.Image:
     for compositing onto an animated video clip via ffmpeg's overlay filter."""
     overlay, _box = _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=CAUTION_BADGE_STYLE)
     return overlay
+
+
+SUBSCRIBE_CTA_STYLE = CaptionStyle(
+    name="subscribe_cta",
+    font_family="impact",
+    font_size=58,
+    text_color=(255, 45, 45, 255),   # bright red, standard "subscribe" urgency color
+    stroke_color=(255, 255, 255, 255),
+    stroke_width=8,
+    casing="upper",
+    position="bottom",
+    shadow=True,
+)
+
+
+def subscribe_cta_overlay_png(text: str = "SUBSCRIBE!") -> Image.Image:
+    """A bold end-of-video Subscribe call-to-action, as a standalone
+    transparent RGBA layer — same compositing pattern as
+    caution_badge_overlay_png(), meant for the LAST scene's final seconds
+    only (see assemble()/assemble_stickers()/assemble_animated()'s
+    subscribe_cta_text param)."""
+    overlay, _box = _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=SUBSCRIBE_CTA_STYLE)
+    return overlay
+
+
+def draw_subscribe_cta(base: Image.Image, text: str = "SUBSCRIBE!") -> Image.Image:
+    """Same role as draw_caution_badge() but for the Subscribe CTA — used by
+    the static assemble() path (which draws directly onto a PIL frame,
+    unlike the timed-overlay paths)."""
+    img = base.convert("RGBA")
+    overlay, _box = _build_caption_overlay(img.size, text, style=SUBSCRIBE_CTA_STYLE)
+    return Image.alpha_composite(img, overlay).convert("RGB")

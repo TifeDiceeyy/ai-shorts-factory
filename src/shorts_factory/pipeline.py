@@ -30,6 +30,10 @@ from .schema_validate import ValidationError, validate_brief, validate_script_ag
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# Composited onto only the last scene's final cue — see
+# assembly.build_timed_caption_overlays' subscribe_cta_text docstring.
+SUBSCRIBE_CTA_TEXT = "SUBSCRIBE!"
+
 
 class PipelineResult:
     def __init__(self):
@@ -498,6 +502,7 @@ def run_pipeline(
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
+                subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
             )
         elif ai_video_mode:
             video_provider = get_video_provider(
@@ -582,6 +587,7 @@ def run_pipeline(
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
+                subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
                 image_source=lambda i, _scene: base_image_paths[i],
             )
         else:
@@ -604,6 +610,7 @@ def run_pipeline(
                 out_mp4=final_mp4,
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
+                subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
             )
         captions_meta = artifacts_dir / "captions.meta.json"
         assembly.write_captions_meta(

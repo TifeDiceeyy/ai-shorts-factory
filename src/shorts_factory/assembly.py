@@ -26,6 +26,8 @@ from .captions import (
     caution_badge_overlay_png,
     draw_caption,
     draw_caution_badge,
+    draw_subscribe_cta,
+    subscribe_cta_overlay_png,
 )
 from .cost_tracker import CostTracker
 from .media_probe import probe_duration
@@ -144,7 +146,12 @@ def build_timed_caption_overlays(
     duration: float,
     caption_style: str | None = None,
     caution_text: str | None = None,
+    subscribe_cta_text: str | None = None,
 ) -> tuple[list[TimedCaptionOverlay], CaptionBox]:
+    """subscribe_cta_text, unlike caution_text, is composited onto only the
+    LAST cue's overlay (not every cue) — it's an end-of-video call to
+    action, meant to appear once in the closing seconds, not repeated
+    across a whole scene."""
     overlays: list[TimedCaptionOverlay] = []
     for cue in narration_caption_cues(narration, duration):
         image, box = caption_overlay_png(cue.text, style=caption_style)
@@ -154,6 +161,10 @@ def build_timed_caption_overlays(
     if not overlays:
         image, box = caption_overlay_png("…", style=caption_style)
         overlays.append(TimedCaptionOverlay(image=image, start=0.0, end=duration, box=box))
+    if subscribe_cta_text:
+        last = overlays[-1]
+        composited = Image.alpha_composite(last.image, subscribe_cta_overlay_png(subscribe_cta_text))
+        overlays[-1] = TimedCaptionOverlay(image=composited, start=last.start, end=last.end, box=last.box)
     union_box = CaptionBox(
         left=min(item.box.left for item in overlays),
         top=min(item.box.top for item in overlays),
@@ -465,21 +476,22 @@ def build_scene_video_segment_from_clip(
     else:
         base_filter = motion_filters[0].replace(f"[{motion_labels[0]}]", "[base0]")
 
-    overlay_input_offset = clips_used
-    for overlay_path in overlay_paths:
-        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
-    overlay_filters = []
+    next_input_index = clips_used
+    filters = [base_filter]
     prior_label = "base0"
-    for cue_index, timed in enumerate(timed_caption_overlays):
+    for cue_index, (timed, overlay_path) in enumerate(zip(timed_caption_overlays, overlay_paths)):
+        cue_label, next_input_index = _append_caption_cue_stage(
+            cmd, filters, cue_index, timed, overlay_path, segments_dir, index, next_input_index
+        )
         out_label = f"captioned{cue_index}"
-        overlay_filters.append(
-            f"[{prior_label}][{cue_index + overlay_input_offset}:v]overlay=0:0:"
+        filters.append(
+            f"[{prior_label}][{cue_label}]overlay=0:0:"
             f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
         )
         prior_label = out_label
 
     cmd.extend([
-        "-filter_complex", ";".join([base_filter, *overlay_filters]),
+        "-filter_complex", ";".join(filters),
         "-map", f"[{prior_label}]",
         "-t", f"{duration:.3f}",
         "-r", str(FPS),
@@ -523,6 +535,157 @@ def _pop_in_zoom_expr() -> str:
     )
 
 
+def _repeating_pop_in_zoom_expr(cue_starts: list[float]) -> str:
+    """Same overshoot-then-settle scale-bounce curve as _pop_in_zoom_expr(),
+    re-triggered at every caption cue's start time instead of only once at
+    t=0 — this is what turns a single scene-long static hold into a "new
+    picture/pose beat" every 2-3s (matching a real reference short's editing
+    rhythm — ~1 picture/pose change per 2.8s, vs. this pipeline's prior
+    ~1 per 6.5s) without generating any additional images. Falls back to the
+    single-pop expression when there's only one cue (the common short-scene
+    case), so scenes with one cue render byte-identically to before this
+    change."""
+    if len(cue_starts) <= 1:
+        return _pop_in_zoom_expr()
+    up_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_START_SCALE) / POP_IN_UP_FRAMES
+    settle_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_REST_SCALE) / (POP_IN_SETTLE_FRAMES - POP_IN_UP_FRAMES)
+    expr = str(POP_IN_REST_SCALE)
+    # Build outward from the earliest cue so the LAST-processed (largest)
+    # start ends up as the outermost/first-checked condition — at any given
+    # frame we want the window belonging to the most recent cue whose start
+    # has already passed, not the first one that happens to match.
+    for start in sorted(cue_starts):
+        f0 = round(start * FPS)
+        window = (
+            f"if(lt(on-{f0},{POP_IN_UP_FRAMES}),{POP_IN_START_SCALE}+{up_slope}*(on-{f0}),"
+            f"if(lt(on-{f0},{POP_IN_SETTLE_FRAMES}),{POP_IN_OVERSHOOT_SCALE}-{settle_slope}*(on-{f0}-{POP_IN_UP_FRAMES}),"
+            f"{POP_IN_REST_SCALE}))"
+        )
+        expr = f"if(gte(on,{f0}),{window},{expr})"
+    return expr
+
+
+# Per-cue caption scale-punch: each caption cue briefly overshoots-then-
+# settles (same curve as the image pop-in) so captions read as "popping"
+# stickers rather than static karaoke text. Rendered as pre-baked PIL frames,
+# NOT an ffmpeg zoompan expression — a live test proved zoompan's crop
+# window clamps once the requested zoom-out exceeds the source's available
+# margin toward whichever edge the anchor is closer to, and this pipeline's
+# captions default to position="top" (close to the top edge), so the
+# effective anchor silently shifted and the caption visibly drifted down as
+# it scaled. Plain PIL resize+paste has no such source-bounds restriction:
+# verified directly (a top-positioned caption's alpha-bbox center moved by
+# <2px across the full 0.70x-1.12x scale range).
+CAPTION_PUNCH_FRAMES = POP_IN_SETTLE_FRAMES
+CAPTION_PUNCH_SECONDS = CAPTION_PUNCH_FRAMES / FPS
+# Below this cue length there isn't enough time left after the punch for a
+# meaningful hold — fall back to the plain static overlay instead.
+CAPTION_PUNCH_MIN_CUE_SECONDS = 0.45
+# Crop margin around the caption's own box so the overshoot scale (1.12x)
+# doesn't clip glyphs at the crop edge.
+CAPTION_PUNCH_CROP_MARGIN = 1.5
+
+
+def _pop_scale_at_frame(frame_idx: int) -> float:
+    if frame_idx < POP_IN_UP_FRAMES:
+        return POP_IN_START_SCALE + (POP_IN_OVERSHOOT_SCALE - POP_IN_START_SCALE) * frame_idx / POP_IN_UP_FRAMES
+    settled = frame_idx - POP_IN_UP_FRAMES
+    return POP_IN_OVERSHOOT_SCALE - (POP_IN_OVERSHOOT_SCALE - POP_IN_REST_SCALE) * settled / (
+        POP_IN_SETTLE_FRAMES - POP_IN_UP_FRAMES
+    )
+
+
+def _caption_punch_frame_paths(overlay_image: Image.Image, box: CaptionBox, out_dir: Path, prefix: str) -> list[Path]:
+    """CAPTION_PUNCH_FRAMES full-canvas frames, each identical to
+    overlay_image except a crop around `box` (the caption's own bounding
+    box — NOT the whole canvas) is resized/re-pasted anchored on its own
+    center. Scaling only that crop, against a base canvas that's otherwise
+    an exact copy of overlay_image, means any unrelated content already
+    baked into overlay_image elsewhere (e.g. the last scene's Subscribe CTA,
+    which is composited near the bottom regardless of where the caption
+    itself sits) is carried over untouched rather than being dragged along
+    by the caption's own scale/anchor."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cx = (box.left + box.right) / 2
+    cy = (box.top + box.bottom) / 2
+    half_w = (box.right - box.left) / 2 * CAPTION_PUNCH_CROP_MARGIN
+    half_h = (box.bottom - box.top) / 2 * CAPTION_PUNCH_CROP_MARGIN
+    crop_box = (
+        max(0, round(cx - half_w)), max(0, round(cy - half_h)),
+        min(overlay_image.width, round(cx + half_w)), min(overlay_image.height, round(cy + half_h)),
+    )
+    crop = overlay_image.crop(crop_box)
+    crop_cx = cx - crop_box[0]
+    crop_cy = cy - crop_box[1]
+    crop_w = crop_box[2] - crop_box[0]
+    crop_h = crop_box[3] - crop_box[1]
+
+    paths: list[Path] = []
+    for frame_idx in range(CAPTION_PUNCH_FRAMES):
+        scale = _pop_scale_at_frame(frame_idx)
+        new_w = max(1, round(crop.width * scale))
+        new_h = max(1, round(crop.height * scale))
+        resized = crop.resize((new_w, new_h), Image.LANCZOS)
+        canvas = overlay_image.copy()
+        # Clear the original (unscaled) crop region first — otherwise a
+        # smaller (scale<1) resized paste leaves the original larger content
+        # still visible underneath around its edges (ghosting).
+        canvas.paste(Image.new("RGBA", (crop_w, crop_h), (0, 0, 0, 0)), (crop_box[0], crop_box[1]))
+        paste_x = round(crop_box[0] + crop_cx - crop_cx * scale)
+        paste_y = round(crop_box[1] + crop_cy - crop_cy * scale)
+        canvas.paste(resized, (paste_x, paste_y), resized)
+        path = out_dir / f"{prefix}_{frame_idx:03d}.png"
+        canvas.save(path)
+        paths.append(path)
+    return paths
+
+
+def _append_caption_cue_stage(
+    cmd: list[str],
+    filters: list[str],
+    cue_index: int,
+    timed: TimedCaptionOverlay,
+    overlay_path: Path,
+    segments_dir: Path,
+    index: int,
+    next_input_index: int,
+) -> tuple[str, int]:
+    """Appends the ffmpeg input(s) and filter stage that produce one caption
+    cue's own video branch (a scale-punch prefix + static hold, or a plain
+    static branch for cues too short to punch) — shared by
+    build_scene_video_segment_from_still and build_scene_video_segment_from_clip,
+    which otherwise have separate overlay-compositing loops. Returns
+    (output_label, next_input_index) for the caller to overlay onto its main
+    composite and keep tracking ffmpeg's positional input indices."""
+    label = f"cue{cue_index}"
+    cue_duration = timed.end - timed.start
+
+    if cue_duration < CAPTION_PUNCH_MIN_CUE_SECONDS:
+        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
+        filters.append(f"[{next_input_index}:v]format=rgba[{label}]")
+        return label, next_input_index + 1
+
+    punch_dir = segments_dir / "caption_punches"
+    prefix = f"punch_{index:02d}_{cue_index:02d}"
+    _caption_punch_frame_paths(timed.image, timed.box, punch_dir, prefix)
+    punch_pattern = punch_dir / f"{prefix}_%03d.png"
+
+    cmd.extend(["-framerate", str(FPS), "-i", str(punch_pattern)])
+    punch_input_index = next_input_index
+    next_input_index += 1
+    cmd.extend(["-loop", "1", "-i", str(overlay_path)])
+    hold_input_index = next_input_index
+    next_input_index += 1
+
+    hold_duration = max(0.0, cue_duration - CAPTION_PUNCH_SECONDS)
+    filters.append(f"[{punch_input_index}:v]format=rgba[{label}_punch]")
+    filters.append(f"[{hold_input_index}:v]format=rgba,trim=duration={hold_duration:.3f}[{label}_hold]")
+    filters.append(
+        f"[{label}_punch][{label}_hold]concat=n=2:v=1:a=0,setpts=PTS+{timed.start:.3f}/TB[{label}]"
+    )
+    return label, next_input_index
+
+
 def build_scene_video_segment_from_still(
     image_path: Path,
     duration: float,
@@ -548,30 +711,34 @@ def build_scene_video_segment_from_still(
 
     oversized_w = round(FRAME_WIDTH * STICKER_HEADROOM)
     oversized_h = round(FRAME_HEIGHT * STICKER_HEADROOM)
+    cue_starts = [timed.start for timed in timed_caption_overlays]
     base_filter = (
         f"[0:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
-        f"zoompan=z='{_pop_in_zoom_expr()}':"
+        f"zoompan=z='{_repeating_pop_in_zoom_expr(cue_starts)}':"
         "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
     )
-    overlay_filters = []
-    prior_label = "base0"
-    for cue_index, timed in enumerate(timed_caption_overlays):
-        out_label = f"captioned{cue_index}"
-        overlay_filters.append(
-            f"[{prior_label}][{cue_index + 1}:v]overlay=0:0:"
-            f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
-        )
-        prior_label = out_label
 
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-loop", "1", "-framerate", str(FPS), "-i", str(image_path),
     ]
-    for overlay_path in overlay_paths:
-        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
+    next_input_index = 1
+    filters = [base_filter]
+    prior_label = "base0"
+    for cue_index, (timed, overlay_path) in enumerate(zip(timed_caption_overlays, overlay_paths)):
+        cue_label, next_input_index = _append_caption_cue_stage(
+            cmd, filters, cue_index, timed, overlay_path, segments_dir, index, next_input_index
+        )
+        out_label = f"captioned{cue_index}"
+        filters.append(
+            f"[{prior_label}][{cue_label}]overlay=0:0:"
+            f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
+        )
+        prior_label = out_label
+
     cmd.extend([
-        "-filter_complex", ";".join([base_filter, *overlay_filters]),
+        "-filter_complex", ";".join(filters),
         "-map", f"[{prior_label}]",
         "-t", f"{duration:.3f}",
         "-r", str(FPS),
@@ -593,6 +760,7 @@ def assemble_stickers(
     out_mp4: Path,
     caption_style: str | None = None,
     caution_text: str | None = None,
+    subscribe_cta_text: str | None = None,
 ) -> dict[str, Any]:
     """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
     image_source(index, scene) -> that scene's already-generated still image
@@ -615,6 +783,7 @@ def assemble_stickers(
             audio[i].duration,
             caption_style=caption_style,
             caution_text=caution_text if i == len(scenes) - 1 else None,
+            subscribe_cta_text=subscribe_cta_text if i == len(scenes) - 1 else None,
         )
         caption_boxes.append(box)
 
@@ -834,6 +1003,7 @@ def assemble(
     out_mp4: Path,
     caption_style: str | None = None,
     caution_text: str | None = None,
+    subscribe_cta_text: str | None = None,
 ) -> dict[str, Any]:
     """Runs the full assembly for one stage (placeholder or generated-image).
     frame_source(index, scene) -> a base PIL Image (pre-caption) for that scene.
@@ -867,6 +1037,9 @@ def assemble(
         if caution_text and i == len(scenes) - 1:
             badged = draw_caution_badge(Image.open(frame_path), caution_text)
             badged.save(frame_path)
+        if subscribe_cta_text and i == len(scenes) - 1:
+            cta_frame = draw_subscribe_cta(Image.open(frame_path), subscribe_cta_text)
+            cta_frame.save(frame_path)
         frame_paths.append(frame_path)
         caption_boxes.append(box)
 
@@ -890,6 +1063,7 @@ def assemble_animated(
     caption_style: str | None = None,
     caution_text: str | None = None,
     image_source: Callable[[int, dict[str, Any]], Path] | None = None,
+    subscribe_cta_text: str | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
     an ordered list of one or more raw, uncaptioned animated clip paths for
@@ -921,6 +1095,7 @@ def assemble_animated(
             audio[i].duration,
             caption_style=caption_style,
             caution_text=caution_text if i == len(scenes) - 1 else None,
+            subscribe_cta_text=subscribe_cta_text if i == len(scenes) - 1 else None,
         )
         caption_boxes.append(box)
 
