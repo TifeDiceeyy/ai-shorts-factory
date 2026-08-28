@@ -71,6 +71,7 @@ class Mascot:
                 f"photoreal or 3D-render textures, no glossy CGI materials. Clean isolated cartoon-sticker icons "
                 f"displaying: {items_str}. Each item is cleanly isolated, flat-shaded, simplified — an "
                 f"illustrated icon, not a rendered photograph. "
+                f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — objects only. "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
                 f"No text or labels rendered directly on the image."
             )
@@ -83,6 +84,8 @@ class Mascot:
                 f"Close-up isolated physical action, illustrated as a cartoon: {action or props or 'pouring mixture into mold'}. "
                 f"Simplified flat-shaded materials and stylized illustrated motion lines, not realistic liquid "
                 f"physics or photoreal rendering. "
+                f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — the "
+                f"equipment/materials act entirely on their own, as if operated by an invisible presence. "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, clean sticker framing. "
                 f"No text or labels rendered directly on the image."
             )
