@@ -225,6 +225,29 @@ def test_select_mascot_for_story_reuses_a_previously_generated_custom_mascot(tmp
     assert found.id == mascot_id
 
 
+def test_build_scene_prompt_expands_fear_emotions_into_a_vivid_expression():
+    """Real gap found 2026-08-29: a bare 'Emotion: alarmed.' label
+    under-rendered with the image model — a real generated frame's mascot
+    didn't read as scared despite the script correctly asking for it.
+    Fear/danger/shock emotion words must expand into an explicit physical
+    expression description instead of passing the bare adjective through."""
+    m = get_mascot("mascot_4")
+
+    centered = m.build_scene_prompt(emotion="alarmed", layout="centered")
+    assert "Emotion: alarmed." not in centered
+    assert "wide terrified eyes" in centered
+
+    split = m.build_scene_prompt(emotion="scared", layout="split_bottom_left", props="a rock")
+    assert "wide terrified eyes" in split
+
+
+def test_build_scene_prompt_leaves_non_fear_emotions_unchanged():
+    m = get_mascot("mascot_4")
+    centered = m.build_scene_prompt(emotion="proud", layout="centered")
+    assert "Emotion: proud." in centered
+    assert "wide terrified eyes" not in centered
+
+
 def test_mascot_build_scene_prompt_split_canvas_and_centered():
     m = get_mascot("mascot_4")
 
@@ -314,6 +337,22 @@ def test_build_scene_motion_prompt_asks_for_object_fx_when_mascot_matches_a_cate
     # falls back to the mascot's own subtle motion only.
     plain = m.build_scene_motion_prompt(scene_type="mascot", action="nodding")
     assert "keep the frame alive through the props/environment" not in plain
+
+
+def test_object_fx_style_for_distinguishes_flicker_from_drift():
+    """New 2026-08-29 for the sticker-mode localized object-pulse feature:
+    fire/spark categories get "flicker" (brightness alone is a reasonable
+    fire metaphor); smoke/steam/water/dust/mix categories get "drift" (a
+    real position-offset animation) since flat brightness oscillation
+    doesn't read as "moving" for those — a real gap flagged by the user
+    watching a bubbling-cauldron scene."""
+    from shorts_factory.mascots import object_fx_style_for
+
+    assert object_fx_style_for("the fire crackles") == "flicker"
+    assert object_fx_style_for("sparks fly everywhere") == "flicker"
+    assert object_fx_style_for("steam rises from the pot") == "drift"
+    assert object_fx_style_for("water drips steadily") == "drift"
+    assert object_fx_style_for("nothing relevant here") is None
 
 
 def test_build_scene_motion_prompt_object_only_scenes_have_no_character():

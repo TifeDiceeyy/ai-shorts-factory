@@ -1,12 +1,12 @@
 """Localized object animation — user request 2026-08-29: when a scene's
 narration names an object (fire, water, steam, etc. — see
 mascots.OBJECT_FX_KEYWORDS), it should visibly animate starting at that
-exact moment, not sit static for the whole scene. Scoped to
-process_action/ingredient_grid/split_canvas scenes only (see
-assembly.py's module comment above build_scene_video_segment_from_still
-for why plain mascot scenes are excluded — no real object segmentation
-exists in this codebase, so isolating "the FX" from "the character" in
-one flat image isn't reliable)."""
+exact moment, not sit static for the whole scene. Applies to
+process_action/ingredient_grid/split_canvas/mascot/mascot_reaction scenes
+(mascot/mascot_reaction scenes exclude a centered box around the character
+— see assembly._mascot_exclusion_region — since there's no real object
+segmentation in this codebase to isolate "the FX" from "the character"
+any other way)."""
 from pathlib import Path
 
 import pytest
@@ -114,13 +114,110 @@ def test_narrated_object_cue_start_none_when_no_keyword_matches(tmp_path):
     assert start is None
 
 
-def test_narrated_object_cue_start_none_for_mascot_scene_types(tmp_path):
-    """Scope guard: even with an obvious keyword match, mascot-present
-    scene types must never trigger this — no real way to isolate the FX
-    from the character in one flat image without segmentation."""
+def test_narrated_object_cue_start_matches_for_mascot_scene_types(tmp_path):
+    """Extended 2026-08-29 (Part C): mascot-present scenes now animate too
+    — the FX/prop around the character, not the character itself (see
+    _mascot_exclusion_region) — per direct user feedback that a mascot
+    scene's glowing prop shouldn't be excluded outright."""
     narration = "The fire crackles as the metal begins to glow."
     for scene_type in ("mascot", "mascot_reaction"):
-        assert assembly._narrated_object_cue_start(narration, 6.0, scene_type) is None
+        start = assembly._narrated_object_cue_start(narration, 6.0, scene_type)
+        assert start is not None
+
+
+def test_narrated_object_cue_style_matches_the_same_cues_category(tmp_path):
+    fire_style = assembly._narrated_object_cue_style(
+        "The fire crackles as the metal begins to glow.", 6.0, "process_action",
+    )
+    assert fire_style == "flicker"
+    steam_style = assembly._narrated_object_cue_style(
+        "Watch as steam rises steadily from the pot.", 6.0, "process_action",
+    )
+    assert steam_style == "drift"
+
+
+def test_mascot_scene_object_fx_falls_back_to_props_and_fx_fields(tmp_path):
+    """Real gap found 2026-08-29 against the actual furnace script: a
+    mascot_reaction scene had props="tongs, molten iron blob",
+    fx="red glow", mascot_emotion="alarmed", but its narration never
+    mentioned fire/glow at all ("...can have way too much carbon..."), so
+    the narration-cue mechanism alone would never trigger. The scene-level
+    fallback must catch this via fx/props/action instead, starting at t=0
+    since the prop is visible in the image from frame one."""
+    scene = {
+        "narration": "But here's the catch: the iron can have way too much carbon, up to 4.5 percent!",
+        "action": "holding up molten iron with tongs, looking concerned",
+        "props": "tongs, molten iron blob",
+        "fx": "red glow",
+        "scene_type": "mascot_reaction",
+    }
+    assert assembly._narrated_object_cue_start(scene["narration"], 7.0, "mascot_reaction") is None
+    result = assembly._scene_object_fx(scene)
+    assert result is not None
+    start, style = result
+    assert start == 0.0
+    assert style == "flicker"
+
+
+def test_mascot_scene_object_fx_none_when_nothing_matches(tmp_path):
+    scene = {
+        "narration": "Civilization grew stronger with every discovery.",
+        "action": "gesturing proudly",
+        "props": "",
+        "fx": "",
+        "scene_type": "mascot_reaction",
+    }
+    assert assembly._scene_object_fx(scene) is None
+
+
+def test_scene_object_fx_wins_over_a_conflicting_narration_only_category(tmp_path):
+    """Real gap found 2026-08-29 against the actual furnace script: a
+    process_action scene's narration said "materials heat up" (matching
+    the fire/flicker category), while its own action/props fields said
+    "stirring a bubbling cauldron" / "carbon monoxide gas" (bubble/drift)
+    — the actual image shows a bubbling liquid with rising gas, not fire,
+    so scene_object_fx's action/props match must win over the narration's
+    own (less accurate) category when both match different categories."""
+    scene = {
+        "narration": "Inside, materials heat up! Carbon monoxide helps pull iron from oxides.",
+        "action": "stirring a bubbling cauldron",
+        "props": "rustic cauldron, wooden paddle, carbon monoxide gas",
+        "fx": None,
+        "scene_type": "process_action",
+    }
+    result = assembly._scene_object_fx(scene)
+    assert result is not None
+    _start, style = result
+    assert style == "drift", "the bubbling/rising-gas action should win over narration's 'heat' wording"
+
+
+def test_mascot_exclusion_region_is_centered_and_smaller_than_the_full_frame(tmp_path):
+    left, top, right, bottom = assembly._mascot_exclusion_region()
+    assert 0 < left < right < FRAME_WIDTH
+    assert 0 < top < bottom < FRAME_HEIGHT
+    cx = (left + right) / 2
+    cy = (top + bottom) / 2
+    assert abs(cx - FRAME_WIDTH / 2) < 2
+    assert abs(cy - FRAME_HEIGHT / 2) < 2
+    assert (right - left) < FRAME_WIDTH
+    assert (bottom - top) < FRAME_HEIGHT
+
+
+def test_content_mask_exclude_region_zeroes_out_the_inner_box(tmp_path):
+    """Part C: a mascot-scene mask must never include the excluded center
+    box, even when real non-white content (the character) sits there."""
+    img_path = _prop_image(tmp_path)  # centered rectangle, exactly where the exclusion box sits
+    exclude_box = (
+        FRAME_WIDTH // 2 - 200, FRAME_HEIGHT // 2 - 200,
+        FRAME_WIDTH // 2 + 200, FRAME_HEIGHT // 2 + 200,
+    )
+    mask_path = assembly._content_mask(img_path, tmp_path / "mask.png", exclude_region=exclude_box)
+    if mask_path is None:
+        return  # the whole rectangle sat inside the exclusion box — acceptable, nothing left to animate
+    mask = Image.open(mask_path)
+    left, top, right, bottom = exclude_box
+    stat = ImageStat.Stat(mask.crop(exclude_box))
+    assert stat.mean[0] == 0, "excluded box must be fully zeroed, even where real content was drawn"
 
 
 def test_object_pulse_preserves_the_real_object_color_before_it_starts(tmp_path):
@@ -205,6 +302,128 @@ def test_object_pulse_leaves_the_white_background_untouched(tmp_path):
         frame = _frame_at(seg, t, tmp_path / f"corner_{t}.png")
         stat = ImageStat.Stat(frame.crop(corner))
         assert min(stat.mean) > 250, f"background corner should stay white at t={t}, got {stat.mean}"
+
+
+def test_object_drift_changes_pixel_position_not_just_brightness(tmp_path):
+    """Part B: the drift style must produce a real content-POSITION shift
+    inside the mask, distinct from the flicker style's in-place brightness
+    change — confirmed live 2026-08-29 against a real scene before wiring
+    this in (see assembly.OBJECT_DRIFT_AMPLITUDE_PX). A pixel right at the
+    object's own edge should swing between "near background white" and
+    "near the object's real color" as the drift phase changes — a swing a
+    bounded +-OBJECT_PULSE_AMPLITUDE brightness multiplier on the object's
+    own hue could never produce, since it never approaches white."""
+    color = (200, 100, 40)
+    img_path = _prop_image(tmp_path, color=color)
+    narration = "Watch as steam rises steadily from the pot."
+    duration = 6.0
+    start = assembly._narrated_object_cue_start(narration, duration, "process_action")
+    style = assembly._narrated_object_cue_style(narration, duration, "process_action")
+    assert start is not None and style == "drift"
+
+    overlays, _box = assembly.build_timed_caption_overlays(narration, duration)
+    seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 0, tmp_path / "segments",
+        timed_caption_overlays=overlays, object_animation_start=start,
+        object_animation_style=style,
+    )
+    cx, cy = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    # build_scene_video_segment_from_still's own pad+zoompan
+    # (STICKER_HEADROOM) uniformly scales the whole rendered image down
+    # toward center in the final frame, so source-space coordinates (the
+    # rectangle's own top edge, drawn at cy-150) must be remapped through
+    # that same scale to find where it actually lands in the output.
+    rest_scale = 1.0 / assembly.STICKER_HEADROOM
+    edge_x, edge_y = round(cx), round(cy + (cy - 150 - cy) * rest_scale)
+
+    samples = [
+        _frame_at(seg, start + off, tmp_path / f"drift_{off}.png").getpixel((edge_x, edge_y))
+        for off in (0.1, 0.4, 0.7, 1.0, 1.3)
+    ]
+    dist_to_white = [sum(abs(255 - c) for c in px) for px in samples]
+    dist_to_color = [sum(abs(v - c) for v, c in zip(px, color)) for px in samples]
+    # The white-proximity swing is the real discriminator: a bounded
+    # +-OBJECT_PULSE_AMPLITUDE brightness multiplier on this base color
+    # could never bring it anywhere close to white (its own baseline
+    # distance to white is ~425; even a full swing only closes ~183 of
+    # that). Only a genuine positional shift revealing the background can.
+    assert min(dist_to_white) < 60, (
+        f"expected the edge pixel to swing near background white at some drift phase, got {samples}"
+    )
+    assert min(dist_to_color) < 150, (
+        f"expected the edge pixel to also swing back near the object's real color, got {samples}"
+    )
+    # Outside the mask, drift must be exactly as inert as the flicker style.
+    corner = (10, FRAME_HEIGHT - 60, 60, FRAME_HEIGHT - 10)
+    for off in (0.3, 0.9):
+        frame = _frame_at(seg, start + off, tmp_path / f"drift_corner_{off}.png")
+        stat = ImageStat.Stat(frame.crop(corner))
+        assert min(stat.mean) > 250, f"background corner should stay white at t={start + off}"
+
+
+def test_grid_reveal_shows_quadrants_one_at_a_time_then_settles(tmp_path):
+    """Part A: an ingredient_grid scene's four quadrants must pop in in
+    sequence (one new quadrant visible per GRID_REVEAL_STAGGER_FRAMES
+    window), not all appear at once, and the sequence must settle back to
+    the real full image once every quadrant has revealed."""
+    img = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    quadrants = assembly._grid_quadrant_regions(FRAME_WIDTH, FRAME_HEIGHT)
+    colors = [(200, 60, 60), (60, 160, 60), (60, 60, 200), (200, 160, 40)]
+    for box, color in zip(quadrants, colors):
+        pad = 40
+        draw.rectangle((box[0] + pad, box[1] + pad, box[2] - pad, box[3] - pad), fill=color)
+
+    frames = assembly._grid_reveal_frame_paths(img, tmp_path / "reveal", "test")
+    assert len(frames) == assembly.GRID_REVEAL_STAGGER_FRAMES * 3 + assembly.POP_IN_SETTLE_FRAMES
+
+    def is_white_at(frame_path, box):
+        center = ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
+        img = Image.open(frame_path).convert("RGB")
+        return img.getpixel(center) == (255, 255, 255)
+
+    # At frame 0, only the first quadrant has started popping — the rest
+    # stay blank until their own stagger window arrives.
+    assert not is_white_at(frames[0], quadrants[0])
+    assert is_white_at(frames[0], quadrants[1])
+    assert is_white_at(frames[0], quadrants[2])
+    assert is_white_at(frames[0], quadrants[3])
+    # After the first stagger window, quadrant 1 has also started while
+    # quadrants 2 and 3 are still blank — one new quadrant per window, not
+    # all four at once.
+    mid_frame = frames[assembly.GRID_REVEAL_STAGGER_FRAMES + 2]
+    assert not is_white_at(mid_frame, quadrants[0])
+    assert not is_white_at(mid_frame, quadrants[1])
+    assert is_white_at(mid_frame, quadrants[2])
+    assert is_white_at(mid_frame, quadrants[3])
+    # By the last frame, every quadrant has revealed.
+    assert all(not is_white_at(frames[-1], box) for box in quadrants)
+
+
+def test_grid_reveal_wires_into_build_scene_video_segment_from_still(tmp_path):
+    img = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    quadrants = assembly._grid_quadrant_regions(FRAME_WIDTH, FRAME_HEIGHT)
+    for box, color in zip(quadrants, [(200, 60, 60), (60, 160, 60), (60, 60, 200), (200, 160, 40)]):
+        pad = 40
+        draw.rectangle((box[0] + pad, box[1] + pad, box[2] - pad, box[3] - pad), fill=color)
+    img_path = tmp_path / "grid.png"
+    img.save(img_path)
+
+    duration = 6.0
+    overlays, _box = assembly.build_timed_caption_overlays("Clay bricks, steel sheet, straw, and wood plank.", duration)
+    seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 0, tmp_path / "segments",
+        timed_caption_overlays=overlays, grid_reveal=True,
+    )
+    assert seg.exists()
+
+    # Late in the scene, the full grid must have settled in (no quadrant left blank).
+    late = _frame_at(seg, duration - 0.3, tmp_path / "late.png")
+    for box in quadrants:
+        center = ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
+        pixel = late.getpixel(center)
+        assert pixel != (255, 255, 255), f"quadrant at {center} should have revealed by the end, got {pixel}"
 
 
 def test_no_animation_wiring_when_object_animation_start_is_none(tmp_path):

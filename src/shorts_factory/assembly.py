@@ -600,6 +600,59 @@ def _pop_scale_at_frame(frame_idx: int) -> float:
     )
 
 
+GRID_REVEAL_STAGGER_SECONDS = 0.7
+GRID_REVEAL_STAGGER_FRAMES = round(GRID_REVEAL_STAGGER_SECONDS * FPS)
+
+
+def _grid_quadrant_regions(width: int, height: int) -> list[tuple[int, int, int, int]]:
+    """The four quadrant boxes of a WxH image, in reading order (top-left,
+    top-right, bottom-left, bottom-right). mascots.build_scene_prompt's
+    ingredient_grid instruction reliably produces a clean 2x2 layout
+    (confirmed against a real generated image), so this fixed split needs
+    no real object segmentation."""
+    mid_x, mid_y = width // 2, height // 2
+    return [
+        (0, 0, mid_x, mid_y),
+        (mid_x, 0, width, mid_y),
+        (0, mid_y, mid_x, height),
+        (mid_x, mid_y, width, height),
+    ]
+
+
+def _grid_reveal_frame_paths(image: Image.Image, out_dir: Path, prefix: str) -> list[Path]:
+    """Pre-renders a sequence where each of the image's four quadrants pops
+    in on its own, GRID_REVEAL_STAGGER_FRAMES apart, using the same
+    overshoot-then-settle curve as the sticker pop-in/caption punch
+    (_pop_scale_at_frame) — quadrants not yet revealed stay blank white,
+    already-revealed quadrants sit at rest. User request 2026-08-29: an
+    ingredient_grid scene's items should "pop in one by one," not all at
+    once."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    quadrants = _grid_quadrant_regions(image.width, image.height)
+    total_frames = GRID_REVEAL_STAGGER_FRAMES * (len(quadrants) - 1) + POP_IN_SETTLE_FRAMES
+    paths: list[Path] = []
+    for frame_idx in range(total_frames):
+        canvas = Image.new("RGB", image.size, (255, 255, 255))
+        for q_index, box in enumerate(quadrants):
+            local_frame = frame_idx - q_index * GRID_REVEAL_STAGGER_FRAMES
+            if local_frame < 0:
+                continue  # not this quadrant's turn yet — stays blank
+            scale = _pop_scale_at_frame(min(local_frame, POP_IN_SETTLE_FRAMES - 1))
+            crop = image.crop(box)
+            cx = (box[0] + box[2]) / 2
+            cy = (box[1] + box[3]) / 2
+            new_w = max(1, round(crop.width * scale))
+            new_h = max(1, round(crop.height * scale))
+            resized = crop.resize((new_w, new_h), Image.LANCZOS)
+            paste_x = round(cx - new_w / 2)
+            paste_y = round(cy - new_h / 2)
+            canvas.paste(resized, (paste_x, paste_y))
+        path = out_dir / f"{prefix}_{frame_idx:03d}.png"
+        canvas.save(path)
+        paths.append(path)
+    return paths
+
+
 def _caption_punch_frame_paths(overlay_image: Image.Image, box: CaptionBox, out_dir: Path, prefix: str) -> list[Path]:
     """CAPTION_PUNCH_FRAMES full-canvas frames, each identical to
     overlay_image except a crop around `box` (the caption's own bounding
@@ -696,15 +749,14 @@ def _append_caption_cue_stage(
 # static for the whole scene. Scoped to scene_types where the mascot is
 # either entirely absent (process_action/ingredient_grid, per
 # mascots.build_scene_prompt's own "NO people, NO characters" rule for
-# those types) or confined to a known corner (split_canvas's mascot always
+# those types), confined to a known corner (split_canvas's mascot always
 # sits in the BOTTOM corner, per build_scene_prompt's layout — restricting
 # the mask to the top half keeps it off the character without needing real
-# object segmentation, which this codebase has no way to do). Plain
-# mascot/mascot_reaction scenes are deliberately NOT animated this way —
-# isolating "the FX" from "the character" in one flat image without
-# segmentation is unreliable, and piling more localized motion into a
-# mascot scene right after the pop-frequency revert (see
-# _pop_in_zoom_expr's docstring) would work against what was just fixed.
+# object segmentation, which this codebase has no way to do), or centered
+# (mascot/mascot_reaction — see _mascot_exclusion_region, extended
+# 2026-08-29 per direct user feedback that props/FX near the mascot should
+# animate too, not be excluded outright, so long as the character itself
+# stays untouched).
 OBJECT_PULSE_PERIOD_SECONDS = 1.0
 # Confirmed live 2026-08-29 against a real scene image: prop-region mean
 # brightness oscillated ~83-98 (of 255) with this amplitude — a real,
@@ -720,16 +772,26 @@ OBJECT_MASK_MIN_MEAN = 2.0
 SPLIT_CANVAS_PROP_REGION = (0, 0, FRAME_WIDTH, FRAME_HEIGHT // 2)
 
 
+# Extended 2026-08-29 (Part C) to include mascot/mascot_reaction scenes: a
+# mascot-present scene no longer means "no localized animation at all" — the
+# animation is instead confined to the region OUTSIDE _mascot_exclusion_region
+# (see assemble_stickers/build_scene_video_segment_from_still's
+# object_animation_exclude_region wiring), so props/FX near the character
+# animate while the character itself stays untouched.
+_OBJECT_ANIMATABLE_SCENE_TYPES = (
+    "process_action", "ingredient_grid", "split_canvas", "mascot_reaction", "mascot",
+)
+
+
 def _narrated_object_cue_start(narration: str, duration: float, scene_type: str) -> float | None:
     """Returns the timestamp of the first caption cue whose own text names
     something matching one of mascots.OBJECT_FX_KEYWORDS' categories — the
     moment build_scene_video_segment_from_still should start the localized
-    object pulse (before this, the frame stays fully static; see
-    _object_pulse_brightness_expr). Returns None when scene_type isn't one
-    of the safe-to-animate-without-a-mascot types (see module comment
-    above), or when nothing in the narration matches any category —
-    staying a targeted effect, not a blanket per-scene default."""
-    if scene_type not in ("process_action", "ingredient_grid", "split_canvas"):
+    object animation (before this, the frame stays fully static). Returns
+    None when scene_type isn't one of _OBJECT_ANIMATABLE_SCENE_TYPES, or
+    when nothing in the narration matches any category — staying a
+    targeted effect, not a blanket per-scene default."""
+    if scene_type not in _OBJECT_ANIMATABLE_SCENE_TYPES:
         return None
     from .mascots import object_fx_for
 
@@ -739,8 +801,54 @@ def _narrated_object_cue_start(narration: str, duration: float, scene_type: str)
     return None
 
 
+def _narrated_object_cue_style(narration: str, duration: float, scene_type: str) -> str | None:
+    """Companion to _narrated_object_cue_start: the motion style
+    (flicker/drift, see mascots.object_fx_style_for) for that SAME first
+    matching cue, so build_scene_video_segment_from_still knows whether to
+    build a brightness pulse or a positional drift for whatever fired."""
+    if scene_type not in _OBJECT_ANIMATABLE_SCENE_TYPES:
+        return None
+    from .mascots import object_fx_for, object_fx_style_for
+
+    for cue in narration_caption_cues(narration, duration):
+        if object_fx_for(cue.text) is not None:
+            return object_fx_style_for(cue.text) or "flicker"
+    return None
+
+
+def _scene_object_fx(scene: dict[str, Any]) -> tuple[float, str] | None:
+    """Fallback for when the narration itself never names the category —
+    real gaps found 2026-08-29 against the actual furnace script: (1) a
+    mascot_reaction scene had props="tongs, molten iron blob", fx="red
+    glow", mascot_emotion="alarmed" but narration only said "...can have
+    way too much carbon..." — no fire/glow word in the narration at all;
+    (2) a process_action scene's narration said "materials heat up"
+    (matching the fire/flicker category) while its own action field said
+    "stirring a BUBBLING cauldron" and props mentioned "carbon monoxide
+    GAS" rising — the real bubbling-liquid/rising-gas motion (bubble/drift)
+    was only visible in action/props, not narration, so the narration-only
+    match picked the wrong (flicker) category entirely. Matches the
+    scene's own fx/props/action/narration fields together — the same
+    multi-field call mascots.build_scene_prompt itself already uses to
+    describe the FX in the image prompt — so whatever the image actually
+    shows is what drives the category, not just whatever words happened to
+    end up in the spoken line. Unlike the narration-cue mechanism, there's
+    no "moment it's introduced" to gate on here — the prop/action is
+    visible in the image from frame one — so this starts at t=0 whenever
+    it matches."""
+    from .mascots import object_fx_for, object_fx_style_for
+
+    fields = (scene.get("fx"), scene.get("props"), scene.get("action"), scene.get("narration"))
+    if object_fx_for(*fields) is None:
+        return None
+    return 0.0, object_fx_style_for(*fields) or "flicker"
+
+
 def _content_mask(
-    image_path: Path, out_path: Path, region: tuple[int, int, int, int] | None = None
+    image_path: Path,
+    out_path: Path,
+    region: tuple[int, int, int, int] | None = None,
+    exclude_region: tuple[int, int, int, int] | None = None,
 ) -> Path | None:
     """Thresholds a scene's own generated PNG (always a stark pure white
     #FFFFFF background per the house art style) for non-white pixels — one
@@ -750,7 +858,11 @@ def _content_mask(
     categories individually). `region`, if given, zeroes out the mask
     outside that box first (used for split_canvas — see
     SPLIT_CANVAS_PROP_REGION — to keep the mask off the mascot's own
-    corner). Returns None when the masked area is negligible."""
+    corner). `exclude_region`, if given, zeroes out the mask INSIDE that
+    box instead (used for mascot/mascot_reaction scenes — see
+    _mascot_exclusion_region — to keep the animation off the character
+    itself while still animating FX/props in the surrounding margin).
+    Returns None when the masked area is negligible."""
     img = Image.open(image_path).convert("RGB")
     r, g, b = img.split()
     threshold = 245
@@ -760,11 +872,34 @@ def _content_mask(
         bounded = Image.new("L", img.size, 0)
         bounded.paste(mask.crop(region), region[:2])
         mask = bounded
+    if exclude_region:
+        left, top, right, bottom = exclude_region
+        blank = Image.new("L", (right - left, bottom - top), 0)
+        mask.paste(blank, (left, top))
     if ImageStat.Stat(mask).mean[0] < OBJECT_MASK_MIN_MEAN:
         return None
     out_path.parent.mkdir(parents=True, exist_ok=True)
     mask.save(out_path)
     return out_path
+
+
+# mascots.build_scene_prompt's centered/mascot_reaction branch targets the
+# character at "no more than 28% of vertical height... generous empty white
+# space above, below, and on both sides" (confirmed directly in that code).
+# This box is deliberately more generous than that footprint alone — a held
+# prop (tongs, a glowing ingot) commonly extends past the body — while still
+# leaving margin/corners free for FX to animate in. Not real segmentation,
+# the same generic-box trade-off already accepted by SPLIT_CANVAS_PROP_REGION.
+MASCOT_EXCLUSION_WIDTH_FRACTION = 0.62
+MASCOT_EXCLUSION_HEIGHT_FRACTION = 0.46
+
+
+def _mascot_exclusion_region() -> tuple[int, int, int, int]:
+    w = round(FRAME_WIDTH * MASCOT_EXCLUSION_WIDTH_FRACTION)
+    h = round(FRAME_HEIGHT * MASCOT_EXCLUSION_HEIGHT_FRACTION)
+    left = (FRAME_WIDTH - w) // 2
+    top = (FRAME_HEIGHT - h) // 2
+    return (left, top, left + w, top + h)
 
 
 def _object_pulse_brightness_expr(start: float) -> str:
@@ -786,6 +921,33 @@ def _object_pulse_brightness_expr(start: float) -> str:
     )
 
 
+OBJECT_DRIFT_PERIOD_SECONDS = 1.5
+# Confirmed live 2026-08-29 against a real scene image + mask: a 6px
+# amplitude at zoompan z=1.02 produced a clear positional shift inside the
+# masked region (mean pixel diff ~6-10 there across sampled timestamps)
+# while the surrounding frame stayed within h264 encoder noise (~0.001).
+OBJECT_DRIFT_AMPLITUDE_PX = 6
+
+
+def _object_drift_y_expr(start: float) -> str:
+    """Companion to _object_pulse_brightness_expr for categories where a
+    brightness flicker doesn't read as "moving" (smoke/steam/water/dust —
+    see mascots.object_fx_style_for) — a triangle-wave *positional* offset
+    fed to zoompan's own y parameter instead of eq's brightness. Same
+    mod-based triangle wave and comma-escaping as the brightness expr, but
+    note zoompan's expression evaluator exposes the current timestamp as
+    `time`, NOT `t` (confirmed live 2026-08-29: an otherwise-identical
+    expression using `t` failed to parse at all — "Undefined constant or
+    missing '(' in 't)'" — while `time` parsed and produced a real,
+    numerically-confirmed drift)."""
+    p = OBJECT_DRIFT_PERIOD_SECONDS
+    a = OBJECT_DRIFT_AMPLITUDE_PX
+    return (
+        f"ih/2-(ih/zoom/2)+if(lt(time\\,{start:.3f})\\,0\\,"
+        f"{a}*(2*abs(mod(time-{start:.3f}\\,{p})/{p}*2-1)-1))"
+    )
+
+
 def build_scene_video_segment_from_still(
     image_path: Path,
     duration: float,
@@ -795,6 +957,9 @@ def build_scene_video_segment_from_still(
     timed_caption_overlays: list[TimedCaptionOverlay],
     object_animation_start: float | None = None,
     object_animation_region: tuple[int, int, int, int] | None = None,
+    object_animation_exclude_region: tuple[int, int, int, int] | None = None,
+    object_animation_style: str | None = None,
+    grid_reveal: bool = False,
 ) -> Path:
     """Sticker-style scene segment: a still image pops in (scale-bounce
     overshoot, ~0.27s) then holds for the rest of the scene's duration —
@@ -804,12 +969,21 @@ def build_scene_video_segment_from_still(
     being depended on in the first place.
 
     object_animation_start, if given (see
-    _narrated_object_cue_start), gates a localized brightness pulse (see
-    _content_mask/_object_pulse_brightness_expr) on whatever prop content
-    the scene's own image contains — the frame stays fully static until
-    that timestamp, then the masked region pulses for the rest of the
-    scene. Silently does nothing if _content_mask finds no meaningful
-    non-white content (e.g. an unusually sparse image)."""
+    _narrated_object_cue_start), gates a localized animation (see
+    _content_mask) on whatever prop content the scene's own image contains
+    — the frame stays fully static until that timestamp, then the masked
+    region animates for the rest of the scene. object_animation_style picks
+    between a brightness pulse (_object_pulse_brightness_expr, default) and
+    a positional drift (_object_drift_y_expr, style=="drift"). Silently
+    does nothing if _content_mask finds no meaningful non-white content
+    (e.g. an unusually sparse image, or one fully covered by
+    object_animation_exclude_region).
+
+    grid_reveal, if True (ingredient_grid scenes only — see
+    _grid_reveal_frame_paths), replaces the whole-image pop-in with a
+    staggered one-quadrant-at-a-time reveal instead; mutually exclusive
+    with object_animation_start (an ingredient_grid scene gets the grid
+    reveal, not also a localized pulse/drift)."""
     segments_dir.mkdir(parents=True, exist_ok=True)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
 
@@ -830,18 +1004,46 @@ def build_scene_video_segment_from_still(
     filters: list[str] = []
 
     base_source = "[0:v]"
-    if object_animation_start is not None:
+    if grid_reveal:
+        reveal_dir = segments_dir / "grid_reveals"
+        prefix = f"gridreveal_{index:02d}"
+        source_image = Image.open(image_path).convert("RGB")
+        frame_paths = _grid_reveal_frame_paths(source_image, reveal_dir, prefix)
+        reveal_pattern = reveal_dir / f"{prefix}_%03d.png"
+        cmd.extend(["-framerate", str(FPS), "-i", str(reveal_pattern)])
+        reveal_input_index = next_input_index
+        next_input_index += 1
+        reveal_duration = min(len(frame_paths) / FPS, duration)
+        hold_duration = max(0.0, duration - reveal_duration)
+        filters.append(f"[{reveal_input_index}:v]format=rgba,trim=duration={reveal_duration:.3f}[gridreveal]")
+        if hold_duration > 0:
+            filters.append(f"[0:v]format=rgba,trim=duration={hold_duration:.3f}[gridhold]")
+            filters.append("[gridreveal][gridhold]concat=n=2:v=1:a=0[gridsequenced]")
+            base_source = "[gridsequenced]"
+        else:
+            base_source = "[gridreveal]"
+    elif object_animation_start is not None:
         mask_path = _content_mask(
-            image_path, segments_dir / f"objmask_{index:02d}.png", region=object_animation_region,
+            image_path,
+            segments_dir / f"objmask_{index:02d}.png",
+            region=object_animation_region,
+            exclude_region=object_animation_exclude_region,
         )
         if mask_path is not None:
             cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(mask_path)])
             mask_input_index = next_input_index
             next_input_index += 1
-            pulse_expr = _object_pulse_brightness_expr(object_animation_start)
             filters.append("[0:v]format=rgba[objsrc]")
             filters.append("[objsrc]split=2[objstatic][objtopulse]")
-            filters.append(f"[objtopulse]eq=eval=frame:brightness='{pulse_expr}'[objpulsed]")
+            if object_animation_style == "drift":
+                y_expr = _object_drift_y_expr(object_animation_start)
+                filters.append(
+                    f"[objtopulse]zoompan=z=1.02:x='iw/2-(iw/zoom/2)':y='{y_expr}':"
+                    f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[objpulsed]"
+                )
+            else:
+                pulse_expr = _object_pulse_brightness_expr(object_animation_start)
+                filters.append(f"[objtopulse]eq=eval=frame:brightness='{pulse_expr}'[objpulsed]")
             # format=rgba, NOT gray — confirmed live 2026-08-29: this
             # ffmpeg build's maskedmerge produced visibly wrong output
             # (a flat gray blend instead of the correct base/overlay pixel
@@ -859,9 +1061,14 @@ def build_scene_video_segment_from_still(
     # caption's own per-cue scale-punch (below) is untouched — new caption
     # text still gets its own small pop as it appears, which is a much
     # smaller, less distracting effect than re-zooming the whole frame.
+    # grid_reveal scenes skip the whole-image pop overshoot here — the
+    # staggered per-quadrant pop already provides the "pop" motion, and
+    # layering the outer zoom-bounce on top would double up into a
+    # chaotic-looking combination rather than a single deliberate beat.
+    outer_zoom_expr = "1" if grid_reveal else f"'{_pop_in_zoom_expr()}'"
     filters.append(
         f"{base_source}pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
-        f"zoompan=z='{_pop_in_zoom_expr()}':"
+        f"zoompan=z={outer_zoom_expr}:"
         "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
     )
@@ -928,10 +1135,36 @@ def assemble_stickers(
         caption_boxes.append(box)
 
         scene_type = scene.get("scene_type", "mascot")
-        object_animation_start = _narrated_object_cue_start(
-            scene["narration"], audio[i].duration, scene_type,
-        )
+        grid_reveal = scene_type == "ingredient_grid"
+        if grid_reveal:
+            object_animation_start = object_animation_style = None
+        else:
+            # scene_fx (fx/props/action/narration together) takes priority
+            # for CATEGORY when it matches — it reflects what the image
+            # actually shows, which can disagree with the narration alone
+            # (see _scene_object_fx's docstring for a real example: a
+            # scene's narration said "heat" (fire/flicker) while its own
+            # action field said "bubbling cauldron" (bubble/drift) — the
+            # action field is the more accurate signal for what to
+            # animate). The narration cue, when it also matches, still
+            # supplies the more precise START time (the exact moment it's
+            # said) over scene_fx's default t=0.
+            scene_fx = _scene_object_fx(scene)
+            cue_start = _narrated_object_cue_start(scene["narration"], audio[i].duration, scene_type)
+            if scene_fx is not None:
+                fallback_start, object_animation_style = scene_fx
+                object_animation_start = cue_start if cue_start is not None else fallback_start
+            elif cue_start is not None:
+                object_animation_start = cue_start
+                object_animation_style = _narrated_object_cue_style(
+                    scene["narration"], audio[i].duration, scene_type,
+                )
+            else:
+                object_animation_start = object_animation_style = None
         object_animation_region = SPLIT_CANVAS_PROP_REGION if scene_type == "split_canvas" else None
+        object_animation_exclude_region = (
+            _mascot_exclusion_region() if scene_type in ("mascot_reaction", "mascot") else None
+        )
 
         seg_path = build_scene_video_segment_from_still(
             image_path,
@@ -941,6 +1174,9 @@ def assemble_stickers(
             timed_caption_overlays=timed_overlays,
             object_animation_start=object_animation_start,
             object_animation_region=object_animation_region,
+            object_animation_exclude_region=object_animation_exclude_region,
+            object_animation_style=object_animation_style,
+            grid_reveal=grid_reveal,
         )
         segment_paths.append(seg_path)
 

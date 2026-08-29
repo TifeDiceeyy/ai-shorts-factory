@@ -101,7 +101,7 @@ class Mascot:
                 "Split-canvas flat cel-shaded cartoon explainer composition, drawn in the SAME flat "
                 "illustration style as the mascot — bold black ink outlines, flat clean shading, NOT a "
                 "3D render, NOT photoreal, NOT glossy CGI — on a stark pure solid white background (#FFFFFF).",
-                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying roughly 40% of vertical height, clearly visible and recognizable, not tiny) stands looking and pointing up with {emotion or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying roughly 40% of vertical height, clearly visible and recognizable, not tiny) stands looking and pointing up with {_expand_emotion(emotion) or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
             ]
             if props:
                 prompt_parts.append(
@@ -119,7 +119,7 @@ class Mascot:
         else:
             prompt_parts = [
                 f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 28% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
-                f"Role: {scene_role or 'explainer'}. Emotion: {emotion or 'friendly enthusiastic expression'}.",
+                f"Role: {scene_role or 'explainer'}. Emotion: {_expand_emotion(emotion) or 'friendly enthusiastic expression'}.",
             ]
             if action:
                 prompt_parts.append(f"Action: {action}.")
@@ -211,15 +211,31 @@ class Mascot:
 # generic across any topic's props (not hardcoded to one topic, e.g. Roman
 # concrete) — matched against whatever combination of this scene's fx/props/
 # action/narration text is available.
-_OBJECT_FX_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
-    (("volcano", "volcanic", "ash", "pyroclastic"), "fine volcanic ash drifting and gently settling"),
-    (("smoke", "steam", "vapor", "vapour"), "steam/smoke gently rising and curling"),
-    (("water", "drip", "wet", "damp", "liquid", "ripple", "pour"), "water rippling, dripping, or pouring steadily"),
-    (("lime", "powder", "dust", "sand", "grain", "mineral"), "fine powder/dust settling and drifting"),
-    (("mix", "mixing", "stir", "slurry", "blend", "paste", "mortar"), "the mixture slowly swirling and blending"),
-    (("fire", "flame", "ember", "burn", "forge", "furnace", "heat"), "flames flickering and embers glowing"),
-    (("bubble", "boil", "ferment"), "small bubbles steadily rising and popping"),
-    (("spark", "electric", "current", "voltage"), "small sparks flickering intermittently"),
+#
+# Third element (motion style) added 2026-08-29 for the sticker-mode
+# localized object-pulse feature (assembly.py): "flicker" (brightness
+# oscillation) is a reasonable metaphor for fire/sparks on its own, but a
+# viewer-flagged real gap is that flicker alone doesn't read as "moving"
+# for anything that should visibly shift position — smoke/steam/water/dust
+# get "drift" (a position-offset animation) instead. See
+# assembly._narrated_object_cue_style / _object_drift_y_expr.
+# "molten"/"glow"/"glowing"/"lava"/"magma" added to the fire group the same
+# day: a real script scene described its glowing molten-iron prop that way
+# (props="tongs, molten iron blob", fx="red glow") without ever using the
+# words fire/flame/heat, so the original keyword set missed it entirely.
+_OBJECT_FX_KEYWORDS: list[tuple[tuple[str, ...], str, str]] = [
+    (("volcano", "volcanic", "ash", "pyroclastic"), "fine volcanic ash drifting and gently settling", "drift"),
+    (("smoke", "steam", "vapor", "vapour"), "steam/smoke gently rising and curling", "drift"),
+    (("water", "drip", "wet", "damp", "liquid", "ripple", "pour"), "water rippling, dripping, or pouring steadily", "drift"),
+    (("lime", "powder", "dust", "sand", "grain", "mineral"), "fine powder/dust settling and drifting", "drift"),
+    (("mix", "mixing", "stir", "slurry", "blend", "paste", "mortar"), "the mixture slowly swirling and blending", "drift"),
+    (
+        ("fire", "flame", "ember", "burn", "forge", "furnace", "heat", "molten", "glow", "glowing", "lava", "magma"),
+        "flames flickering and embers glowing",
+        "flicker",
+    ),
+    (("bubble", "boil", "ferment"), "small bubbles steadily rising and popping", "drift"),
+    (("spark", "electric", "current", "voltage"), "small sparks flickering intermittently", "flicker"),
 ]
 
 
@@ -230,10 +246,43 @@ def object_fx_for(*texts: str | None) -> str | None:
     object-pulse feature (distinct from this function's original use here:
     describing motion for the ai_video/Hailuo continuous-video prompt)."""
     haystack = " ".join(t for t in texts if t).lower()
-    for keywords, fx_desc in _OBJECT_FX_KEYWORDS:
+    for keywords, fx_desc, _style in _OBJECT_FX_KEYWORDS:
         if any(kw in haystack for kw in keywords):
             return fx_desc
     return None
+
+
+def object_fx_style_for(*texts: str | None) -> str | None:
+    """Which localized animation style matches this scene's fx/props/
+    action/narration text: "flicker" (brightness oscillation) or "drift"
+    (a small position-offset loop) — see _OBJECT_FX_KEYWORDS' own comment
+    for why brightness alone doesn't suffice for everything. Returns None
+    on no match, same as object_fx_for."""
+    haystack = " ".join(t for t in texts if t).lower()
+    for keywords, _fx_desc, style in _OBJECT_FX_KEYWORDS:
+        if any(kw in haystack for kw in keywords):
+            return style
+    return None
+
+
+# Bare emotion adjectives ("Emotion: alarmed.") under-render with this image
+# model — same lesson as the mascot-size and flat-2D-vs-3D fixes earlier
+# this session: a vague label isn't enough, the prompt needs to spell out
+# the physical expression explicitly. Scoped to fear/danger/shock words
+# specifically (the category a viewer flagged as not reading convincingly)
+# — other emotions (curious, proud, triumphant, etc.) already render fine
+# and are left as plain adjectives.
+_FEAR_EMOTION_KEYWORDS = ("afraid", "scared", "alarmed", "terrified", "panicked", "panicking", "shocked", "frightened")
+_FEAR_EMOTION_EXPANSION = (
+    "wide terrified eyes, eyebrows raised in fear, mouth open in a startled gasp, recoiling slightly away "
+    "from what's in front of them"
+)
+
+
+def _expand_emotion(emotion: str) -> str:
+    if emotion and any(kw in emotion.lower() for kw in _FEAR_EMOTION_KEYWORDS):
+        return _FEAR_EMOTION_EXPANSION
+    return emotion
 
 
 MASCOT_1 = Mascot(
