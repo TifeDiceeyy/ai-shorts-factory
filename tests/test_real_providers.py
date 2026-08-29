@@ -316,6 +316,20 @@ def test_fal_llm_script_prompt_says_scene_one_is_mascot_first():
     assert "rather than energetic hopping, bobbing, or repeated bounce" in prompt
 
 
+def test_fal_llm_script_prompt_says_narrated_objects_must_be_shown():
+    """User request 2026-08-29: when a scene's own narration names an
+    object, that object should be visible in the scene's image — fixed
+    upstream at the script-prompt step (props/action, the same field that
+    already drives the real image-generation call) rather than a separate
+    late-insertion system. Must be pipeline-wide, every topic."""
+    script = sample_script()
+    fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})
+    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
+    provider.generate_script({"topic": "soap", "claims": []}, "English", "style", CostTracker(1))
+    prompt = fal.client.calls[0][1]["arguments"]["prompt"]
+    assert "must also appear in that scene's props (or action) field" in prompt
+
+
 def test_fal_llm_script_prompt_has_no_idea_instruction_when_none_given():
     script = sample_script()
     fal = gateway({"output": json.dumps(script), "usage": {"cost": 0.017}})

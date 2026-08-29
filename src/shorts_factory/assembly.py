@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageStat
 
 from .captions import (
     FRAME_HEIGHT,
@@ -691,6 +691,101 @@ def _append_caption_cue_stage(
     return label, next_input_index
 
 
+# Localized object animation — user request 2026-08-29: when narration
+# names an object, it should visibly animate at that moment, not sit
+# static for the whole scene. Scoped to scene_types where the mascot is
+# either entirely absent (process_action/ingredient_grid, per
+# mascots.build_scene_prompt's own "NO people, NO characters" rule for
+# those types) or confined to a known corner (split_canvas's mascot always
+# sits in the BOTTOM corner, per build_scene_prompt's layout — restricting
+# the mask to the top half keeps it off the character without needing real
+# object segmentation, which this codebase has no way to do). Plain
+# mascot/mascot_reaction scenes are deliberately NOT animated this way —
+# isolating "the FX" from "the character" in one flat image without
+# segmentation is unreliable, and piling more localized motion into a
+# mascot scene right after the pop-frequency revert (see
+# _pop_in_zoom_expr's docstring) would work against what was just fixed.
+OBJECT_PULSE_PERIOD_SECONDS = 1.0
+# Confirmed live 2026-08-29 against a real scene image: prop-region mean
+# brightness oscillated ~83-98 (of 255) with this amplitude — a real,
+# visible pulse, not a wobble lost in JPEG/h264 noise, but not so strong
+# it reads as a strobe either. Background stayed within 1 unit throughout
+# (pure encoder noise), confirming the mask correctly isolates the prop.
+OBJECT_PULSE_AMPLITUDE = 0.12
+# Below this fraction of non-white pixels, there's nothing meaningful to
+# animate (an almost-empty frame) — skip rather than pulse a few stray
+# pixels.
+OBJECT_MASK_MIN_MEAN = 2.0
+
+SPLIT_CANVAS_PROP_REGION = (0, 0, FRAME_WIDTH, FRAME_HEIGHT // 2)
+
+
+def _narrated_object_cue_start(narration: str, duration: float, scene_type: str) -> float | None:
+    """Returns the timestamp of the first caption cue whose own text names
+    something matching one of mascots.OBJECT_FX_KEYWORDS' categories — the
+    moment build_scene_video_segment_from_still should start the localized
+    object pulse (before this, the frame stays fully static; see
+    _object_pulse_brightness_expr). Returns None when scene_type isn't one
+    of the safe-to-animate-without-a-mascot types (see module comment
+    above), or when nothing in the narration matches any category —
+    staying a targeted effect, not a blanket per-scene default."""
+    if scene_type not in ("process_action", "ingredient_grid", "split_canvas"):
+        return None
+    from .mascots import object_fx_for
+
+    for cue in narration_caption_cues(narration, duration):
+        if object_fx_for(cue.text) is not None:
+            return cue.start
+    return None
+
+
+def _content_mask(
+    image_path: Path, out_path: Path, region: tuple[int, int, int, int] | None = None
+) -> Path | None:
+    """Thresholds a scene's own generated PNG (always a stark pure white
+    #FFFFFF background per the house art style) for non-white pixels — one
+    category-agnostic mask covering whatever prop/object content is
+    actually in frame, with no per-object hue tuning needed (fire=orange,
+    water=blue, etc. would be fragile and require validating many
+    categories individually). `region`, if given, zeroes out the mask
+    outside that box first (used for split_canvas — see
+    SPLIT_CANVAS_PROP_REGION — to keep the mask off the mascot's own
+    corner). Returns None when the masked area is negligible."""
+    img = Image.open(image_path).convert("RGB")
+    r, g, b = img.split()
+    threshold = 245
+    below = lambda channel: channel.point(lambda p: 255 if p < threshold else 0)
+    mask = ImageChops.lighter(ImageChops.lighter(below(r), below(g)), below(b))
+    if region:
+        bounded = Image.new("L", img.size, 0)
+        bounded.paste(mask.crop(region), region[:2])
+        mask = bounded
+    if ImageStat.Stat(mask).mean[0] < OBJECT_MASK_MIN_MEAN:
+        return None
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    mask.save(out_path)
+    return out_path
+
+
+def _object_pulse_brightness_expr(start: float) -> str:
+    """A triangle-wave brightness offset — not sin/asin: this session's
+    own established finding is that trig functions behaved inconsistently
+    in this ffmpeg build's expression evaluator (see the Ken Burns/pop-in
+    work), so a mod-based triangle wave (plain arithmetic) is used instead.
+    Gated to exactly 0 (no change at all) before `start`, then oscillates
+    +-OBJECT_PULSE_AMPLITUDE around 0 from that instant on — commas inside
+    the expression must be backslash-escaped (`\\,`) since ffmpeg's own
+    filtergraph parser otherwise reads them as argument separators, not
+    part of the expression (confirmed live 2026-08-29: unescaped commas
+    produced a filtergraph parse error)."""
+    p = OBJECT_PULSE_PERIOD_SECONDS
+    a = OBJECT_PULSE_AMPLITUDE
+    return (
+        f"if(lt(t\\,{start:.3f})\\,0\\,"
+        f"{a}*(2*abs(mod(t-{start:.3f}\\,{p})/{p}*2-1)-1))"
+    )
+
+
 def build_scene_video_segment_from_still(
     image_path: Path,
     duration: float,
@@ -698,13 +793,23 @@ def build_scene_video_segment_from_still(
     segments_dir: Path,
     *,
     timed_caption_overlays: list[TimedCaptionOverlay],
+    object_animation_start: float | None = None,
+    object_animation_region: tuple[int, int, int, int] | None = None,
 ) -> Path:
     """Sticker-style scene segment: a still image pops in (scale-bounce
     overshoot, ~0.27s) then holds for the rest of the scene's duration —
     the motion-graphics grammar (static art + snap transitions), not a
     continuous AI-generated "performance". Never reads as frozen/static in
     the way a stalled I2V clip can, because there's no continuous motion
-    being depended on in the first place."""
+    being depended on in the first place.
+
+    object_animation_start, if given (see
+    _narrated_object_cue_start), gates a localized brightness pulse (see
+    _content_mask/_object_pulse_brightness_expr) on whatever prop content
+    the scene's own image contains — the frame stays fully static until
+    that timestamp, then the masked region pulses for the rest of the
+    scene. Silently does nothing if _content_mask finds no meaningful
+    non-white content (e.g. an unusually sparse image)."""
     segments_dir.mkdir(parents=True, exist_ok=True)
     out_path = segments_dir / f"seg_{index:02d}.mp4"
 
@@ -716,6 +821,36 @@ def build_scene_video_segment_from_still(
 
     oversized_w = round(FRAME_WIDTH * STICKER_HEADROOM)
     oversized_h = round(FRAME_HEIGHT * STICKER_HEADROOM)
+
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-loop", "1", "-framerate", str(FPS), "-i", str(image_path),
+    ]
+    next_input_index = 1
+    filters: list[str] = []
+
+    base_source = "[0:v]"
+    if object_animation_start is not None:
+        mask_path = _content_mask(
+            image_path, segments_dir / f"objmask_{index:02d}.png", region=object_animation_region,
+        )
+        if mask_path is not None:
+            cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(mask_path)])
+            mask_input_index = next_input_index
+            next_input_index += 1
+            pulse_expr = _object_pulse_brightness_expr(object_animation_start)
+            filters.append("[0:v]format=rgba[objsrc]")
+            filters.append("[objsrc]split=2[objstatic][objtopulse]")
+            filters.append(f"[objtopulse]eq=eval=frame:brightness='{pulse_expr}'[objpulsed]")
+            # format=rgba, NOT gray — confirmed live 2026-08-29: this
+            # ffmpeg build's maskedmerge produced visibly wrong output
+            # (a flat gray blend instead of the correct base/overlay pixel
+            # colors) when the mask stream didn't match the base/overlay
+            # streams' own RGBA pixel format.
+            filters.append(f"[{mask_input_index}:v]format=rgba[objmaskv]")
+            filters.append("[objstatic][objpulsed][objmaskv]maskedmerge[objanimated]")
+            base_source = "[objanimated]"
+
     # Pop once per scene (when the image itself changes), not per caption
     # cue — reverted 2026-08-29 per direct user feedback watching a real
     # video: re-popping the whole image on every cue (cues landed every
@@ -724,19 +859,12 @@ def build_scene_video_segment_from_still(
     # caption's own per-cue scale-punch (below) is untouched — new caption
     # text still gets its own small pop as it appears, which is a much
     # smaller, less distracting effect than re-zooming the whole frame.
-    base_filter = (
-        f"[0:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
+    filters.append(
+        f"{base_source}pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
         f"zoompan=z='{_pop_in_zoom_expr()}':"
         "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
     )
-
-    cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-loop", "1", "-framerate", str(FPS), "-i", str(image_path),
-    ]
-    next_input_index = 1
-    filters = [base_filter]
     prior_label = "base0"
     for cue_index, (timed, overlay_path) in enumerate(zip(timed_caption_overlays, overlay_paths)):
         cue_label, next_input_index = _append_caption_cue_stage(
@@ -799,12 +927,20 @@ def assemble_stickers(
         )
         caption_boxes.append(box)
 
+        scene_type = scene.get("scene_type", "mascot")
+        object_animation_start = _narrated_object_cue_start(
+            scene["narration"], audio[i].duration, scene_type,
+        )
+        object_animation_region = SPLIT_CANVAS_PROP_REGION if scene_type == "split_canvas" else None
+
         seg_path = build_scene_video_segment_from_still(
             image_path,
             audio[i].duration,
             i,
             segments_dir,
             timed_caption_overlays=timed_overlays,
+            object_animation_start=object_animation_start,
+            object_animation_region=object_animation_region,
         )
         segment_paths.append(seg_path)
 

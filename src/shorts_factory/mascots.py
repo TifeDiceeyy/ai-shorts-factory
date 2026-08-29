@@ -156,7 +156,7 @@ class Mascot:
         this scene's fx/props/action/narration — never hardcoded to one
         topic); any pop-in is a single short scale-in on first appearance,
         never a repeating bounce."""
-        object_fx = _object_fx_for(fx, props, action, narration)
+        object_fx = object_fx_for(fx, props, action, narration)
 
         if scene_type in ("ingredient_grid", "process_action"):
             # No mascot in these scene types at all (see build_scene_prompt)
@@ -223,7 +223,12 @@ _OBJECT_FX_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
 ]
 
 
-def _object_fx_for(*texts: str | None) -> str | None:
+def object_fx_for(*texts: str | None) -> str | None:
+    """Public (not module-private) since 2026-08-29 — also used by
+    assembly._narrated_object_cue_start() to find the moment a scene's
+    narration names something animatable, for the localized on-screen
+    object-pulse feature (distinct from this function's original use here:
+    describing motion for the ai_video/Hailuo continuous-video prompt)."""
     haystack = " ".join(t for t in texts if t).lower()
     for keywords, fx_desc in _OBJECT_FX_KEYWORDS:
         if any(kw in haystack for kw in keywords):
