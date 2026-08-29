@@ -5,10 +5,13 @@ from shorts_factory.captions import (
     CAPTION_STYLES,
     CaptionStyle,
     STYLE_NAMES,
+    SUBSCRIBE_CTA_STACK_GAP,
     draw_caption,
     caption_overlay_png,
     caution_badge_overlay_png,
     draw_caution_badge,
+    draw_subscribe_cta,
+    subscribe_cta_overlay_png,
     get_random_caption_style,
     get_random_caption_style_name,
     resolve_caption_style,
@@ -165,7 +168,7 @@ def test_draw_caution_badge_adds_to_the_image_not_replaces_it():
     base = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
     real_caption_composited, box = draw_caption(base, "THE REAL PAYOFF LINE", style="comic_punch_orange")
 
-    badged = draw_caution_badge(real_caption_composited, "CAUTION: educational overview only.")
+    badged, _box = draw_caution_badge(real_caption_composited, "CAUTION: educational overview only.")
 
     # The real caption's own rendered pixels must still be present — the
     # badge must not have overwritten/erased the frame's existing content,
@@ -185,11 +188,50 @@ def test_draw_caution_badge_adds_to_the_image_not_replaces_it():
 def test_caution_badge_sits_at_the_bottom_not_over_the_main_middle_caption():
     """The badge must be positioned opposite the main caption (bottom vs
     middle) so the two never visually collide."""
-    overlay = caution_badge_overlay_png("CAUTION: educational overview only.")
+    overlay, _box = caution_badge_overlay_png("CAUTION: educational overview only.")
     bbox = overlay.getbbox()
     assert bbox is not None
     _left, top, _right, bottom = bbox
     # Must land in the bottom safe region, well below the vertical middle
     # of the frame where the main caption is drawn.
+    assert top > FRAME_HEIGHT // 2
+    assert bottom <= FRAME_HEIGHT - SAFE_BOTTOM + 1
+
+
+def test_subscribe_cta_stacks_above_the_caution_badge_without_overlapping():
+    """Real bug found 2026-08-29 on a real yellow-safety-class video
+    ("furnace"): the caution badge and Subscribe CTA both independently
+    used position="bottom", so on the last scene's final cue (where both
+    apply) they landed in the exact same spot and visually overlapped —
+    the caution text was even partly obscured/cut off. Fixed via
+    bottom_limit: the CTA must now stack entirely above the caution
+    badge's own top edge, with a real gap between them, not just avoid
+    exact pixel collision."""
+    text = "CAUTION: educational overview only."
+    _caution_overlay, caution_box = caution_badge_overlay_png(text)
+
+    bottom_limit = caution_box.top - SUBSCRIBE_CTA_STACK_GAP
+    cta_overlay = subscribe_cta_overlay_png("SUBSCRIBE!", bottom_limit=bottom_limit)
+    cta_bbox = cta_overlay.getbbox()
+    assert cta_bbox is not None
+    _left, _top, _right, cta_bottom = cta_bbox
+
+    assert cta_bottom <= caution_box.top, (
+        f"Subscribe CTA (bottom={cta_bottom}) must not extend past the caution badge's top "
+        f"({caution_box.top}) — they would visually overlap"
+    )
+    assert caution_box.top - cta_bottom >= SUBSCRIBE_CTA_STACK_GAP - 2, (
+        "expected a real visual gap between the two, not just a non-overlapping touch"
+    )
+
+
+def test_draw_subscribe_cta_without_bottom_limit_still_lands_at_the_frame_bottom():
+    """No caution badge on this frame (e.g. a green-safety-class topic) —
+    the CTA must fall back to its normal bottom-of-frame position, same as
+    before this fix, not silently vanish or misplace."""
+    overlay = subscribe_cta_overlay_png("SUBSCRIBE!")
+    bbox = overlay.getbbox()
+    assert bbox is not None
+    _left, top, _right, bottom = bbox
     assert top > FRAME_HEIGHT // 2
     assert bottom <= FRAME_HEIGHT - SAFE_BOTTOM + 1

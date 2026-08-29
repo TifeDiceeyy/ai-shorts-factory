@@ -21,6 +21,7 @@ from PIL import Image
 from .captions import (
     FRAME_HEIGHT,
     FRAME_WIDTH,
+    SUBSCRIBE_CTA_STACK_GAP,
     CaptionBox,
     caption_overlay_png,
     caution_badge_overlay_png,
@@ -153,17 +154,24 @@ def build_timed_caption_overlays(
     action, meant to appear once in the closing seconds, not repeated
     across a whole scene."""
     overlays: list[TimedCaptionOverlay] = []
+    caution_box: CaptionBox | None = None
     for cue in narration_caption_cues(narration, duration):
         image, box = caption_overlay_png(cue.text, style=caption_style)
         if caution_text:
-            image = Image.alpha_composite(image, caution_badge_overlay_png(caution_text))
+            caution_overlay, caution_box = caution_badge_overlay_png(caution_text)
+            image = Image.alpha_composite(image, caution_overlay)
         overlays.append(TimedCaptionOverlay(image=image, start=cue.start, end=cue.end, box=box))
     if not overlays:
         image, box = caption_overlay_png("…", style=caption_style)
         overlays.append(TimedCaptionOverlay(image=image, start=0.0, end=duration, box=box))
     if subscribe_cta_text:
         last = overlays[-1]
-        composited = Image.alpha_composite(last.image, subscribe_cta_overlay_png(subscribe_cta_text))
+        # Stack above the caution badge instead of both anchoring to the
+        # same bottom spot — real bug found 2026-08-29 on a real
+        # yellow-safety-class video: they overlapped.
+        bottom_limit = caution_box.top - SUBSCRIBE_CTA_STACK_GAP if caution_box else None
+        cta_overlay = subscribe_cta_overlay_png(subscribe_cta_text, bottom_limit=bottom_limit)
+        composited = Image.alpha_composite(last.image, cta_overlay)
         overlays[-1] = TimedCaptionOverlay(image=composited, start=last.start, end=last.end, box=last.box)
     union_box = CaptionBox(
         left=min(item.box.left for item in overlays),
@@ -562,36 +570,6 @@ def _pop_in_zoom_expr() -> str:
     )
 
 
-def _repeating_pop_in_zoom_expr(cue_starts: list[float]) -> str:
-    """Same overshoot-then-settle scale-bounce curve as _pop_in_zoom_expr(),
-    re-triggered at every caption cue's start time instead of only once at
-    t=0 — this is what turns a single scene-long static hold into a "new
-    picture/pose beat" every 2-3s (matching a real reference short's editing
-    rhythm — ~1 picture/pose change per 2.8s, vs. this pipeline's prior
-    ~1 per 6.5s) without generating any additional images. Falls back to the
-    single-pop expression when there's only one cue (the common short-scene
-    case), so scenes with one cue render byte-identically to before this
-    change."""
-    if len(cue_starts) <= 1:
-        return _pop_in_zoom_expr()
-    up_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_START_SCALE) / POP_IN_UP_FRAMES
-    settle_slope = (POP_IN_OVERSHOOT_SCALE - POP_IN_REST_SCALE) / (POP_IN_SETTLE_FRAMES - POP_IN_UP_FRAMES)
-    expr = str(POP_IN_REST_SCALE)
-    # Build outward from the earliest cue so the LAST-processed (largest)
-    # start ends up as the outermost/first-checked condition — at any given
-    # frame we want the window belonging to the most recent cue whose start
-    # has already passed, not the first one that happens to match.
-    for start in sorted(cue_starts):
-        f0 = round(start * FPS)
-        window = (
-            f"if(lt(on-{f0},{POP_IN_UP_FRAMES}),{POP_IN_START_SCALE}+{up_slope}*(on-{f0}),"
-            f"if(lt(on-{f0},{POP_IN_SETTLE_FRAMES}),{POP_IN_OVERSHOOT_SCALE}-{settle_slope}*(on-{f0}-{POP_IN_UP_FRAMES}),"
-            f"{POP_IN_REST_SCALE}))"
-        )
-        expr = f"if(gte(on,{f0}),{window},{expr})"
-    return expr
-
-
 # Per-cue caption scale-punch: each caption cue briefly overshoots-then-
 # settles (same curve as the image pop-in) so captions read as "popping"
 # stickers rather than static karaoke text. Rendered as pre-baked PIL frames,
@@ -738,10 +716,17 @@ def build_scene_video_segment_from_still(
 
     oversized_w = round(FRAME_WIDTH * STICKER_HEADROOM)
     oversized_h = round(FRAME_HEIGHT * STICKER_HEADROOM)
-    cue_starts = [timed.start for timed in timed_caption_overlays]
+    # Pop once per scene (when the image itself changes), not per caption
+    # cue — reverted 2026-08-29 per direct user feedback watching a real
+    # video: re-popping the whole image on every cue (cues landed every
+    # ~0.8-1.5s for punchy narration, not the ~2-3s originally targeted)
+    # read as constant zooming/fidgeting rather than a deliberate beat. The
+    # caption's own per-cue scale-punch (below) is untouched — new caption
+    # text still gets its own small pop as it appears, which is a much
+    # smaller, less distracting effect than re-zooming the whole frame.
     base_filter = (
         f"[0:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
-        f"zoompan=z='{_repeating_pop_in_zoom_expr(cue_starts)}':"
+        f"zoompan=z='{_pop_in_zoom_expr()}':"
         "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[base0]"
     )
@@ -1061,11 +1046,16 @@ def assemble(
     for i, scene in enumerate(scenes):
         base_image = frame_source(i, scene)
         frame_path, box = build_scene_frame(scene, i, base_image, frames_dir, caption_style=caption_style)
+        caution_box = None
         if caution_text and i == len(scenes) - 1:
-            badged = draw_caution_badge(Image.open(frame_path), caution_text)
+            badged, caution_box = draw_caution_badge(Image.open(frame_path), caution_text)
             badged.save(frame_path)
         if subscribe_cta_text and i == len(scenes) - 1:
-            cta_frame = draw_subscribe_cta(Image.open(frame_path), subscribe_cta_text)
+            # Stack above the caution badge instead of both anchoring to
+            # the same bottom spot — see build_timed_caption_overlays'
+            # matching fix for the real bug this addresses.
+            bottom_limit = caution_box.top - SUBSCRIBE_CTA_STACK_GAP if caution_box else None
+            cta_frame = draw_subscribe_cta(Image.open(frame_path), subscribe_cta_text, bottom_limit=bottom_limit)
             cta_frame.save(frame_path)
         frame_paths.append(frame_path)
         caption_boxes.append(box)

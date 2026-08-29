@@ -894,7 +894,7 @@ def regenerate_scene(
                 scene, scene_index, base_image, generated_dir / "frames", caption_style=caption_style
             )
             if caution_text and is_last_scene:
-                badged = assembly.draw_caution_badge(Image.open(new_frame_path), caution_text)
+                badged, _caution_box = assembly.draw_caution_badge(Image.open(new_frame_path), caution_text)
                 badged.save(new_frame_path)
             new_seg_path = assembly.build_scene_video_segment(new_frame_path, new_duration, scene_index, generated_dir / "segments")
 

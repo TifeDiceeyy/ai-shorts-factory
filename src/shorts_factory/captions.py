@@ -398,8 +398,18 @@ def _build_caption_overlay(
     size: tuple[int, int],
     text: str,
     style: CaptionStyle | str | None = None,
+    bottom_limit: int | None = None,
 ) -> tuple[Image.Image, CaptionBox]:
-    """Builds a dynamic caption overlay adhering to the chosen CaptionStyle."""
+    """Builds a dynamic caption overlay adhering to the chosen CaptionStyle.
+
+    bottom_limit, if given, overrides where a position="bottom" style's
+    card BOTTOM edge sits (default: FRAME_HEIGHT - SAFE_BOTTOM) — lets a
+    caller stack a second bottom-anchored element (e.g. the Subscribe CTA)
+    directly above a first one (e.g. the caution badge) instead of both
+    independently anchoring to the same spot and overlapping. Real bug
+    found 2026-08-29: a real yellow-safety-class video's last frame showed
+    the caution badge and Subscribe CTA overlapping — both used
+    position="bottom" with no awareness of each other."""
     st = resolve_caption_style(style, seed=text)
     overlay = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -428,15 +438,16 @@ def _build_caption_overlay(
     card_height = min(text_block_height + 2 * effective_padding, FRAME_HEIGHT - SAFE_BOTTOM - SAFE_TOP)
 
     # Determine vertical placement based on style.position
+    bottom_edge = bottom_limit if bottom_limit is not None else (FRAME_HEIGHT - SAFE_BOTTOM)
     if st.position == "top":
         card_top = SAFE_TOP + 15
     elif st.position == "middle":
         card_top = (FRAME_HEIGHT - card_height) // 2
     else:  # bottom
-        card_top = (FRAME_HEIGHT - SAFE_BOTTOM) - card_height
+        card_top = bottom_edge - card_height
 
     # Shift card vertically fully inside safe area without shrinking
-    max_top = (FRAME_HEIGHT - SAFE_BOTTOM) - card_height
+    max_top = bottom_edge - card_height
     if card_top > max_top:
         card_top = max_top
     if card_top < SAFE_TOP:
@@ -555,22 +566,23 @@ CAUTION_BADGE_STYLE = CaptionStyle(
 )
 
 
-def draw_caution_badge(base: Image.Image, text: str) -> Image.Image:
+def draw_caution_badge(base: Image.Image, text: str) -> tuple[Image.Image, CaptionBox]:
     """Composites a small safety-disclaimer line at the BOTTOM of the frame,
     ON TOP OF whatever else is already drawn (the scene's own real caption
     included) — this must never replace a scene's actual caption. Small,
     stroke-only (no background card, same as every other style), positioned
-    opposite the main "middle" caption so the two never collide."""
+    opposite the main "middle" caption so the two never collide. Returns
+    the badge's own box too, so a caller stacking the Subscribe CTA above
+    it (see subscribe_cta_overlay_png's bottom_limit) knows where it landed."""
     img = base.convert("RGBA")
-    overlay, _box = _build_caption_overlay(img.size, text, style=CAUTION_BADGE_STYLE)
-    return Image.alpha_composite(img, overlay).convert("RGB")
+    overlay, box = _build_caption_overlay(img.size, text, style=CAUTION_BADGE_STYLE)
+    return Image.alpha_composite(img, overlay).convert("RGB"), box
 
 
-def caution_badge_overlay_png(text: str) -> Image.Image:
+def caution_badge_overlay_png(text: str) -> tuple[Image.Image, CaptionBox]:
     """Same as draw_caution_badge, as a standalone transparent RGBA layer —
     for compositing onto an animated video clip via ffmpeg's overlay filter."""
-    overlay, _box = _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=CAUTION_BADGE_STYLE)
-    return overlay
+    return _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=CAUTION_BADGE_STYLE)
 
 
 SUBSCRIBE_CTA_STYLE = CaptionStyle(
@@ -585,21 +597,34 @@ SUBSCRIBE_CTA_STYLE = CaptionStyle(
     shadow=True,
 )
 
+# Vertical gap between the Subscribe CTA and whatever bottom-anchored
+# element it's stacked above (currently only the caution badge).
+SUBSCRIBE_CTA_STACK_GAP = 14
 
-def subscribe_cta_overlay_png(text: str = "SUBSCRIBE!") -> Image.Image:
+
+def subscribe_cta_overlay_png(text: str = "SUBSCRIBE!", bottom_limit: int | None = None) -> Image.Image:
     """A bold end-of-video Subscribe call-to-action, as a standalone
     transparent RGBA layer — same compositing pattern as
     caution_badge_overlay_png(), meant for the LAST scene's final seconds
     only (see assemble()/assemble_stickers()/assemble_animated()'s
-    subscribe_cta_text param)."""
-    overlay, _box = _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=SUBSCRIBE_CTA_STYLE)
+    subscribe_cta_text param).
+
+    bottom_limit, if given, stacks the CTA above that y-coordinate instead
+    of at the frame's own bottom-safe-area edge — pass the caution badge's
+    own box.top (minus SUBSCRIBE_CTA_STACK_GAP) when both are present on
+    the same frame, or they silently land in the same spot and overlap
+    (real bug, confirmed 2026-08-29 on a real yellow-safety-class video)."""
+    overlay, _box = _build_caption_overlay(
+        (FRAME_WIDTH, FRAME_HEIGHT), text, style=SUBSCRIBE_CTA_STYLE, bottom_limit=bottom_limit,
+    )
     return overlay
 
 
-def draw_subscribe_cta(base: Image.Image, text: str = "SUBSCRIBE!") -> Image.Image:
+def draw_subscribe_cta(base: Image.Image, text: str = "SUBSCRIBE!", bottom_limit: int | None = None) -> Image.Image:
     """Same role as draw_caution_badge() but for the Subscribe CTA — used by
     the static assemble() path (which draws directly onto a PIL frame,
-    unlike the timed-overlay paths)."""
+    unlike the timed-overlay paths). See subscribe_cta_overlay_png's
+    docstring for bottom_limit's stacking purpose."""
     img = base.convert("RGBA")
-    overlay, _box = _build_caption_overlay(img.size, text, style=SUBSCRIBE_CTA_STYLE)
+    overlay, _box = _build_caption_overlay(img.size, text, style=SUBSCRIBE_CTA_STYLE, bottom_limit=bottom_limit)
     return Image.alpha_composite(img, overlay).convert("RGB")

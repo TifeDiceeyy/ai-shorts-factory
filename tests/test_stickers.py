@@ -77,45 +77,35 @@ def _max_channel_diff(a: Image.Image, b: Image.Image) -> int:
     return max(hi for _lo, hi in stat.extrema)
 
 
-def test_pop_in_repeats_at_every_caption_cue_start_not_just_once(tmp_path):
-    """Editing-rhythm fix: a scene with multiple caption cues must re-pop
-    the image at each cue's start, not hold one static pop-in for the whole
-    scene (the prior behavior — ~1 picture/pose change per 6.5s vs. a real
-    reference short's ~1 per 2.8s).
-
-    Chaining concat+setpts+multiple sequential overlay stages (needed for
-    the per-cue caption punch, see _append_caption_cue_stage) introduces a
-    real but small (~4 output frame / ~0.13s) ffmpeg filtergraph latency
-    before a new cue's pop visibly appears — confirmed directly against
-    this exact segment by decoding every frame and diffing against a known
-    rest-state reference (real pop: max per-channel delta 200+; encoder
-    noise on an otherwise-static region: max delta 1-2). So instead of
-    asserting an exact single instant, scan a window around each cue
-    boundary and require a real (not noise-level) content change somewhere
-    in it — proving the pop re-fires without over-fitting to an exact,
-    ffmpeg-internals-dependent frame offset."""
+def test_pop_in_fires_once_per_scene_not_on_every_caption_cue(tmp_path):
+    """Reverted 2026-08-29 per direct user feedback watching a real
+    generated video: an earlier "editing rhythm" pass made the image
+    re-pop at every caption cue start, but real caption cues for punchy
+    narration land every ~0.8-1.5s — re-zooming the whole image that often
+    read as constant zooming/fidgeting, not a deliberate beat. The image
+    must now pop exactly once, at scene start, and hold steady through
+    every later cue boundary — the caption's own per-cue scale-punch
+    (test_caption_overlay_scale_punches_at_its_own_cue_start) is
+    unaffected and still fires per cue."""
     img = _still_image(tmp_path)
     narration = "one two three four five six seven eight nine ten eleven twelve"
     overlays, _box = assembly.build_timed_caption_overlays(narration, 6.0)
-    assert len(overlays) >= 3, "test needs multiple cues to prove the pop repeats"
+    assert len(overlays) >= 3, "test needs multiple cues to prove later ones stay settled"
     seg = assembly.build_scene_video_segment_from_still(
         img, 6.0, 0, tmp_path / "segments", timed_caption_overlays=overlays
     )
 
     region = (0, FRAME_HEIGHT // 2, FRAME_WIDTH, FRAME_HEIGHT)
-    real_change_threshold = 50  # well above the 1-2 unit encoder noise floor, well below a real ~210 pop delta
-    for cue, next_cue in zip(overlays, overlays[1:]):
-        settled = _frame_at(seg, cue.start + 0.55, tmp_path / f"settled_{cue.start:.2f}.png").crop(region)
-        sampled_diffs = []
-        for offset in (0.03, 0.08, 0.13, 0.18, 0.23, 0.28):
-            frame = _frame_at(
-                seg, next_cue.start + offset, tmp_path / f"popped_{next_cue.start:.2f}_{offset:.2f}.png"
-            ).crop(region)
-            sampled_diffs.append(_max_channel_diff(settled, frame))
-        assert max(sampled_diffs) >= real_change_threshold, (
-            f"expected a fresh pop-in visible somewhere in the first ~0.3s after cue start "
-            f"{next_cue.start:.2f}s, but every sampled frame stayed within encoder noise of the "
-            f"previous cue's settled frame (max delta {max(sampled_diffs)}) — the pop only fired once"
+    noise_floor = 50  # well above the 1-2 unit encoder noise floor, well below a real ~210 pop delta
+    settled_at_scene_start = _frame_at(seg, 0.55, tmp_path / "settled_0.png").crop(region)
+    for next_cue in overlays[1:]:
+        just_after = _frame_at(
+            seg, next_cue.start + 0.05, tmp_path / f"after_{next_cue.start:.2f}.png"
+        ).crop(region)
+        diff = _max_channel_diff(settled_at_scene_start, just_after)
+        assert diff < noise_floor, (
+            f"expected the image to stay settled through cue start {next_cue.start:.2f}s "
+            f"(image pops once, at scene start, not per cue) — got a real content change (delta {diff})"
         )
 
 
