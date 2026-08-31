@@ -35,6 +35,44 @@ def test_sticker_qa_rejects_full_frame_fill(tmp_path):
     assert not result.ok
 
 
+def test_build_stickers_trigger_words_fit_schema():
+    from shorts_factory.providers.llm import build_stickers_for_scene
+    from shorts_factory.schema_validate import validate_script_shape
+
+    scene = {
+        "scene_type": "mascot_reaction",
+        "props": "hammer, anvil",
+        "action": "striking hot metal on the anvil",
+        "duration": 8.0,
+    }
+    stickers = build_stickers_for_scene(scene, 8.0, "flat cartoon", ["stk-001", "stk-002", "stk-003"])
+    for sticker in stickers:
+        tw = sticker.get("trigger_words")
+        if tw is not None:
+            assert len(tw) <= 3
+        if sticker.get("uses_hero"):
+            assert "trigger_words" not in sticker
+
+    script = {
+        "topic": "metal",
+        "language": "English",
+        "visual_style": "flat cartoon",
+        "scenes": [
+            {
+                "narration": "n",
+                "caption": "c",
+                "duration": 8.0,
+                "visual_prompt": "v",
+                "source_claim_id": "claim-01",
+                "scene_type": "ingredient_grid",
+                "props": "limestone, volcanic ash, gravel",
+                "stickers": stickers,
+            }
+        ],
+    }
+    validate_script_shape(script)
+
+
 def test_repair_sticker_manifest_fills_missing_count():
     script = {
         "visual_style": "flat cartoon",

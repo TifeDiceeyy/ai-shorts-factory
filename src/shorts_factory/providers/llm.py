@@ -127,6 +127,30 @@ STICKER_KEYS = {
 STICKER_ENTRANCES = ("fade_in", "slide_up", "slide_left")
 STICKER_IDLES = ("float", "flicker", "drift", "spin", "hold", "breathe")
 STICKER_POSITIONS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
+TRIGGER_WORDS_MAX = 3
+
+
+def _trigger_words_from_phrase(phrase: str, *, max_words: int = TRIGGER_WORDS_MAX) -> list[str]:
+    """Extract 1-3 spoken nouns for word-sync timing — must fit schema maxItems."""
+    words = [w.strip() for w in re.split(r"[\s,/]+", phrase.strip()) if w.strip()]
+    content = [w for w in words if len(w) >= 3] or words
+    return content[:max_words]
+
+
+def _sanitize_sticker_fields(sticker: dict[str, Any]) -> None:
+    tw = sticker.get("trigger_words")
+    if tw is None:
+        return
+    if isinstance(tw, str):
+        cleaned = _trigger_words_from_phrase(tw)
+    elif isinstance(tw, list):
+        cleaned = [str(w).strip() for w in tw if str(w).strip()][:TRIGGER_WORDS_MAX]
+    else:
+        cleaned = []
+    if cleaned:
+        sticker["trigger_words"] = cleaned
+    else:
+        sticker.pop("trigger_words", None)
 
 
 def _idle_for_props(*texts: str | None) -> str:
@@ -179,7 +203,9 @@ def build_stickers_for_scene(
             }
             if label_stickers_enabled:
                 sticker["label"] = item.upper()[:18]
-            sticker["trigger_words"] = re.split(r"[\s,/]+", item)
+            trigger = _trigger_words_from_phrase(item)
+            if trigger:
+                sticker["trigger_words"] = trigger
             stickers.append(sticker)
         return stickers
 
@@ -232,9 +258,10 @@ def build_stickers_for_scene(
             sticker["appear_at"] = 0.0
         elif uses_hero:
             sticker["uses_hero"] = True
-        subject_words = [w for w in re.split(r"[\s,/]+", subject) if len(w) > 2]
-        if subject_words:
-            sticker["trigger_words"] = subject_words
+        if not uses_hero:
+            trigger = _trigger_words_from_phrase(subject)
+            if trigger:
+                sticker["trigger_words"] = trigger
         stickers.append(sticker)
     return stickers
 
@@ -290,6 +317,10 @@ def repair_sticker_manifest(
             for idx, sticker in enumerate(image_stickers):
                 if props and idx < len(props):
                     sticker["label"] = props[idx].upper()
+                _sanitize_sticker_fields(sticker)
+        else:
+            for sticker in image_stickers:
+                _sanitize_sticker_fields(sticker)
     return script
 
 
@@ -363,6 +394,12 @@ def _normalize_generated_script(
         duration = clean.get("duration")
         if isinstance(duration, str) and re.fullmatch(r"\s*\d+(?:\.\d+)?\s*", duration):
             clean["duration"] = float(duration)
+
+        stickers = clean.get("stickers")
+        if isinstance(stickers, list):
+            for sticker in stickers:
+                if isinstance(sticker, dict):
+                    _sanitize_sticker_fields(sticker)
 
         normalized_scenes.append(clean)
 
