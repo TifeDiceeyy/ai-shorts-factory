@@ -426,6 +426,92 @@ def test_grid_reveal_wires_into_build_scene_video_segment_from_still(tmp_path):
         assert pixel != (255, 255, 255), f"quadrant at {center} should have revealed by the end, got {pixel}"
 
 
+def _mask_region_brightness_series(seg: Path, tmp_path, tag: str, start: float,
+                                   n: int = 18, step: float = 1 / 30) -> list[float]:
+    """Mean brightness of the animated prop region, sampled frame-by-frame
+    over a short window right after `start`."""
+    cx, cy = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    region = (cx - 100, cy - 100, cx + 100, cy + 100)
+    out = []
+    for i in range(n):
+        frame = _frame_at(seg, start + 0.05 + i * step, tmp_path / f"fs_{tag}_{i}.png").crop(region)
+        out.append(max(ImageStat.Stat(frame).mean))
+    return out
+
+
+def _mean_abs_step(series: list[float]) -> float:
+    return sum(abs(series[i + 1] - series[i]) for i in range(len(series) - 1)) / (len(series) - 1)
+
+
+def test_flicker_style_jitters_faster_and_harder_than_the_slow_breathing_pulse(tmp_path):
+    """Section 2 (localized fire/glow flicker): fire/spark scenes route to
+    style="flicker", which must render as a fast, irregular flame jitter —
+    _object_flicker_brightness_expr — NOT the slow even
+    _object_pulse_brightness_expr breathing that every other brightness
+    category falls back to. Fails-without-fix: before this change, "flicker"
+    reused _object_pulse_brightness_expr verbatim, so the two series below
+    had identical frame-to-frame motion (ratio ~1.0).
+
+    Validated live 2026-08-31 against the real furnace molten-iron scene:
+    flicker's frame-to-frame masked-region brightness delta ran ~4x the
+    slow pulse's, with no visible repeat cycle."""
+    img_path = _prop_image(tmp_path)
+    narration = "The fire roars and the metal starts to glow bright orange."
+    duration = 6.0
+    start = assembly._narrated_object_cue_start(narration, duration, "process_action")
+    style = assembly._narrated_object_cue_style(narration, duration, "process_action")
+    assert start is not None and style == "flicker"
+
+    overlays, _box = assembly.build_timed_caption_overlays(narration, duration)
+
+    flicker_seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 0, tmp_path / "seg_flicker",
+        timed_caption_overlays=overlays, object_animation_start=start,
+        object_animation_style="flicker",
+    )
+    pulse_seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 1, tmp_path / "seg_pulse",
+        timed_caption_overlays=overlays, object_animation_start=start,
+        object_animation_style="pulse",
+    )
+
+    flicker_step = _mean_abs_step(_mask_region_brightness_series(flicker_seg, tmp_path, "flick", start))
+    pulse_step = _mean_abs_step(_mask_region_brightness_series(pulse_seg, tmp_path, "pulse", start))
+    assert flicker_step > pulse_step * 2.0, (
+        f"flicker should jitter far harder than the slow pulse: "
+        f"flicker per-frame delta {flicker_step:.2f} vs pulse {pulse_step:.2f}"
+    )
+
+
+def test_flicker_style_stays_static_before_the_cue_and_leaves_background_untouched(tmp_path):
+    img_path = _prop_image(tmp_path)
+    narration = "We start by gathering the raw ore and stacking it carefully, and only much later does the fire finally roar to life."
+    duration = 6.0
+    start = assembly._narrated_object_cue_start(narration, duration, "process_action")
+    assert start is not None and start > 0.5
+    style = assembly._narrated_object_cue_style(narration, duration, "process_action")
+    assert style == "flicker"
+
+    overlays, _box = assembly.build_timed_caption_overlays(narration, duration)
+    seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 0, tmp_path / "segments",
+        timed_caption_overlays=overlays, object_animation_start=start,
+        object_animation_style=style,
+    )
+
+    cx, cy = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    region = (cx - 100, cy - 100, cx + 100, cy + 100)
+    a = _frame_at(seg, 0.4, tmp_path / "early_a.png").crop(region)
+    b = _frame_at(seg, max(0.5, start - 0.3), tmp_path / "early_b.png").crop(region)
+    assert _mean_channel_diff(a, b) < 2.0, "must stay static before the fire cue starts"
+
+    corner = (10, FRAME_HEIGHT - 60, 60, FRAME_HEIGHT - 10)
+    for off in (0.2, 0.6, 1.1):
+        frame = _frame_at(seg, start + off, tmp_path / f"corner_{off}.png")
+        stat = ImageStat.Stat(frame.crop(corner))
+        assert min(stat.mean) > 250, f"background must stay white at t={start + off}, got {stat.mean}"
+
+
 def test_no_animation_wiring_when_object_animation_start_is_none(tmp_path):
     """Default/backward-compatible path: scenes that don't qualify (no
     keyword match, or a mascot scene type) get object_animation_start=None

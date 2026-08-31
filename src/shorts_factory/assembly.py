@@ -922,6 +922,40 @@ def _object_pulse_brightness_expr(start: float) -> str:
     )
 
 
+# Fire/spark ("flicker" style, see mascots._OBJECT_FX_KEYWORDS) reads
+# convincingly only when the light level jitters FAST and IRREGULARLY —
+# the slow, even OBJECT_PULSE_PERIOD_SECONDS wave above looks like a
+# breathing prop, not a flame. Two mod-based triangle waves at
+# deliberately incommensurate short periods are summed so the combined
+# curve never visibly repeats over a scene, plus a small positive bias
+# (a flame flares up more than it gutters). Tuned live 2026-08-31 against
+# the real furnace molten-iron scene + its content mask: masked-region
+# frame-to-frame brightness delta ran ~4x the slow pulse's with no
+# visible cycle; background stayed within h264 noise (~0.6 mean unit).
+OBJECT_FLICKER_FAST_PERIOD_SECONDS = 0.13
+OBJECT_FLICKER_SLOW_PERIOD_SECONDS = 0.41
+OBJECT_FLICKER_FAST_AMPLITUDE = 0.075
+OBJECT_FLICKER_SLOW_AMPLITUDE = 0.05
+OBJECT_FLICKER_BRIGHT_BIAS = 0.025
+
+
+def _object_flicker_brightness_expr(start: float) -> str:
+    """Fire/spark-specific brightness expression — a fast, irregular flame
+    jitter rather than _object_pulse_brightness_expr's slow even breathing.
+    Sum of two mod-based triangle waves (no trig — same ffmpeg-eval finding
+    as everywhere else in this module) at incommensurate periods so the
+    combined curve doesn't visibly loop, plus a constant positive bias so
+    the prop sits a touch brighter than its rest state (a flame glows, it
+    doesn't just oscillate around neutral). Gated to exactly 0 before
+    `start`; commas backslash-escaped for ffmpeg's filtergraph parser."""
+    fp, sp = OBJECT_FLICKER_FAST_PERIOD_SECONDS, OBJECT_FLICKER_SLOW_PERIOD_SECONDS
+    fa, sa = OBJECT_FLICKER_FAST_AMPLITUDE, OBJECT_FLICKER_SLOW_AMPLITUDE
+    bias = OBJECT_FLICKER_BRIGHT_BIAS
+    fast = f"{fa}*(2*abs(mod(t-{start:.3f}\\,{fp})/{fp}*2-1)-1)"
+    slow = f"{sa}*(2*abs(mod(t-{start:.3f}\\,{sp})/{sp}*2-1)-1)"
+    return f"if(lt(t\\,{start:.3f})\\,0\\,{bias}+{fast}+{slow})"
+
+
 OBJECT_DRIFT_PERIOD_SECONDS = 1.5
 # Confirmed live 2026-08-29 against a real scene image + mask: a 6px
 # amplitude at zoompan z=1.02 produced a clear positional shift inside the
@@ -974,8 +1008,11 @@ def build_scene_video_segment_from_still(
     _content_mask) on whatever prop content the scene's own image contains
     — the frame stays fully static until that timestamp, then the masked
     region animates for the rest of the scene. object_animation_style picks
-    between a brightness pulse (_object_pulse_brightness_expr, default) and
-    a positional drift (_object_drift_y_expr, style=="drift"). Silently
+    the motion: a positional drift (_object_drift_y_expr, style=="drift" —
+    smoke/steam/water), a fast irregular flame jitter
+    (_object_flicker_brightness_expr, style=="flicker" — fire/spark), or a
+    slow even brightness breathing (_object_pulse_brightness_expr, any
+    other value including None). Silently
     does nothing if _content_mask finds no meaningful non-white content
     (e.g. an unusually sparse image, or one fully covered by
     object_animation_exclude_region).
@@ -1042,6 +1079,9 @@ def build_scene_video_segment_from_still(
                     f"[objtopulse]zoompan=z=1.02:x='iw/2-(iw/zoom/2)':y='{y_expr}':"
                     f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[objpulsed]"
                 )
+            elif object_animation_style == "flicker":
+                flicker_expr = _object_flicker_brightness_expr(object_animation_start)
+                filters.append(f"[objtopulse]eq=eval=frame:brightness='{flicker_expr}'[objpulsed]")
             else:
                 pulse_expr = _object_pulse_brightness_expr(object_animation_start)
                 filters.append(f"[objtopulse]eq=eval=frame:brightness='{pulse_expr}'[objpulsed]")
