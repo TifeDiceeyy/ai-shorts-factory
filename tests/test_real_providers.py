@@ -367,33 +367,6 @@ def test_fal_llm_design_mascot_rejects_malformed_response():
         provider.design_mascot("deep sea diving", None, CostTracker(1))
 
 
-def test_fal_llm_propose_ideas_returns_parsed_ideas_and_records_real_cost():
-    payload = {
-        "ideas": [
-            {
-                "concept": "What if soap disappeared tomorrow?",
-                "angle": "speculative what-if",
-                "hooks": ["Hook one", "Hook two", "Hook three", "Hook four", "Hook five"],
-                "payoff": "Viewer understands hygiene collapse risk.",
-                "series": "what-if-collapse",
-            }
-        ]
-    }
-    fal = gateway({"output": json.dumps(payload), "usage": {"cost": 0.02}})
-    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
-    tracker = CostTracker(1)
-    ideas = provider.propose_ideas("soap", 1, tracker)
-    assert ideas == payload["ideas"]
-    assert tracker.total_spent_usd == 0.02
-
-
-def test_fal_llm_propose_ideas_rejects_malformed_response():
-    fal = gateway({"output": json.dumps({"ideas": [{"concept": "x"}]}), "usage": {"cost": 0.02}})
-    provider = FalLLMProvider(fal, "google/gemini-2.5-flash", 0.05)
-    with pytest.raises(ValueError):
-        provider.propose_ideas("soap", 1, CostTracker(1))
-
-
 def test_fal_video_uploads_hero_image_and_animates_it(tmp_path):
     hero_path = tmp_path / "hero.png"
     hero_path.write_bytes(b"fake png bytes")

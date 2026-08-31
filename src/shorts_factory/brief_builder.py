@@ -38,10 +38,11 @@ def build_brief_from_citations(
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     idea: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """idea, if given, is the concept/angle/hook the human picked during
-    /plan's ideation step (ideation.Idea, as a dict — see ideas_to_dicts).
-    It steers HOW the script frames the (still citation-bound) facts below —
-    concept/angle/chosen_hook/payoff only, never a source of facts itself."""
+    """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
+    steers HOW the script frames the (still citation-bound) facts below —
+    never a source of facts itself. No caller currently populates it (the
+    interactive idea-selection step was removed 2026-08-28); idea=None is
+    the fully-supported default and the param is kept for that framing hook."""
     verified = [
         c for c in citation_store.get("citations", [])
         if c.get("verified") and c.get("confidence", 0) >= min_confidence

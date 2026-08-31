@@ -42,17 +42,17 @@ class AutonomyNotEligible(Exception):
 
 def attempt_autonomous_run(topic: str):
     """The only entrypoint that would ever trigger an unattended run. Refuses
-    before touching the pipeline, ideation, or publish modules at all if not
-    eligible — there's nothing downstream of this check to accidentally reach."""
+    before touching the pipeline or publish modules at all if not eligible —
+    there's nothing downstream of this check to accidentally reach."""
     eligible, reason = is_autonomy_eligible(topic)
     if not eligible:
         raise AutonomyNotEligible(f"refusing autonomous run for {topic!r}: {reason}")
 
     # Deliberately unimplemented beyond this point. Reaching graduated
     # autonomy is a real product decision for later — when it happens, it
-    # plugs in here (ideation.generate_ideas -> pipeline.run_pipeline ->
-    # dashboard review still required per CLAUDE.md, since "human-approved
-    # publish only" applies to publish, not to render/queue generation).
+    # plugs in here (pipeline.run_pipeline -> dashboard review still required
+    # per CLAUDE.md, since "human-approved publish only" applies to publish,
+    # not to render/queue generation).
     raise NotImplementedError(
         "autonomy eligibility check passed, but the autonomous run itself is "
         "not implemented — this is intentionally unreachable until there's a "

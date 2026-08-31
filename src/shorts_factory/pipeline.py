@@ -265,10 +265,10 @@ def run_pipeline(
     idea: dict[str, Any] | None = None,
     artifacts_root: Path | None = None,
 ) -> PipelineResult:
-    """idea, if given, is the concept/angle/hook the human picked during
-    /plan's ideation step (as a dict, see ideation.ideas_to_dicts) — it
-    steers script framing (brief_builder.build_brief_from_citations),
-    never facts. None preserves the old topic-only behavior.
+    """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
+    steers script framing (brief_builder.build_brief_from_citations), never
+    facts. No caller currently populates it (the interactive idea-selection
+    step was removed 2026-08-28); None preserves the topic-only behavior.
 
     The mascot is always chosen automatically from the story (see
     select_mascot_for_story()/generate_custom_mascot() below) — there is no

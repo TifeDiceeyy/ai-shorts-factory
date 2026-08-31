@@ -48,24 +48,6 @@ SCENE_TYPE_TEMPLATES = [
     "split_canvas",
 ]
 
-# StubLLMProvider.propose_ideas()'s deterministic content — moved here from
-# ideation.py so the stub/real split for ideation matches every other
-# provider in this file: ideation.generate_ideas() just calls
-# LLMProvider.propose_ideas() and doesn't know which implementation answered.
-HOOK_TEMPLATES = [
-    "What if civilization collapsed tomorrow — could you make {topic} from scratch?",
-    "Everyone assumes {topic} needs a factory. Here's why that's wrong.",
-    "The one skill our ancestors had that most people have lost: {topic}.",
-    "Before you scroll past — this is how {topic} actually worked, and it's not what you think.",
-    "3 minutes from now, you'll know how to make {topic} with nothing but what's outside.",
-]
-
-CONCEPT_TEMPLATES = [
-    ("How to reinvent {topic} if civilization collapsed", "a from-scratch survival explainer"),
-    ("The lost science behind {topic}", "a myth-busting historical explainer"),
-    ("{topic}: what your ancestors knew that you don't", "a heritage-skills angle"),
-]
-
 
 class LLMProvider(ABC):
     name: str
@@ -90,16 +72,6 @@ class LLMProvider(ABC):
         safety.RED_TOPICS/RED_KEYWORDS itself, require an explicit human
         confirmation, and only then persist via topic_registry.register_topic
         (which itself refuses to persist a "red" entry)."""
-        ...
-
-    @abstractmethod
-    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
-        """Propose up to n candidate video ideas for a topic already past the
-        safety gate. Each item: {concept, angle, hooks: [str, ...], payoff,
-        series}. This is the creative part only — the caller
-        (ideation.generate_ideas) applies safety_class, visual-potential
-        score, source availability, novelty-vs-recent, and rank_score on
-        top of whatever this returns, regardless of which provider answered."""
         ...
 
     @abstractmethod
@@ -241,7 +213,7 @@ class StubLLMProvider(LLMProvider):
             narration = claim["claim"]
             caption = _caption_from_claim(claim["claim"])
             if i == 0 and chosen_hook:
-                # Honor the human's picked hook (from /plan's ideation step) as
+                # Honor a caller-supplied hook (brief's idea.chosen_hook) as
                 # the opening line, without dropping the claim it's paired
                 # with — the extra words were already folded into this
                 # scene's duration above, before the total got scaled.
@@ -296,30 +268,6 @@ class StubLLMProvider(LLMProvider):
             is_stub=True,
         )
         return proposal
-
-    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
-        operation = "llm.propose_ideas"
-        cost_tracker.check_budget(operation, estimated_cost_usd=0.0)
-        ideas = []
-        for concept_template, angle in CONCEPT_TEMPLATES[:n]:
-            concept = concept_template.format(topic=topic)
-            ideas.append(
-                {
-                    "concept": concept,
-                    "angle": angle,
-                    "hooks": [t.format(topic=topic) for t in HOOK_TEMPLATES],
-                    "payoff": f"Viewer walks away knowing the real, historically-grounded steps behind {topic}.",
-                    "series": "reinvent-it" if "reinvent" in concept.lower() else None,
-                }
-            )
-        cost_tracker.record(
-            provider=self.name,
-            operation=operation,
-            estimated_cost_usd=0.0,
-            actual_cost_usd=0.0,
-            is_stub=True,
-        )
-        return ideas
 
     def design_mascot(self, topic: str, brief: dict[str, Any] | None, cost_tracker: CostTracker) -> dict[str, Any]:
         operation = "llm.design_mascot"
@@ -530,25 +478,6 @@ def _topic_proposal_prompt(topic: str) -> str:
     )
 
 
-def _idea_proposal_prompt(topic: str, n: int) -> str:
-    return (
-        f"Propose {n} distinct video concepts for a short (40-50 second), factual, source-backed "
-        f"YouTube Short about {topic!r}. Return JSON only, no prose, no markdown fences: a single "
-        'object {"ideas": [...]} where each item has exactly: concept (a punchy one-line video title, '
-        "not generic), angle (one short phrase describing the narrative angle/genre — vary these across "
-        "the concepts: try a myth-busting historical explainer, a heritage/lost-skills angle, AND a "
-        "speculative 'what if this disappeared tomorrow' framing where it fits, not just one style "
-        "repeated), hooks (a list of exactly 5 distinct opening-line hook variants, each under 100 "
-        "characters, written to stop someone mid-scroll in the first 3 seconds), payoff (one sentence: "
-        "what the viewer walks away knowing), and series (a short lowercase-hyphenated series-name "
-        "string if this concept could anchor a recurring series, else null). A speculative angle must "
-        "still only use the real, source-backed facts given elsewhere — the hypothetical is the framing "
-        "device, not a license to invent claims. Make the "
-        f"{n} concepts genuinely distinct from each other in angle, not variations on one idea. "
-        f"Topic: {topic!r}"
-    )
-
-
 def _mascot_design_prompt(topic: str, brief: dict[str, Any] | None) -> str:
     brief_context = ""
     if brief:
@@ -643,32 +572,6 @@ class FalLLMProvider(LLMProvider):
         if not required.issubset(proposal):
             raise ValueError(f"malformed topic proposal from LLM, missing keys: {required - proposal.keys()}")
         return proposal
-
-    def propose_ideas(self, topic: str, n: int, cost_tracker: CostTracker) -> list[dict[str, Any]]:
-        operation = "llm.propose_ideas"
-        cost_tracker.check_budget(operation, self.estimate)
-        data = self.gateway.run(
-            self.endpoint,
-            {
-                "model": self.model,
-                "prompt": _idea_proposal_prompt(topic, n),
-                "temperature": 0.8,
-                "max_tokens": 1500,
-            },
-        )
-        actual_cost = float(data.get("usage", {}).get("cost", self.estimate))
-        cost_tracker.record(self.name, operation, self.estimate, actual_cost, is_stub=False)
-        payload = _json_object(data["output"])
-        ideas = payload.get("ideas")
-        if not isinstance(ideas, list) or not ideas:
-            raise ValueError("malformed idea proposal from LLM: expected a non-empty 'ideas' list")
-        required = {"concept", "angle", "hooks", "payoff", "series"}
-        for idea in ideas:
-            if not required.issubset(idea):
-                raise ValueError(f"malformed idea from LLM, missing keys: {required - idea.keys()}")
-            if not isinstance(idea["hooks"], list) or not idea["hooks"]:
-                raise ValueError("malformed idea from LLM: 'hooks' must be a non-empty list")
-        return ideas[:n]
 
     def design_mascot(self, topic: str, brief: dict[str, Any] | None, cost_tracker: CostTracker) -> dict[str, Any]:
         operation = "llm.design_mascot"
