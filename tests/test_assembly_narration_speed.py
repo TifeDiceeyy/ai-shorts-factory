@@ -35,28 +35,27 @@ def test_apply_narration_speed_shortens_audio_by_the_configured_factor(tmp_path)
     assert after == pytest.approx(expected, abs=0.15)
 
 
+def _sample_rate_hz(path) -> str:
+    result = subprocess.run(["ffmpeg", "-i", str(path)], capture_output=True, text=True)
+    import re
+    match = re.search(r"(\d+)\s*Hz", result.stderr)
+    if not match:
+        raise RuntimeError(f"could not read sample rate from {path}")
+    return match.group(1)
+
+
 def test_apply_narration_speed_preserves_sample_rate_not_a_naive_resample(tmp_path):
     """A naive resample-based speedup would also raise pitch (the
     "chipmunk" effect) — ffmpeg's atempo is a dedicated tempo-only filter
     that keeps the sample rate (and thus pitch) unchanged. Confirmed via
-    ffprobe on real output, not assumed from the filter's name alone."""
+    ffmpeg stream metadata on real output, not assumed from the filter's name alone."""
     path = tmp_path / "scene_00.wav"
     _tone_wav(path, duration=3.0)
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate",
-         "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True, check=True,
-    )
-    before_rate = probe.stdout.strip()
+    before_rate = _sample_rate_hz(path)
 
     assembly._apply_narration_speed(path)
 
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate",
-         "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True, check=True,
-    )
-    after_rate = probe.stdout.strip()
+    after_rate = _sample_rate_hz(path)
     assert after_rate == before_rate
 
 

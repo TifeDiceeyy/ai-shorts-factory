@@ -9,43 +9,50 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 BRIEF = json.loads((REPO_ROOT / "data" / "soap" / "soap.brief.json").read_text())
 
 
+def _stickers_for_scene(scene_index: int, count: int = 3, base_offset: int = 0) -> list[dict]:
+    positions = ["center", "bottom_left", "top_right", "bottom_right"]
+    stickers = []
+    for j in range(count):
+        sticker_id = f"stk-{base_offset + scene_index * count + j + 1:03d}"
+        stickers.append(
+            {
+                "id": sticker_id,
+                "visual_prompt": f"isolated flat cartoon sticker item {sticker_id} on pure white background",
+                "appear_at": round(j * 1.5, 1),
+                "entrance": "fade_in",
+                "idle": "float",
+                "position": positions[j % len(positions)],
+            }
+        )
+    return stickers
+
+
 def _valid_script():
     # Each scene must be <=15s (per-scene schema cap) while the total lands
     # in the 40-50s window (cross-document check) — four scenes at 11s each.
+    scenes = []
+    for i, claim_id in enumerate(["claim-01", "claim-02", "claim-03", "claim-06"]):
+        narrations = [
+            "Soap forms via saponification.",
+            "Lye came from wood ash.",
+            "Tallow was a common fat.",
+            "Lye is caustic; handle with care.",
+        ]
+        scenes.append(
+            {
+                "narration": narrations[i],
+                "caption": narrations[i],
+                "duration": 11.0,
+                "visual_prompt": "a workshop scene",
+                "source_claim_id": claim_id,
+                "stickers": _stickers_for_scene(i, count=3),
+            }
+        )
     return {
         "topic": "soap",
         "language": "English",
         "visual_style": "illustrated realism",
-        "scenes": [
-            {
-                "narration": "Soap forms via saponification.",
-                "caption": "Soap forms via saponification.",
-                "duration": 11.0,
-                "visual_prompt": "a workshop scene",
-                "source_claim_id": "claim-01",
-            },
-            {
-                "narration": "Lye came from wood ash.",
-                "caption": "Lye came from wood ash.",
-                "duration": 11.0,
-                "visual_prompt": "wood ash and water",
-                "source_claim_id": "claim-02",
-            },
-            {
-                "narration": "Tallow was a common fat.",
-                "caption": "Tallow was a common fat.",
-                "duration": 11.0,
-                "visual_prompt": "rendered fat in a pot",
-                "source_claim_id": "claim-03",
-            },
-            {
-                "narration": "Lye is caustic; handle with care.",
-                "caption": "Lye is caustic; handle with care.",
-                "duration": 12.0,
-                "visual_prompt": "protective gloves and goggles",
-                "source_claim_id": "claim-06",
-            },
-        ],
+        "scenes": scenes,
     }
 
 

@@ -553,6 +553,43 @@ def caption_overlay_png(
     return _build_caption_overlay((FRAME_WIDTH, FRAME_HEIGHT), text, style=style)
 
 
+TYPEWRITER_TYPE_FRACTION = 0.85
+TYPEWRITER_MIN_SECONDS_PER_CHAR = 0.04
+
+
+def typewriter_overlay_frames(
+    text: str,
+    cue_duration: float,
+    style: CaptionStyle | str | None = None,
+    *,
+    fps: int = 30,
+    cursor: bool = True,
+) -> tuple[list[Image.Image], CaptionBox]:
+    """Lyrics-style typewriter reveal: characters appear left-to-right synced
+    to the cue duration. No scale bounce — only progressive text reveal."""
+    if not text:
+        img, box = caption_overlay_png("…", style=style)
+        return [img], box
+
+    type_duration = max(TYPEWRITER_MIN_SECONDS_PER_CHAR, cue_duration * TYPEWRITER_TYPE_FRACTION)
+    total_frames = max(1, int(round(cue_duration * fps)))
+    reveal_frames = max(1, min(total_frames - 1, int(round(type_duration * fps))))
+    _, box = caption_overlay_png(text, style=style)
+    frames: list[Image.Image] = []
+    for frame_idx in range(total_frames):
+        if frame_idx < reveal_frames:
+            progress = (frame_idx + 1) / reveal_frames
+            n_chars = max(1, int(len(text) * progress))
+            partial = text[:n_chars]
+            if cursor and (frame_idx % 15) < 8:
+                partial = f"{partial}|"
+        else:
+            partial = text
+        frame_img, _ = caption_overlay_png(partial, style=style)
+        frames.append(frame_img)
+    return frames, box
+
+
 CAUTION_BADGE_STYLE = CaptionStyle(
     name="caution_badge",
     font_family="modern_clean",

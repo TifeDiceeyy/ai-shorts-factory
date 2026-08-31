@@ -15,6 +15,8 @@ SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
 SCRIPT_MIN_TOTAL_SECONDS = 40.0
 SCRIPT_MAX_TOTAL_SECONDS = 50.0
+DEFAULT_STICKER_TARGET_MIN = 12
+DEFAULT_STICKER_TARGET_MAX = 15
 
 
 class ValidationError(Exception):
@@ -67,3 +69,21 @@ def validate_script_against_brief(script: dict[str, Any], brief: dict[str, Any])
             f"total scripted duration {total:.2f}s is outside the "
             f"{SCRIPT_MIN_TOTAL_SECONDS}-{SCRIPT_MAX_TOTAL_SECONDS}s window"
         )
+
+    sticker_count = sum(len(scene.get("stickers") or []) for scene in script["scenes"])
+    if sticker_count:
+        if not (DEFAULT_STICKER_TARGET_MIN <= sticker_count <= DEFAULT_STICKER_TARGET_MAX):
+            raise ValidationError(
+                f"script declares {sticker_count} stickers total; expected "
+                f"{DEFAULT_STICKER_TARGET_MIN}-{DEFAULT_STICKER_TARGET_MAX}"
+            )
+        for i, scene in enumerate(script["scenes"]):
+            stickers = scene.get("stickers") or []
+            duration = scene["duration"]
+            for j, sticker in enumerate(stickers):
+                appear_at = sticker.get("appear_at")
+                if appear_at is None or appear_at < 0 or appear_at >= duration:
+                    raise ValidationError(
+                        f"scene {i} sticker {j} appear_at={appear_at!r} is outside "
+                        f"scene duration {duration:.2f}s"
+                    )

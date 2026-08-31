@@ -67,6 +67,11 @@ class Settings:
     # aggressive motion prompting, which the sticker approach sidesteps
     # entirely by not depending on AI-generated motion at all.
     animation_mode: str = "sticker"
+    caption_animation_mode: str = "typewriter"
+    entrance_style: str = "fade"
+    typewriter_cursor: bool = True
+    sticker_target_min: int = 12
+    sticker_target_max: int = 15
 
     stub_fields: list[str] = field(default_factory=list)
 
@@ -232,5 +237,10 @@ def load_settings() -> Settings:
         telegram_allowed_user_ids=tuple(telegram_ids),
         default_mascot_id=_env("DEFAULT_MASCOT", "mascot_4"),
         animation_mode=_env("ANIMATION_MODE", "sticker").strip().lower(),
+        caption_animation_mode=_env("CAPTION_ANIMATION_MODE", "typewriter").strip().lower(),
+        entrance_style=_env("ENTRANCE_STYLE", "fade").strip().lower(),
+        typewriter_cursor=_env("TYPEWRITER_CURSOR", "true").strip().lower() in ("1", "true", "yes", "on"),
+        sticker_target_min=int(_env("STICKER_TARGET_MIN", "12")),
+        sticker_target_max=int(_env("STICKER_TARGET_MAX", "15")),
         stub_fields=stub_fields,
     )

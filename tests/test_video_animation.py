@@ -391,7 +391,7 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
 
-    def fake_assemble_stickers(scenes, image_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, subscribe_cta_text=None):
+    def fake_assemble_stickers(scenes, image_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, subscribe_cta_text=None, **kwargs):
         for i, s in enumerate(scenes):
             image_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
@@ -441,24 +441,12 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
     real_hero_path = generated_dir / f"hero_mascot_4_{hero_key}.png"
     assert real_hero_path.exists()
 
-    # StubLLMProvider cycles scene_type across scenes (see providers/llm.py).
-    # Every scene must render its OWN image exactly once. Mascot-type scenes
-    # must be anchored on the hero image (reference_image_path set to it);
-    # ingredient_grid/process_action scenes must NOT get a character reference.
-    scenes = res.script["scenes"]
-    mascot_scene_indices = [
-        i for i, s in enumerate(scenes) if s.get("scene_type") not in ("ingredient_grid", "process_action")
-    ]
-    fresh_scene_indices = [
-        i for i, s in enumerate(scenes) if s.get("scene_type") in ("ingredient_grid", "process_action")
-    ]
-    assert mascot_scene_indices, "test script must contain at least one mascot-type scene"
-    per_scene_calls = {idx: ref for idx, ref in image_calls if idx != "hero"}
-    assert sorted(per_scene_calls) == list(range(len(scenes)))
-    for i in mascot_scene_indices:
-        assert per_scene_calls[i] == real_hero_path
-    for i in fresh_scene_indices:
-        assert per_scene_calls[i] is None
+    # Layered sticker mode generates one hero image plus 12-15 individual
+    # sticker assets instead of one full-scene image per scene index.
+    sticker_calls = [(idx, ref) for idx, ref in image_calls if idx != "hero" and str(idx).startswith("stk-")]
+    assert 12 <= len(sticker_calls) <= 15
+    hero_referenced = [ref for _idx, ref in sticker_calls if ref == real_hero_path]
+    assert hero_referenced, "at least one mascot sticker must anchor on the shared hero image"
 
 
 def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):

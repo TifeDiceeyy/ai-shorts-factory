@@ -30,10 +30,12 @@ from .captions import (
     draw_caution_badge,
     draw_subscribe_cta,
     subscribe_cta_overlay_png,
+    typewriter_overlay_frames,
 )
 from .cost_tracker import CostTracker
 from .media_probe import probe_duration
 from .providers.tts import TTSProvider
+from .sticker_compositor import write_sticker_scene_video
 
 FPS = 30
 LOUDNORM_TARGET_I = -14.0
@@ -102,6 +104,7 @@ class TimedCaptionOverlay:
     start: float
     end: float
     box: CaptionBox
+    text: str = ""
 
 
 def narration_caption_cues(
@@ -161,7 +164,7 @@ def build_timed_caption_overlays(
         if caution_text:
             caution_overlay, caution_box = caution_badge_overlay_png(caution_text)
             image = Image.alpha_composite(image, caution_overlay)
-        overlays.append(TimedCaptionOverlay(image=image, start=cue.start, end=cue.end, box=box))
+        overlays.append(TimedCaptionOverlay(image=image, start=cue.start, end=cue.end, box=box, text=cue.text))
     if not overlays:
         image, box = caption_overlay_png("…", style=caption_style)
         overlays.append(TimedCaptionOverlay(image=image, start=0.0, end=duration, box=box))
@@ -554,6 +557,9 @@ POP_IN_SETTLE_FRAMES = 8      # overshoot -> rest, in output frames (30fps => 0.
 POP_IN_START_SCALE = 0.70
 POP_IN_OVERSHOOT_SCALE = 1.12
 POP_IN_REST_SCALE = 1.00
+FADE_IN_FRAMES = 10
+FADE_IN_START_SCALE = 0.94
+FADE_IN_END_SCALE = 1.00
 # zoompan crops from an oversized, white-padded canvas; needs enough margin
 # to support the smallest (zoomed-out) pop-in scale without running out of
 # source pixels. 1/POP_IN_START_SCALE = 1.43x is the hard minimum; 1.6x
@@ -569,6 +575,19 @@ def _pop_in_zoom_expr() -> str:
         f"if(lt(on,{POP_IN_SETTLE_FRAMES}),{POP_IN_OVERSHOOT_SCALE}-{settle_slope}*(on-{POP_IN_UP_FRAMES}),"
         f"{POP_IN_REST_SCALE}))"
     )
+
+
+def _fade_in_zoom_expr() -> str:
+    slope = (FADE_IN_END_SCALE - FADE_IN_START_SCALE) / max(1, FADE_IN_FRAMES)
+    return (
+        f"if(lt(on,{FADE_IN_FRAMES}),{FADE_IN_START_SCALE}+{slope}*on,{FADE_IN_END_SCALE})"
+    )
+
+
+def _entrance_zoom_expr(entrance_style: str) -> str:
+    if entrance_style.strip().lower() == "pop":
+        return f"'{_pop_in_zoom_expr()}'"
+    return f"'{_fade_in_zoom_expr()}'"
 
 
 # Per-cue caption scale-punch: each caption cue briefly overshoots-then-
@@ -699,6 +718,25 @@ def _caption_punch_frame_paths(overlay_image: Image.Image, box: CaptionBox, out_
     return paths
 
 
+def _caption_typewriter_frame_paths(
+    text: str,
+    cue_duration: float,
+    style: str | None,
+    out_dir: Path,
+    prefix: str,
+    *,
+    cursor: bool = True,
+) -> list[Path]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    frames, _box = typewriter_overlay_frames(text, cue_duration, style=style, fps=FPS, cursor=cursor)
+    paths: list[Path] = []
+    for frame_idx, frame in enumerate(frames):
+        path = out_dir / f"{prefix}_{frame_idx:03d}.png"
+        frame.save(path)
+        paths.append(path)
+    return paths
+
+
 def _append_caption_cue_stage(
     cmd: list[str],
     filters: list[str],
@@ -708,20 +746,34 @@ def _append_caption_cue_stage(
     segments_dir: Path,
     index: int,
     next_input_index: int,
+    *,
+    caption_animation_mode: str = "typewriter",
+    typewriter_cursor: bool = True,
+    caption_style: str | None = None,
 ) -> tuple[str, int]:
     """Appends the ffmpeg input(s) and filter stage that produce one caption
-    cue's own video branch (a scale-punch prefix + static hold, or a plain
-    static branch for cues too short to punch) — shared by
-    build_scene_video_segment_from_still and build_scene_video_segment_from_clip,
-    which otherwise have separate overlay-compositing loops. Returns
-    (output_label, next_input_index) for the caller to overlay onto its main
-    composite and keep tracking ffmpeg's positional input indices."""
+    cue's own video branch — typewriter reveal (default) or legacy punch."""
     label = f"cue{cue_index}"
     cue_duration = timed.end - timed.start
 
     if cue_duration < CAPTION_PUNCH_MIN_CUE_SECONDS:
         cmd.extend(["-loop", "1", "-i", str(overlay_path)])
         filters.append(f"[{next_input_index}:v]format=rgba[{label}]")
+        return label, next_input_index + 1
+
+    mode = caption_animation_mode.strip().lower()
+    if mode == "typewriter":
+        tw_dir = segments_dir / "caption_typewriter"
+        prefix = f"type_{index:02d}_{cue_index:02d}"
+        cue_text = timed.text or _caption_text_from_overlay(timed.image)
+        _caption_typewriter_frame_paths(
+            cue_text, cue_duration, caption_style, tw_dir, prefix, cursor=typewriter_cursor
+        )
+        tw_pattern = tw_dir / f"{prefix}_%03d.png"
+        cmd.extend(["-framerate", str(FPS), "-i", str(tw_pattern)])
+        filters.append(
+            f"[{next_input_index}:v]format=rgba,setpts=PTS+{timed.start:.3f}/TB[{label}]"
+        )
         return label, next_input_index + 1
 
     punch_dir = segments_dir / "caption_punches"
@@ -743,6 +795,15 @@ def _append_caption_cue_stage(
         f"[{label}_punch][{label}_hold]concat=n=2:v=1:a=0,setpts=PTS+{timed.start:.3f}/TB[{label}]"
     )
     return label, next_input_index
+
+
+def _caption_text_from_overlay(overlay_image: Image.Image) -> str:
+    """Best-effort cue text recovery for typewriter re-rendering — falls back
+    to a single-space placeholder when the overlay is unexpectedly empty."""
+    alpha = overlay_image.convert("RGBA").split()[-1]
+    if alpha.getbbox() is None:
+        return "…"
+    return overlay_image.info.get("caption_text", "caption")
 
 
 # Localized object animation — user request 2026-08-29: when narration
@@ -995,6 +1056,10 @@ def build_scene_video_segment_from_still(
     object_animation_exclude_region: tuple[int, int, int, int] | None = None,
     object_animation_style: str | None = None,
     grid_reveal: bool = False,
+    entrance_style: str = "fade",
+    caption_animation_mode: str = "typewriter",
+    typewriter_cursor: bool = True,
+    caption_style: str | None = None,
 ) -> Path:
     """Sticker-style scene segment: a still image pops in (scale-bounce
     overshoot, ~0.27s) then holds for the rest of the scene's duration —
@@ -1106,7 +1171,7 @@ def build_scene_video_segment_from_still(
     # staggered per-quadrant pop already provides the "pop" motion, and
     # layering the outer zoom-bounce on top would double up into a
     # chaotic-looking combination rather than a single deliberate beat.
-    outer_zoom_expr = "1" if grid_reveal else f"'{_pop_in_zoom_expr()}'"
+    outer_zoom_expr = "1" if grid_reveal else _entrance_zoom_expr(entrance_style)
     filters.append(
         f"{base_source}pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
         f"zoompan=z={outer_zoom_expr}:"
@@ -1116,7 +1181,71 @@ def build_scene_video_segment_from_still(
     prior_label = "base0"
     for cue_index, (timed, overlay_path) in enumerate(zip(timed_caption_overlays, overlay_paths)):
         cue_label, next_input_index = _append_caption_cue_stage(
-            cmd, filters, cue_index, timed, overlay_path, segments_dir, index, next_input_index
+            cmd, filters, cue_index, timed, overlay_path, segments_dir, index, next_input_index,
+            caption_animation_mode=caption_animation_mode,
+            typewriter_cursor=typewriter_cursor,
+            caption_style=caption_style,
+        )
+        out_label = f"captioned{cue_index}"
+        filters.append(
+            f"[{prior_label}][{cue_label}]overlay=0:0:"
+            f"enable='gte(t,{timed.start:.3f})*lt(t,{timed.end:.3f})'[{out_label}]"
+        )
+        prior_label = out_label
+
+    cmd.extend([
+        "-filter_complex", ";".join(filters),
+        "-map", f"[{prior_label}]",
+        "-t", f"{duration:.3f}",
+        "-r", str(FPS),
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "medium", "-threads", "1",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact",
+        "-metadata", "creation_time=1970-01-01T00:00:00Z",
+        str(out_path),
+    ])
+    _run(cmd)
+    return out_path
+
+
+def build_scene_video_segment_from_sticker_layers(
+    stickers: list[dict[str, Any]],
+    sticker_images: dict[str, Path],
+    duration: float,
+    index: int,
+    segments_dir: Path,
+    *,
+    timed_caption_overlays: list[TimedCaptionOverlay],
+    caption_animation_mode: str = "typewriter",
+    typewriter_cursor: bool = True,
+    caption_style: str | None = None,
+) -> Path:
+    """Layered sticker scene: 2-4 individually generated stickers composited
+    onto white with semantic idle motion, then lyrics overlays on top."""
+    segments_dir.mkdir(parents=True, exist_ok=True)
+    out_path = segments_dir / f"seg_{index:02d}.mp4"
+    base_path = segments_dir / f"sticker_base_{index:02d}.mp4"
+    write_sticker_scene_video(stickers, sticker_images, duration, base_path, fps=FPS)
+
+    overlay_paths: list[Path] = []
+    for cue_index, timed in enumerate(timed_caption_overlays):
+        path = segments_dir / f"caption_overlay_{index:02d}_{cue_index:02d}.png"
+        timed.image.save(path)
+        overlay_paths.append(path)
+
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(base_path),
+    ]
+    next_input_index = 1
+    filters: list[str] = [f"[0:v]format=rgba[base0]"]
+    prior_label = "base0"
+    for cue_index, (timed, overlay_path) in enumerate(zip(timed_caption_overlays, overlay_paths)):
+        cue_label, next_input_index = _append_caption_cue_stage(
+            cmd, filters, cue_index, timed, overlay_path, segments_dir, index, next_input_index,
+            caption_animation_mode=caption_animation_mode,
+            typewriter_cursor=typewriter_cursor,
+            caption_style=caption_style,
         )
         out_label = f"captioned{cue_index}"
         filters.append(
@@ -1149,6 +1278,11 @@ def assemble_stickers(
     caption_style: str | None = None,
     caution_text: str | None = None,
     subscribe_cta_text: str | None = None,
+    *,
+    sticker_image_paths: dict[str, Path] | None = None,
+    entrance_style: str = "fade",
+    caption_animation_mode: str = "typewriter",
+    typewriter_cursor: bool = True,
 ) -> dict[str, Any]:
     """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
     image_source(index, scene) -> that scene's already-generated still image
@@ -1207,18 +1341,36 @@ def assemble_stickers(
             _mascot_exclusion_region() if scene_type in ("mascot_reaction", "mascot") else None
         )
 
-        seg_path = build_scene_video_segment_from_still(
-            image_path,
-            audio[i].duration,
-            i,
-            segments_dir,
-            timed_caption_overlays=timed_overlays,
-            object_animation_start=object_animation_start,
-            object_animation_region=object_animation_region,
-            object_animation_exclude_region=object_animation_exclude_region,
-            object_animation_style=object_animation_style,
-            grid_reveal=grid_reveal,
-        )
+        scene_stickers = scene.get("stickers") or []
+        if scene_stickers and sticker_image_paths:
+            seg_path = build_scene_video_segment_from_sticker_layers(
+                scene_stickers,
+                sticker_image_paths,
+                audio[i].duration,
+                i,
+                segments_dir,
+                timed_caption_overlays=timed_overlays,
+                caption_animation_mode=caption_animation_mode,
+                typewriter_cursor=typewriter_cursor,
+                caption_style=caption_style,
+            )
+        else:
+            seg_path = build_scene_video_segment_from_still(
+                image_path,
+                audio[i].duration,
+                i,
+                segments_dir,
+                timed_caption_overlays=timed_overlays,
+                object_animation_start=object_animation_start,
+                object_animation_region=object_animation_region,
+                object_animation_exclude_region=object_animation_exclude_region,
+                object_animation_style=object_animation_style,
+                grid_reveal=grid_reveal,
+                entrance_style=entrance_style,
+                caption_animation_mode=caption_animation_mode,
+                typewriter_cursor=typewriter_cursor,
+                caption_style=caption_style,
+            )
         segment_paths.append(seg_path)
 
     tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)

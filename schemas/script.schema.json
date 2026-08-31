@@ -33,7 +33,35 @@
           "props": { "type": ["string", "null"] },
           "layout": { "type": "string" },
           "scene_type": { "type": "string" },
-          "fx": { "type": ["string", "null"] }
+          "fx": { "type": ["string", "null"] },
+          "stickers": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": ["id", "visual_prompt", "appear_at", "entrance", "idle", "position"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "pattern": "^stk-[0-9]{3}$" },
+                "visual_prompt": { "type": "string", "minLength": 1 },
+                "appear_at": { "type": "number", "minimum": 0 },
+                "entrance": {
+                  "type": "string",
+                  "enum": ["fade_in", "slide_up", "slide_left"]
+                },
+                "idle": {
+                  "type": "string",
+                  "enum": ["float", "flicker", "drift", "spin", "hold", "breathe"]
+                },
+                "position": {
+                  "type": "string",
+                  "enum": ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
+                },
+                "uses_hero": { "type": "boolean" }
+              }
+            }
+          }
         }
       }
     }

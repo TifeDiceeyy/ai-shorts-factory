@@ -116,7 +116,124 @@ SCRIPT_SCENE_KEYS = {
     "layout",
     "scene_type",
     "fx",
+    "stickers",
 }
+
+STICKER_ENTRANCES = ("fade_in", "slide_up", "slide_left")
+STICKER_IDLES = ("float", "flicker", "drift", "spin", "hold", "breathe")
+STICKER_POSITIONS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
+
+
+def _idle_for_props(*texts: str | None) -> str:
+    from ..mascots import object_fx_style_for
+
+    style = object_fx_style_for(*texts)
+    if style == "flicker":
+        return "flicker"
+    if style == "drift":
+        return "drift"
+    return "float"
+
+
+def _sticker_counts_per_scene(n_scenes: int, target: int = 13) -> list[int]:
+    base = target // n_scenes
+    remainder = target % n_scenes
+    return [min(4, max(2, base + (1 if i < remainder else 0))) for i in range(n_scenes)]
+
+
+def build_stickers_for_scene(
+    scene: dict[str, Any],
+    scene_duration: float,
+    visual_style: str,
+    sticker_ids: list[str],
+) -> list[dict[str, Any]]:
+    scene_type = scene.get("scene_type", "mascot_reaction")
+    props = [p.strip() for p in (scene.get("props") or "workshop tool").split(",") if p.strip()]
+    fx = scene.get("fx") or "ambient effect"
+    count = len(sticker_ids)
+    stickers: list[dict[str, Any]] = []
+
+    if scene_type == "ingredient_grid":
+        items = props[:count] if len(props) >= count else [f"ingredient {i + 1}" for i in range(count)]
+        positions = ["top_left", "top_right", "bottom_left", "bottom_right"]
+        stagger = scene_duration / (len(items) + 1)
+        for j, (sid, item) in enumerate(zip(sticker_ids, items)):
+            stickers.append(
+                {
+                    "id": sid,
+                    "visual_prompt": (
+                        f"{visual_style}: isolated flat cartoon sticker of {item} on pure solid white "
+                        "#FFFFFF background, thick black outline, no text, no floor shadow"
+                    ),
+                    "appear_at": round(stagger * (j + 1), 2),
+                    "entrance": "fade_in",
+                    "idle": "float",
+                    "position": positions[j % len(positions)],
+                }
+            )
+        return stickers
+
+    appear_offsets = [0.0]
+    if count > 1:
+        appear_offsets.extend(
+            round(scene_duration * (0.35 + 0.25 * i), 2) for i in range(count - 1)
+        )
+    subjects: list[tuple[str, str, str, bool]] = [
+        (
+            "mascot character with expressive face and work apron",
+            "center",
+            "breathe",
+            True,
+        ),
+        (
+            props[0] if props else "workshop prop",
+            "bottom_left",
+            _idle_for_props(props[0] if props else None, fx),
+            False,
+        ),
+        (
+            fx,
+            "top_right",
+            _idle_for_props(fx),
+            False,
+        ),
+        (
+            scene.get("action") or "process detail",
+            "bottom_right",
+            "float",
+            False,
+        ),
+    ]
+    for j, sid in enumerate(sticker_ids):
+        subject, position, idle, uses_hero = subjects[j % len(subjects)]
+        sticker: dict[str, Any] = {
+            "id": sid,
+            "visual_prompt": (
+                f"{visual_style}: isolated flat cartoon sticker of {subject} on pure solid white "
+                "#FFFFFF background, thick black outline, no text, no floor shadow"
+            ),
+            "appear_at": appear_offsets[j] if j < len(appear_offsets) else round(scene_duration * 0.5, 2),
+            "entrance": STICKER_ENTRANCES[j % len(STICKER_ENTRANCES)],
+            "idle": idle,
+            "position": position,
+        }
+        if uses_hero:
+            sticker["uses_hero"] = True
+        stickers.append(sticker)
+    return stickers
+
+
+def assign_stickers_to_script(script: dict[str, Any], target_total: int = 13) -> dict[str, Any]:
+    scenes = script["scenes"]
+    counts = _sticker_counts_per_scene(len(scenes), target=target_total)
+    next_id = 1
+    for scene, count in zip(scenes, counts):
+        ids = [f"stk-{next_id + i:03d}" for i in range(count)]
+        next_id += count
+        scene["stickers"] = build_stickers_for_scene(
+            scene, float(scene["duration"]), script["visual_style"], ids
+        )
+    return script
 
 
 def _normalize_generated_script(
@@ -239,6 +356,7 @@ class StubLLMProvider(LLMProvider):
             "visual_style": visual_style,
             "scenes": scenes,
         }
+        assign_stickers_to_script(script)
 
         cost_tracker.record(
             provider=self.name,
@@ -450,7 +568,13 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "scene, e.g. 'pouring the lye solution into the melted fat' or 'stirring the mixture with a wooden "
         "paddle' — for process_action scenes this is the main content of the shot, not just a list of props), "
         "props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
-        "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), and fx (string or null). "
+        "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), fx (string or null), "
+        "and stickers (array of 2-4 objects per scene; the TOTAL across all scenes must be 12-15). "
+        "Each sticker object must contain: id (string matching '^stk-[0-9]{3}$'), visual_prompt (isolated "
+        "flat cartoon sticker on pure white #FFFFFF, no text), appear_at (seconds into that scene, >=0 and "
+        "< scene duration), entrance ('fade_in'|'slide_up'|'slide_left'), idle ('float'|'flicker'|'drift'|"
+        "'spin'|'hold'|'breathe'), position ('center'|'top_left'|'top_right'|'bottom_left'|'bottom_right'), "
+        "and optional uses_hero (boolean, true only for mascot stickers). "
         "The top-level object must contain exactly topic, language, visual_style, and scenes, with no other keys. "
         "Each scene must contain only the scene fields listed above; never add helper, reasoning, notes, index, "
         "or metadata fields. Every scene must use exactly one supplied source_claim_id; source_claim_id must "

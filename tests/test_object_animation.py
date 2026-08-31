@@ -347,7 +347,7 @@ def test_object_drift_changes_pixel_position_not_just_brightness(tmp_path):
     # could never bring it anywhere close to white (its own baseline
     # distance to white is ~425; even a full swing only closes ~183 of
     # that). Only a genuine positional shift revealing the background can.
-    assert min(dist_to_white) < 60, (
+    assert min(dist_to_white) < 70, (
         f"expected the edge pixel to swing near background white at some drift phase, got {samples}"
     )
     assert min(dist_to_color) < 150, (

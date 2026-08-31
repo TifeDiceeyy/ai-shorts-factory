@@ -21,7 +21,7 @@ from .cost_tracker import BudgetExceeded, CostTracker
 from .dashboard import review_state
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
-from .providers.llm import LLMResponseFormatError, StubLLMProvider, get_llm_provider
+from .providers.llm import LLMResponseFormatError, StubLLMProvider, assign_stickers_to_script, get_llm_provider
 from .providers.tts import get_tts_provider
 from .providers.video import get_video_provider
 from .providers.fal import FalGateway
@@ -212,6 +212,77 @@ MAX_REAL_CLIPS_PER_SCENE = 2
 # so a higher cap than that one's is reasonable.
 IMAGE_MAX_WORKERS = 3
 TTS_MAX_WORKERS = 3
+
+
+def _ensure_script_stickers(script: dict[str, Any], settings) -> None:
+    if any(scene.get("stickers") for scene in script["scenes"]):
+        return
+    target = (settings.sticker_target_min + settings.sticker_target_max) // 2
+    assign_stickers_to_script(script, target_total=target)
+
+
+def _assembly_motion_settings(settings) -> dict[str, Any]:
+    return {
+        "entrance_style": settings.entrance_style,
+        "caption_animation_mode": settings.caption_animation_mode,
+        "typewriter_cursor": settings.typewriter_cursor,
+    }
+
+
+def _generate_sticker_images(
+    settings,
+    scenes: list[dict[str, Any]],
+    generated_dir: Path,
+    cost_tracker: CostTracker,
+    hero_path: Path,
+    mascot: Mascot,
+    uses_fal: bool,
+) -> dict[str, Path]:
+    stickers_dir = generated_dir / "stickers"
+    sticker_paths: dict[str, Path] = {}
+    if stickers_dir.exists():
+        for path in stickers_dir.glob("stk-*.png"):
+            sticker_paths[path.stem] = path
+    pending: list[tuple[dict[str, Any], Path]] = []
+    for scene in scenes:
+        for sticker in scene.get("stickers", []):
+            out_path = stickers_dir / f"{sticker['id']}.png"
+            if out_path.exists():
+                sticker_paths[sticker["id"]] = out_path
+            else:
+                pending.append((sticker, out_path))
+
+    if not pending:
+        return sticker_paths
+
+    def render_one(item: tuple[dict[str, Any], Path]) -> tuple[str, Path]:
+        sticker, out_path = item
+        worker_gateway = FalGateway(settings.fal_key) if uses_fal else None
+        worker_image_provider = get_image_provider(
+            settings.image.provider,
+            settings.credential_for(settings.image),
+            settings.image.model_or_voice,
+            settings.image_cost_per_image_usd,
+            gateway=worker_gateway,
+            visual_style="" if mascot else settings.visual_style,
+            style_preset=settings.image_style,
+        )
+        reference = hero_path if sticker.get("uses_hero") else None
+        worker_image_provider.generate_scene_image(
+            {"visual_prompt": sticker["visual_prompt"]},
+            sticker["id"],
+            out_path,
+            cost_tracker,
+            reference_image_path=reference,
+        )
+        return sticker["id"], out_path
+
+    with ThreadPoolExecutor(max_workers=min(IMAGE_MAX_WORKERS, len(pending))) as executor:
+        futures = [executor.submit(render_one, item) for item in pending]
+        for future in as_completed(futures):
+            sid, path = future.result()
+            sticker_paths[sid] = path
+    return sticker_paths
 
 
 def _render_scene_clips(
@@ -433,6 +504,7 @@ def run_pipeline(
         # this same value back so a single-scene regeneration never mismatches
         # the rest of the video's captions.
         script["caption_style"] = get_random_caption_style_name()
+        _ensure_script_stickers(script, settings)
         # Keep the provider result available when strict validation refuses
         # it. Previously the only copy was discarded, leaving Telegram with
         # an error but no artifact that explained which field was malformed.
@@ -562,34 +634,54 @@ def run_pipeline(
             ):
                 _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
 
-            def render_scene_image(i: int, scene: dict[str, Any]) -> Path:
-                worker_gateway = FalGateway(settings.fal_key) if uses_fal else None
-                worker_image_provider = get_image_provider(
-                    settings.image.provider,
-                    settings.credential_for(settings.image),
-                    settings.image.model_or_voice,
-                    settings.image_cost_per_image_usd,
-                    gateway=worker_gateway,
-                    visual_style="" if mascot else settings.visual_style,
-                    style_preset=settings.image_style,
-                )
-                return _scene_base_image_path(
-                    worker_image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
-                )
+            motion_settings = _assembly_motion_settings(settings)
+            sticker_paths = _generate_sticker_images(
+                settings,
+                script["scenes"],
+                generated_dir,
+                cost_tracker,
+                hero_path,
+                mascot,
+                uses_fal,
+            )
 
             base_image_paths: list[Path | None] = [None] * len(script["scenes"])
-            with ThreadPoolExecutor(max_workers=min(IMAGE_MAX_WORKERS, len(script["scenes"]))) as executor:
-                pending = {
-                    executor.submit(render_scene_image, i, scene): i
-                    for i, scene in enumerate(script["scenes"])
-                }
-                for future in as_completed(pending):
-                    base_image_paths[pending[future]] = future.result()
+            scenes_without_stickers = [
+                (i, scene) for i, scene in enumerate(script["scenes"]) if not scene.get("stickers")
+            ]
+            if scenes_without_stickers:
+                def render_scene_image(i: int, scene: dict[str, Any]) -> Path:
+                    worker_gateway = FalGateway(settings.fal_key) if uses_fal else None
+                    worker_image_provider = get_image_provider(
+                        settings.image.provider,
+                        settings.credential_for(settings.image),
+                        settings.image.model_or_voice,
+                        settings.image_cost_per_image_usd,
+                        gateway=worker_gateway,
+                        visual_style="" if mascot else settings.visual_style,
+                        style_preset=settings.image_style,
+                    )
+                    return _scene_base_image_path(
+                        worker_image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                    )
 
-            def sticker_image_source(i: int, _scene: dict[str, Any]) -> Path:
+                with ThreadPoolExecutor(max_workers=min(IMAGE_MAX_WORKERS, len(scenes_without_stickers))) as executor:
+                    pending = {
+                        executor.submit(render_scene_image, i, scene): i
+                        for i, scene in scenes_without_stickers
+                    }
+                    for future in as_completed(pending):
+                        base_image_paths[pending[future]] = future.result()
+
+            def sticker_image_source(i: int, scene: dict[str, Any]) -> Path:
+                stickers = scene.get("stickers") or []
+                if stickers:
+                    first = sticker_paths.get(stickers[0]["id"])
+                    if first is not None:
+                        return first
                 path = base_image_paths[i]
                 if path is None:
-                    raise RuntimeError(f"scene image {i} did not complete")
+                    raise RuntimeError(f"no sticker or fallback image for scene {i}")
                 return path
 
             generated_result = assembly.assemble_stickers(
@@ -601,6 +693,8 @@ def run_pipeline(
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
                 subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
+                sticker_image_paths=sticker_paths,
+                **motion_settings,
             )
         elif ai_video_mode:
             video_provider = get_video_provider(
@@ -892,19 +986,43 @@ def regenerate_scene(
             base_image_path = _scene_base_image_path(
                 image_provider, mascot, hero_path, scene, scene_index, generated_dir, cost_tracker
             )
+            motion_settings = _assembly_motion_settings(settings)
+            sticker_paths = _generate_sticker_images(
+                settings,
+                scenes,
+                generated_dir,
+                cost_tracker,
+                hero_path,
+                mascot,
+                uses_fal,
+            )
             timed_overlays, new_box = assembly.build_timed_caption_overlays(
                 scene["narration"],
                 new_duration,
                 caption_style=caption_style,
                 caution_text=caution_text if is_last_scene else None,
             )
-            new_seg_path = assembly.build_scene_video_segment_from_still(
-                base_image_path,
-                new_duration,
-                scene_index,
-                generated_dir / "segments",
-                timed_caption_overlays=timed_overlays,
-            )
+            if scene.get("stickers") and sticker_paths:
+                new_seg_path = assembly.build_scene_video_segment_from_sticker_layers(
+                    scene["stickers"],
+                    sticker_paths,
+                    new_duration,
+                    scene_index,
+                    generated_dir / "segments",
+                    timed_caption_overlays=timed_overlays,
+                    caption_style=caption_style,
+                    **motion_settings,
+                )
+            else:
+                new_seg_path = assembly.build_scene_video_segment_from_still(
+                    base_image_path,
+                    new_duration,
+                    scene_index,
+                    generated_dir / "segments",
+                    timed_caption_overlays=timed_overlays,
+                    caption_style=caption_style,
+                    **motion_settings,
+                )
         elif ai_video_mode:
             video_provider = get_video_provider(
                 settings.video.provider,
