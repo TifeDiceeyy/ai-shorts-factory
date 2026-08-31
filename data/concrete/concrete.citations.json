@@ -1,0 +1,2439 @@
+{
+  "generated_at": "2026-08-29T14:39:33.341225+00:00",
+  "citation_count": 134,
+  "verified_count": 50,
+  "citations": [
+    {
+      "claim_id": "concrete-claim-01",
+      "claim_text": "It is one of the most ubiquitous and versatile building materials in the world, with a truly rich history.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-02",
+      "claim_text": "Bedouins in what is now Syria were using a form of concrete that used Hydraulic Lime or quick lime that sets by the process of hydration, even under water, to make floors, walls, and cisterns.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-03",
+      "claim_text": "The ancient Egyptians used a mixture of mud and straw to create bricks for their buildings, while the Greeks developed a primitive form of concrete using a mixture of lime, sand, and water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-04",
+      "claim_text": "However, **it was the Romans** **who truly mastered the art of concrete construction.**  **Roman Concrete**",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-05",
+      "claim_text": "Around 300 BCE, the Romans began using a revolutionary form of concrete known as \"opus caementicium,\" which was made from a mixture of lime, volcanic ash, and water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-06",
+      "claim_text": "One of the key innovations of Roman concrete was the use of volcanic ash, which acted as a pozzolan\u2014a substance that reacts with lime to form a strong, cement-like material.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-07",
+      "claim_text": "However, concrete continued to be used in other parts of the world, such as in the construction of the Great Wall of China.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-08",
+      "claim_text": "The invention of reinforced concrete, which incorporates steel bars or mesh to increase its tensile strength, revolutionized the construction industry and allowed for the creation of taller buildings, longer bridges, and more complex structures.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-09",
+      "claim_text": "Green concrete uses a variety of waste materials from different industries to partially replace the energy-consuming production of Portland cement with materials like Fly Ash, Silica Fume, and Wood Ash.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-10",
+      "claim_text": "The reuse of these products along with the positive impact of less materials having to be deposited in landfills, along with the recycling of water in the manufacturing process results in concrete evolving into a green, sustainable material for modern construction.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-11",
+      "claim_text": "Making it an ideal choice for modern day environmentally conscious construction projects.  **Conclusion...**",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-12",
+      "claim_text": "From its humble beginnings in ancient times, 8,500 years ago to its current status as an environmentally friendly cornerstone of modern construction, the history of concrete is a testament to human ingenuity and innovation.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-13",
+      "claim_text": "Over the centuries, concrete has evolved from a simple mixture of mud and straw to a sophisticated building material that has shaped the world we live in.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-14",
+      "claim_text": "As we continue to push the boundaries of construction technology, concrete is likely to remain a vital component of our \"Built environment\" for many years to come.  **BARTELL GLOBAL and the concrete construction industry\u2026**",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-15",
+      "claim_text": "We are able to provide contractors with the latest innovative technologies in the concrete placement and concrete resurfacing industry.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-16",
+      "claim_text": "We use more of it than anything else except water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-17",
+      "claim_text": "Like that other manmade wonder material, plastic, concrete transformed construction and advanced human health.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-18",
+      "claim_text": "Unlike modern reinforced concrete \u2013 which can last about a hundred years without major repairs or replacement \u2013 many Roman concrete structures are still with us many centuries later.  * The G\u00f6bekli Tepe temple (left) and the step pyramid of Djoser, Egypt.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-19",
+      "claim_text": "The most striking surviving example of Roman concrete is the Pantheon, which the painter Michelangelo described as an \u201cangelic and not human design\u201d.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-20",
+      "claim_text": "Edison\u2019s plan for construction on an industrial scale would drive down prices.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-21",
+      "claim_text": "A few concrete house projects were launched across the US \u2013 including what became known as [Cement City](https://www.sites.google.com/site/donorahistoricalsociety/cement-city) in Donora, south of Pittsburgh \u2013 but the dream of cheap, roomy concrete houses never really took off.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-22",
+      "claim_text": "The 1930s also saw the construction of the Hoover Dam on the Colorado River near Las Vegas.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-23",
+      "claim_text": "* Niemeyer\u2019s 1950 Ibirapuera Park Auditorium in S\u00e3o Paulo; Lloyd Wright\u2019s Solomon R Guggenheim museum under construction in Manhattan in the 1950s; the interior of Eero Saarinen\u2019s 1960s TWA terminal.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-24",
+      "claim_text": "A form of cement was also used to build the Great Wall of China around this time.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-25",
+      "claim_text": "By 200 BC, the Romans successfully implemented the use of concrete in the majority of their construction.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-26",
+      "claim_text": "They used a mixture of volcanic ash, lime, and seawater to form the mix.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-27",
+      "claim_text": "After more than 2,000 years, [Roman concrete structures](https://www.giatecscientific.com/education/todays-concrete-producers-can-learn-something-from-the-ancient-romans/) stand tall due to their ingredients colliding with Earth\u2019s natural chemistry.  ### **Technological Milestones**",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-28",
+      "claim_text": "After the fall of the Roman Empire in 476 AD, the technique for making [pozzolan cement](https://www.concrete.org/tools/frequentlyaskedquestions.aspx?faqid=689) was lost until the discovery of manuscripts describing it was found in 1414.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-29",
+      "claim_text": "It wasn\u2019t until 1793 that the technology took a big leap forward when John Smeaton discovered a more modern method for producing hydraulic lime for cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-30",
+      "claim_text": "In 1824 Joseph Aspdin invented Portland cement by burning finely ground chalk and clay until the carbon dioxide was removed.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-31",
+      "claim_text": "Aspdin named the cement after the high-quality building stones quarried in Portland, England.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-32",
+      "claim_text": "The first widespread use of Portland cement in home construction was in England and France between 1850 and 1880 by Francois Coignet, who added steel rods to prevent exterior walls from spreading.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-33",
+      "claim_text": "Ottawa-based company, Giatec Scientific Inc., is revolutionizing the construction industry by bringing smart concrete testing technologies and real-time data collection to the forefront of every jobsite.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-34",
+      "claim_text": "Giatec Scientific  Ottawa-based company, Giatec Scientific Inc., is revolutionizing the construction industry by bringing smart concrete testing technologies and real-time data collection to the forefront of every jobsite.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-35",
+      "claim_text": "That\u2019s\u00a0why\u00a0data center construction\u00a0concrete monitoring has\u00a0become essential for GCs\u00a0who need to move\u00a0fast\u00a0without\u00a0sacrificing quality.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-36",
+      "claim_text": "On...](https://www.giatecscientific.com/education/data-center-construction-concrete-monitoring/)  ##### We use cookies to provide you with a better experience, analyze site traffic and assist in our marketing efforts.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-37",
+      "claim_text": "Cement and concrete have significantly influenced human civilization, transitioning from naturally occurring materials to carefully engineered products central to modern construction.  ### Origins of Cement  Cement has existed naturally for approximately 12 million years.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-38",
+      "claim_text": "Around 12,000,000 B.C., reactions between limestone and oil shale during spontaneous combustion in Israel created natural deposits of cement compounds, later characterized by Israeli geologists in the 1960s and 1970s.  ### Early Uses of Cement and Concrete",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-39",
+      "claim_text": "They built enduring structures like the Appian Way, Colosseum, Pantheon, and aqueducts.  ### Middle Ages and Revival  Between 1200 and 1500 A.D., the quality of cement declined, losing techniques such as burning lime and pozzolan admixtures.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-40",
+      "claim_text": "Cemex is an industry-leading global construction materials and solutions company that drives innovation to help the world reach the next frontier of sustainable living.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-41",
+      "claim_text": "We stand at the forefront of the circular economy in the construction value chain and pioneer ways to increase the use of waste and residues as alternative raw materials and fuels in our operations.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-42",
+      "claim_text": "Utilizing water, cement, and aggregate \u2013 an assortment of rocks, sand, and gravel \u2013 this common yet essential material comes to life.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-43",
+      "claim_text": "[Concrete](https://standardmaterials.com/product/ready-mixed-concrete/) is made through the careful mixture of four main components: water, a combination of sand and gravel often referred to as aggregate, cement, and certain additives.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-44",
+      "claim_text": "Once mixed, they form a highly durable, frequently utilized composite material that is a cornerstone in building and construction activities.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-45",
+      "claim_text": "A key contributor to the process of concrete formation is water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-46",
+      "claim_text": "It begins a crucial chemical response named hydration when combined with cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-47",
+      "claim_text": "The variation to the look of concrete lies in the aggregate used, which molds its distinct texture and look.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-48",
+      "claim_text": "Cement, when combined with water, transforms into an adhesive.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-49",
+      "claim_text": "In the process of making concrete, the interaction between water and cement starts things off.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-50",
+      "claim_text": "Hydration is a chemical process triggered when water mixes with cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-51",
+      "claim_text": "Getting the right mix of water and cement is crucial.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-52",
+      "claim_text": "Making concrete isn\u2019t just about mixing cement, aggregate, and water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-53",
+      "claim_text": "Carefully measure these ingredients to make a concrete that works well for the specific construction project.  **Adding Aggregate**  Sand and gravel are the ingredients that provide volume in the concrete mix.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-54",
+      "claim_text": "Following the correct combination of cement and water, these aggregates are combined for additional strength and volume, enhancing concrete\u2019s versatility.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-55",
+      "claim_text": "They enhance the mix\u2019s volume without changing the water-cement ratio and bolster concrete\u2019s strength and durability.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-56",
+      "claim_text": "Aggregates are essential in making a good concrete mix.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-57",
+      "claim_text": "For a large construction task requiring lots of concrete, machine mixing is often necessary.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-58",
+      "claim_text": "This dampness is crucial for a chemical reaction called hydration \u2013 the process that hardens cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-59",
+      "claim_text": "Interestingly, concrete can also be set and hardened underwater.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-60",
+      "claim_text": "Making concrete demands a lot of accuracy, from combining basic elements like water, cement, and aggregate, to thoroughly managing its texture and shape through tests.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-61",
+      "claim_text": "![]()  # How Cement Is Made  ## Cement & Concrete  An English bricklayer made the first portland cement early in the 19th century by burning powdered limestone and clay on his kitchen stove.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-62",
+      "claim_text": "With this crude method, Joseph Aspdin of Leeds laid the foundation for an industry that annually processes literally mountains of limestone, clay, cement rock, and other materials into a powder so fine, it will pass through a sieve.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-63",
+      "claim_text": "Portland cement is the basic ingredient of concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-64",
+      "claim_text": "Concrete is formed when portland cement creates a paste with water that binds with sand and rock to harden.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-65",
+      "claim_text": "Fast Fact  ## Concrete is the most widely used resource in the world after water.  ## What Cement Is Made From  Cement is manufactured from materials heated together at high temperatures to form a rock-like substance that is ground into a fine powder.  ### Main Ingredients  * Calcium * Silicon * Aluminum * Iron",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-66",
+      "claim_text": "Some manufacturers grind the raw materials dry, while others use a wet-grinding process involving water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-67",
+      "claim_text": "![]()  ![]()  ![Close up of powdered cement with a shovel]()  ![]()  ![]()  ![]()  ![]()  ![]()  ![]()  ![cement truck unloading close up]()  ### Quarrying  Cement manufacturers quarry raw materials including limestone, clay, and sand.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-68",
+      "claim_text": "Each step of the cement production process is carefully monitored to ensure efficiency and quality.  ### Grinding, Mixing, and Blending",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-69",
+      "claim_text": "Manufacturers are implementing innovations including carbon capture, utilization, and storage (CCUS) technology, which may help to further reduce a cement plant\u2019s carbon footprint.  ### Pulverizing",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-70",
+      "claim_text": "The clinker keeps cooling and a ball mill grinds it with gypsum or other ingredients into fine cement\u2014about 150 billion grains per pound.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-71",
+      "claim_text": "Blending in higher ratios of limestone or SCMs can reduce a plant\u2019s carbon footprint by up to 10%.  ### Preparing for Construction  The cement is now ready for use in long-lasting concrete structures and pavements.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-72",
+      "claim_text": "Interactive Graphic  ## Sustainably Producing Cement  Cement producers are constantly pursuing innovative, efficient, and environmentally responsible ways of producing high-quality cement to realize carbon neutrality across the concrete value chain by 2050.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-73",
+      "claim_text": "Take a look at how cement, the main ingredient in concrete, is made.  [View the Process](https://howcementismade.com/)",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-74",
+      "claim_text": "![]()  ## Cement Goes Greener  The cement and concrete industry is dedicated to reaching carbon neutrality by 2050 or sooner.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-75",
+      "claim_text": "We\u2019ve got answers about the material, and how to use and care for it.  [Cement & Concrete FAQ](https://www.cement.org/homepage/cement-concrete/cement-concrete-faq/)  ## Subscribe to our Newsletters  ### Industry Insights.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-76",
+      "claim_text": "In its simplest form, concrete is a mixture of paste and aggregates.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 5,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-77",
+      "claim_text": "The paste, composed of portland cement and water, coats the surface of the fine and coarse aggregates.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-78",
+      "claim_text": "The most-produced material on Earth will only be more in demand as, for example, developing nations become increasingly urban, extreme weather events necessitate more durable building materials and the price of other infrastructure materials continues to rise.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-79",
+      "claim_text": "Even construction professionals sometimes incorrectly use the terms cement and concrete interchangeably.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-80",
+      "claim_text": "Cement is actually an ingredient of concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 7,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-81",
+      "claim_text": "It is the fine powder that, when mixed with water, sand, and gravel or crushed stone (fine and coarse aggregate), forms the rock-like mass known as concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-82",
+      "claim_text": "By observing a few basic precautions, it is also safe-one of the safest building materials known.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-83",
+      "claim_text": "Cement-based materials represent products that defy the label of \"concrete,\" yet share many of its qualities.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-84",
+      "claim_text": "Conventional materials in this category include mortar, grout, and terrazzo. soil-cement and roller-compacted concrete \u2014\"cousins\" of concrete\u2014are used for pavements and dams.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-85",
+      "claim_text": "Other products in this category include flowable fill and cement-treated bases.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-86",
+      "claim_text": "4. \u200bA new generation of advanced products incorporates fibers and special aggregate to create roofing tiles, shake shingles, lap siding, and countertops.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-87",
+      "claim_text": "## HOW CEMENT IS MADE  \u200bPortland cement is the basic ingredient of concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 6,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-88",
+      "claim_text": "Concrete is formed with portland cement creates a paste with water that binds with sand and rock to harden.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-89",
+      "claim_text": "Cement is manufactured through a closely controlled chemical combination of calcium, silicon, aluminum, iron and other ingredients.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-90",
+      "claim_text": "Common materials used to manufacture cement include limestone, shells, and chalk or marl combined with shale, clay, slate, blast furnace slag, silica sand, and iron ore.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-91",
+      "claim_text": "These ingredients, when heated at high temperatures form a rock-like substance that is ground into the fine powder that we commonly think of as cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-92",
+      "claim_text": "Bricklayer Joseph Aspdin of Leeds, England first made portland cement early in the 19th century by burning powdered limestone and clay in his kitchen stove.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "The History of Concrete: Evolution and Technological Milestones",
+          "url": "https://www.giatecscientific.com/education/the-history-of-concrete",
+          "domain": "giatecscientific.com"
+        },
+        {
+          "title": "What is the History of Cement and Concrete? - Cemex US",
+          "url": "https://www.cemexusa.com/w/history-of-cement-and-concrete",
+          "domain": "cemexusa.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 4,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-93",
+      "claim_text": "With this crude method, he laid the foundation for an industry that annually processes literally mountains of limestone, clay, cement rock, and other materials into a powder so fine it will pass through a sieve capable of holding water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-94",
+      "claim_text": "Cement plant laboratories check each step in the manufacture of portland cement by frequent chemical and physical tests.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-95",
+      "claim_text": "The most common way to manufacture portland cement is through a dry method.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-96",
+      "claim_text": "The crushed rock is combined with other ingredients such as iron ore or fly ash and ground, mixed, and fed to a cement kiln.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-97",
+      "claim_text": "The cement kiln heats all the ingredients to about 2,700 degrees Fahrenheit in huge cylindrical steel rotary kilns lined with special firebrick.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-98",
+      "claim_text": "After the clinker is cooled, cement plants grind it and mix it with small amounts of gypsum and limestone.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-99",
+      "claim_text": "Cement is so fine that one pound of cement contains 150 billion grains.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-100",
+      "claim_text": "The cement is now ready for transport to ready-mix concrete companies to be used in a variety of construction projects.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-101",
+      "claim_text": "Although the dry process is the most modern and popular way to manufacture cement, some kilns in the United States use a wet process.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-102",
+      "claim_text": "The two processes are essentially alike except in the wet process, the raw materials are ground with water before being fed into the kiln.  ## \u200b**HOW CONCRETE IS MADE**  \u200bIn its simplest form, concrete is a mixture of paste and aggregates, or rocks.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-103",
+      "claim_text": "The paste, composed of portland cement and water, coats the surface of the fine (small) and coarse (larger) aggregates.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-104",
+      "claim_text": "A mixture that does not have enough paste to fill all the voids between the aggregates will be difficult to place and will produce rough surfaces and porous concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-105",
+      "claim_text": "A mixture with an excess of cement paste will be easy to place and will produce a smooth surface; however, the resulting concrete is not cost-effective and can more easily crack.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-106",
+      "claim_text": "Portland cement's chemistry comes to life in the presence of water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-107",
+      "claim_text": "Cement and water form a paste that coats each particle of stone and sand\u2014the aggregates.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-108",
+      "claim_text": "Through a chemical reaction called hydration, the cement paste hardens and gains strength.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-109",
+      "claim_text": "The strength of the paste, in turn, depends on the ratio of water to cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-110",
+      "claim_text": "The water-cement ratio is the weight of the mixing water divided by the weight of the cement.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-111",
+      "claim_text": "High-quality concrete is produced by lowering the water-cement ratio as much as possible without sacrificing the workability of fresh concrete, allowing it to be properly placed, consolidated, and cured.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-112",
+      "claim_text": "Typically, a mix is about 10 to 15 percent cement, 60 to 75 percent aggregate and 15 to 20 percent water.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A brief history of concrete: from 10,000BC to 3D printed houses | Cities | The Guardian",
+          "url": "https://www.theguardian.com/cities/2019/feb/25/a-brief-history-of-concrete-from-10000bc-to-3d-printed-houses",
+          "domain": "theguardian.com"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 3,
+      "confidence": 1.0,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-113",
+      "claim_text": "Entrained air in many concrete mixes may also take up another 5 to 8 percent.  **Other Ingredients**   Almost any natural water that is drinkable and has no pronounced taste or odor may be used as mixing water for concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-114",
+      "claim_text": "Excessive impurities in mixing water not only may affect setting time and concrete strength, but can also cause efflorescence, staining, corrosion of reinforcement, volume instability, and reduced durability.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-115",
+      "claim_text": "Concrete mixture specifications usually set limits on chlorides, sulfates, alkalis, and solids in mixing water unless tests can be performed to determine the effect the impurity has on the final concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-116",
+      "claim_text": "Although most drinking water is suitable for mixing \u00a0concrete, aggregates are chosen carefully.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-117",
+      "claim_text": "Aggregates comprise 60 to 75 percent of the total volume of concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-118",
+      "claim_text": "The type and size of \u00a0aggregate used depends on the thickness and purpose of the final concrete product  Relatively thin building sections call for small coarse aggregate, though aggregates up to six inches in diameter have been used in large dams.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-119",
+      "claim_text": "In addition, aggregates should be clean and free from any matter that might affect the quality of the concrete.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-120",
+      "claim_text": "**Hydration Begins**   Soon after the aggregates, water, and the cement are combined, the mixture starts to harden.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-121",
+      "claim_text": "All portland cements are hydraulic cements that set and harden through a chemical reaction with water call hydration.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-122",
+      "claim_text": "During this reaction, a node forms on the surface of each cement particle.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-123",
+      "claim_text": "The node grows and expands until it links up with nodes from other cement particles or adheres to adjacent aggregates.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-124",
+      "claim_text": "During placement, the concrete is consolidated to compact it within the forms and to eliminate potential flaws, such as honeycombs and air pockets.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-125",
+      "claim_text": "Curing ensures the continued hydration of the cement so that the concrete continues to gain strength.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        },
+        {
+          "title": "A Comprehensive Guide to Concrete Production",
+          "url": "https://standardmaterials.com/insights/a-guide-to-how-concrete-is-made",
+          "domain": "standardmaterials.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-126",
+      "claim_text": "Concrete surfaces are cured by sprinkling with water fog, or by using moisture-retaining fabrics such as burlap or cotton mats.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-127",
+      "claim_text": "Other curing methods prevent evaporation of the water by sealing the surface with plastic or special sprays called curing compounds.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-128",
+      "claim_text": "The rate of hardening depends upon the composition and fineness of the cement, the mix proportions, and the moisture and temperature conditions.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "Concrete Basics - ConcreteState",
+          "url": "https://www.concretestate.org/concrete-basics.html",
+          "domain": "concretestate.org"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-129",
+      "claim_text": "All over the world, cement is one of the most important building materials.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        },
+        {
+          "title": "the history of Concrete, the material we work with every day, From Ancient Origins to Modern Marvels",
+          "url": "https://blog.bartellglobal.com/the-history-of-concrete-a-material-we-work-with-every-day-from-ancient-origins-to-modern-marvels",
+          "domain": "blog.bartellglobal.com"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-130",
+      "claim_text": "The desired raw mix of crushed raw material and the additional components required for the type of cement, e.g. silica sand and iron ore, is prepared using metering devices.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-131",
+      "claim_text": "Deploying carbon capture, utilisation, and storage (CCUS) is of utmost importance for the cement industry, since \u2154 of the direct emissions come from the calcination of limestone into cement clinker during the burning process in the cement kiln.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        },
+        {
+          "title": "How Cement Is Made - American Cement Association",
+          "url": "https://www.cement.org/cement-concrete/how-cement-is-made",
+          "domain": "cement.org"
+        }
+      ],
+      "independent_domain_count": 2,
+      "confidence": 0.7,
+      "verified": true
+    },
+    {
+      "claim_id": "concrete-claim-132",
+      "claim_text": "Because we cannot change chemistry, these emissions are unavoidable.  [Our way to carbon captured cement](/en/sustainability/we-decarbonize-the-construction-industry/ccus)  [Our way to carbon captured cement](/en/sustainability/we-decarbonize-the-construction-industry/ccus)  ## Loading and shipping",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-133",
+      "claim_text": "The finished cement is stored in separate silos, depending on type and strength class.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    },
+    {
+      "claim_id": "concrete-claim-134",
+      "claim_text": "Only a small proportion of the cement reaches the customer in the form of bags that have been filled by rotary packers and stacked by automatic palletising systems.  \u00a9\u00a0Heidelberg Materials/Aleksej Keksel  ## Quality control and environmental responsibility  ### Quality control  Quality is of paramount importance.",
+      "topic": "concrete",
+      "sources": [
+        {
+          "title": "How cement is made | Heidelberg Materials",
+          "url": "https://www.heidelbergmaterials.com/en/products-and-services/cement/how-cement-is-made",
+          "domain": "heidelbergmaterials.com"
+        }
+      ],
+      "independent_domain_count": 1,
+      "confidence": 0.2,
+      "verified": false
+    }
+  ],
+  "_meta": {
+    "topic": "concrete",
+    "chunk_count": 132,
+    "claim_count": 134,
+    "queries_used": [
+      "history of concrete invention",
+      "how concrete is made and used"
+    ],
+    "output_path": "/Volumes/Mac Ex1/All Projects/ai-shorts-factory/data/concrete/concrete.citations.json",
+    "private_book_chunk_ids": [],
+    "book_text_exposed": false
+  }
+}

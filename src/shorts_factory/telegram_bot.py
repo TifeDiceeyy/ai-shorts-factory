@@ -61,6 +61,7 @@ class PlanningStates(StatesGroup):
     confirming_new_topic = State()
     confirming_retrieval = State()
     confirming_generate = State()
+    reviewing_generated = State()
 
 
 class TelegramController:
@@ -172,8 +173,26 @@ class TelegramController:
         return f"Registered {proposal['topic']!r} as {proposal['safety_class'].upper()}."
 
     def needs_retrieval(self, topic: str) -> bool:
+        """False (no retrieval needed) when either a citations.json already
+        exists on disk, OR the local brain covers the topic well enough to
+        skip paid Tavily retrieval entirely — mirrors run_pipeline's own
+        brain-first check (pipeline.py), which this gate had drifted out of
+        sync with: it only ever checked for citations.json, so the bot kept
+        asking to run (paid) retrieval even for topics the brain already
+        covers for free. Real gap found 2026-08-29 via a live Telegram
+        test — a brain-covered topic still prompted "No verified sources
+        yet... Run retrieval now?"."""
         path = REPO_ROOT / "data" / topic.replace(" ", "_") / f"{topic.replace(' ', '_')}.citations.json"
-        return not path.exists()
+        if path.exists():
+            return False
+        from .brain_integration import brain_covers_topic, load_brain
+
+        brain = load_brain()
+        if brain is not None:
+            covered, _research = brain_covers_topic(brain, topic)
+            if covered:
+                return False
+        return True
 
     # --- Retrieval / generate (blocking; caller must run via asyncio.to_thread) --
 
@@ -210,6 +229,20 @@ def _confirm_cancel_kb(prefix: str) -> InlineKeyboardMarkup:
         inline_keyboard=[[
             InlineKeyboardButton(text="Confirm", callback_data=f"{prefix}_confirm"),
             InlineKeyboardButton(text="Cancel", callback_data=f"{prefix}_cancel"),
+        ]]
+    )
+
+
+def _approve_publish_kb() -> InlineKeyboardMarkup:
+    # No topic embedded in callback_data (Telegram caps it at 64 bytes, and
+    # TOPIC_RE allows up to 80 chars — "review_publish:" + a long topic
+    # could silently exceed that). The topic is read back from FSM state
+    # data instead, same as every other button in this file (generate_confirm
+    # etc. all resolve their topic via state.get_data(), never callback_data).
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(text="✅ Approve", callback_data="review_approve"),
+            InlineKeyboardButton(text="📤 Publish", callback_data="review_publish"),
         ]]
     )
 
@@ -365,7 +398,7 @@ def build_router(controller: TelegramController) -> Router:
                 )
             if result.verification:
                 lines.append(f"Verification: {'PASS' if result.verification['overall_pass'] else 'FAIL'}")
-            lines.append("Use /approve, /reject, /publish to continue.")
+            lines.append("Or use /approve, /reject, /publish directly.")
             await message.answer("\n".join(lines))
             # Send the actual video file too, not just the status text —
             # previously the operator had to know to separately type
@@ -376,12 +409,21 @@ def build_router(controller: TelegramController) -> Router:
             # raise into the outer handler's "Refused: ..." reporting rather
             # than silently skip sending anything.
             await message.answer_video(FSInputFile(controller.video_path(topic)))
+            # Approve/Publish buttons right after the video, same one-tap
+            # pattern as the generate/retrieval confirm buttons — direct
+            # user feedback 2026-08-30: typing /approve <topic> then
+            # /publish <topic> by hand was more friction than necessary.
+            await state.set_state(PlanningStates.reviewing_generated)
+            await state.update_data(topic=topic)
+            await message.answer("Approve or publish this video?", reply_markup=_approve_publish_kb())
+            return
         await state.clear()
 
     @router.message()
     async def handle_message(message: Message, state: FSMContext) -> None:
         user_id = message.from_user.id if message.from_user else None
         if not controller.authorized(user_id):
+            print(f"[telegram_bot] Unauthorized message from user_id={user_id}")
             await message.answer("Unauthorized.")
             return
         text = (message.text or "").strip()
@@ -473,6 +515,19 @@ def build_router(controller: TelegramController) -> Router:
                     await run_locked_generate(message, state, topic)
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")
+                    await state.clear()
+            elif current_state == PlanningStates.reviewing_generated.state:
+                stored = await state.get_data()
+                topic = stored.get("topic")
+                if data == "review_approve":
+                    reply = controller.approve(topic, int(user_id))
+                    await message.answer(reply)
+                    # State (and the buttons) stay active — Publish still
+                    # needs its own tap right after Approve, same as
+                    # /approve then /publish as two separate commands.
+                elif data == "review_publish":
+                    result = await asyncio.to_thread(publish_to_youtube, topic, "private")
+                    await message.answer(f"Uploaded privately: {result['video_id']}; disclosure confirmed.")
                     await state.clear()
         except Exception as exc:
             await message.answer(f"Refused: {exc}")

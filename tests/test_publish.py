@@ -77,6 +77,10 @@ def test_publish_refuses_missing_topic():
 
 
 def test_youtube_upload_raises_when_disclosure_not_confirmed(tmp_path, monkeypatch):
+    """The insert response itself is the source of truth (see the real bug
+    below) — an insert response missing containsSyntheticMedia entirely
+    must still refuse, exactly as if a confirmation read had reported it
+    missing."""
     from unittest.mock import MagicMock
     from shorts_factory.providers.youtube import DisclosureNotConfirmed, YouTubeUploadProvider
 
@@ -89,20 +93,134 @@ def test_youtube_upload_raises_when_disclosure_not_confirmed(tmp_path, monkeypat
     fake_video = tmp_path / "video.mp4"
     fake_video.write_bytes(b"dummy mp4")
 
-    # Mock insert request & response
     mock_insert_request = MagicMock()
     mock_insert_request.execute.return_value = {"id": "vid123", "status": {"privacyStatus": "private"}}
     mock_service.videos().insert.return_value = mock_insert_request
-
-    # Mock list request & confirmation response with missing containsSyntheticMedia
-    mock_list_request = MagicMock()
-    mock_list_request.execute.return_value = {
-        "items": [{"id": "vid123", "status": {"containsSyntheticMedia": False}}]
-    }
-    mock_service.videos().list.return_value = mock_list_request
 
     with pytest.raises(DisclosureNotConfirmed) as exc_info:
         provider.upload_video(fake_video, "title", "desc", contains_synthetic_media=True)
 
     assert exc_info.value.video_id == "vid123"
+
+
+def test_youtube_upload_confirms_disclosure_directly_from_the_insert_response(tmp_path, monkeypatch):
+    """Real bug found 2026-08-30 against a live YouTube account: a separate
+    videos().list() call made immediately after videos().insert() to
+    "confirm" containsSyntheticMedia unreliably returned a status missing
+    the field entirely — an eventual-consistency lag on YouTube's own
+    backend, verified directly against the live API (insert's own response
+    echoed containsSyntheticMedia=true correctly and immediately; the very
+    next list() call for the same video did not). Confirming from the
+    insert response itself avoids this race — and this test proves the
+    fix never even calls list() at all."""
+    from unittest.mock import MagicMock
+    from shorts_factory.providers.youtube import YouTubeUploadProvider
+
+    fake_secrets = tmp_path / "secrets.json"
+    fake_secrets.write_text("{}", encoding="utf-8")
+    provider = YouTubeUploadProvider(client_secrets_file=str(fake_secrets), token_file=str(tmp_path / "token.json"))
+    mock_service = MagicMock()
+    monkeypatch.setattr(provider, "_get_service", lambda: mock_service)
+
+    fake_video = tmp_path / "video.mp4"
+    fake_video.write_bytes(b"dummy mp4")
+
+    mock_insert_request = MagicMock()
+    mock_insert_request.execute.return_value = {
+        "id": "vid456",
+        "status": {"privacyStatus": "private", "containsSyntheticMedia": True},
+    }
+    mock_service.videos().insert.return_value = mock_insert_request
+    # Deliberately wired to look "unconfirmed" if it were ever consulted —
+    # proves the fix doesn't depend on this call succeeding or agreeing.
+    mock_service.videos().list.return_value.execute.return_value = {
+        "items": [{"id": "vid456", "status": {}}]
+    }
+
+    result = provider.upload_video(fake_video, "title", "desc", contains_synthetic_media=True)
+
+    assert result.video_id == "vid456"
+    assert result.contains_synthetic_media is True
+    mock_service.videos().list.assert_not_called()
+
+
+def test_topic_tags_includes_topic_and_registered_keywords(monkeypatch):
+    from shorts_factory import topic_registry
+
+    monkeypatch.setattr(
+        topic_registry, "load_registry",
+        lambda: {"candle making": {"queries": ["q"], "keywords": ["candle", "Wax"], "safety_class": "green"}},
+    )
+    tags = publish_module._topic_tags("candle making")
+    assert tags[0] == "candle making"
+    assert "candle" in tags
+    assert "wax" in tags  # lowercased, same as the topic itself
+
+
+def test_topic_tags_handles_a_topic_with_no_registry_entry(monkeypatch):
+    from shorts_factory import topic_registry
+
+    monkeypatch.setattr(topic_registry, "load_registry", lambda: {})
+    assert publish_module._topic_tags("soap") == ["soap"]
+
+
+def test_description_hashtags_always_includes_shorts_and_camel_cases_multiword_tags(monkeypatch):
+    from shorts_factory import topic_registry
+
+    monkeypatch.setattr(
+        topic_registry, "load_registry",
+        lambda: {"water filtration": {"queries": [], "keywords": ["slaked lime"], "safety_class": "green"}},
+    )
+    hashtags = publish_module._description_hashtags("water filtration")
+    assert "#Shorts" in hashtags
+    assert "#WaterFiltration" in hashtags
+    assert "#SlakedLime" in hashtags
+
+
+def test_publish_passes_topic_tags_and_hashtags_through_to_the_real_upload_call(isolated_repo, monkeypatch):
+    """Real gap fixed 2026-08-29: publish_to_youtube() always sent an empty
+    tags=[] to the YouTube API and never added any hashtags to the
+    description at all — nothing tied the upload back to its own topic."""
+    from types import SimpleNamespace
+    from shorts_factory import topic_registry
+    from shorts_factory.providers.youtube import UploadResult
+
+    monkeypatch.setattr(
+        topic_registry, "load_registry",
+        lambda: {"soap": {"queries": [], "keywords": ["lye", "fat"], "safety_class": "yellow"}},
+    )
+
+    artifacts_dir = isolated_repo / "artifacts" / "soap"
+    review_state.approve(artifacts_dir, notes="test")
+    _write_passing_verification(artifacts_dir)
+    (artifacts_dir / "soap.script.json").write_text(
+        json.dumps({"scenes": [{"caption": "How soap is made", "narration": "Soap starts with fat and lye."}]}),
+        encoding="utf-8",
+    )
+    (artifacts_dir / "soap.mp4").write_bytes(b"fake mp4 bytes")
+
+    monkeypatch.setattr(
+        publish_module, "load_settings",
+        lambda: SimpleNamespace(
+            youtube_configured=True, youtube_client_secrets_file="secrets.json", youtube_token_file="token.json",
+        ),
+    )
+    monkeypatch.setattr(publish_module, "record_publish", lambda **kwargs: None)
+
+    captured: dict = {}
+
+    class FakeProvider:
+        def upload_video(self, **kwargs):
+            captured.update(kwargs)
+            return UploadResult(video_id="vid1", privacy_status="private", contains_synthetic_media=True, raw_response={})
+
+    monkeypatch.setattr(publish_module, "get_youtube_provider", lambda *a, **k: FakeProvider())
+
+    result = publish_to_youtube("soap")
+
+    assert result["video_id"] == "vid1"
+    assert captured["tags"] == ["soap", "lye", "fat"]
+    assert "#Shorts" in captured["description"]
+    assert "#Soap" in captured["description"]
+    review_state.reset_to_pending(artifacts_dir)
 

@@ -163,8 +163,19 @@
     "caution": "Caution: pumped water is not necessarily safe to drink; test and treat it appropriately."
   },
   "concrete": {
-    "queries": [],
-    "keywords": [],
+    "queries": [
+      "history of concrete invention",
+      "how concrete is made and used"
+    ],
+    "keywords": [
+      "cement",
+      "aggregate",
+      "water",
+      "construction",
+      "building material",
+      "roman concrete",
+      "portland cement"
+    ],
     "safety_class": "green",
     "caution": null
   },

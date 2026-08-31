@@ -21,6 +21,14 @@ from typing import Any
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
+    # Real bug found 2026-08-30 against a live account: youtube.upload alone
+    # was NOT sufficient for the disclosure-confirmation read call this
+    # module itself makes right after upload (videos().list(part="status")
+    # — see YouTubeUploadProvider.upload_video) — a real upload succeeded,
+    # then the very next confirmation call failed with a 403
+    # "insufficientPermissions"/"Request had insufficient authentication
+    # scopes." error. youtube.readonly is what actually covers videos.list.
+    "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/yt-analytics.readonly",  # Phase 6
 ]
 API_SERVICE_NAME = "youtube"
@@ -137,16 +145,26 @@ class YouTubeUploadProvider:
         response = request.execute()
 
         video_id = response["id"]
-        confirmation = service.videos().list(part="status", id=video_id).execute()
-        items = confirmation.get("items") or []
-        actual_flag = items[0].get("status", {}).get("containsSyntheticMedia") if items else None
+        # Confirmed FROM the insert response itself, not a separate
+        # videos().list() call right after — real bug found 2026-08-30
+        # against a live account: a follow-up list() immediately after
+        # insert unreliably returned a status missing containsSyntheticMedia
+        # entirely (eventual-consistency lag on YouTube's backend), even
+        # though the SAME insert's own response had already correctly
+        # echoed containsSyntheticMedia=true. Verified directly: a raw
+        # insert call's response.status.containsSyntheticMedia matched the
+        # request immediately, while list() right after did not. The insert
+        # response is itself a real API response (satisfying this module's
+        # own "confirmed via API response, not assumed" rule) without
+        # racing YouTube's own propagation delay.
+        actual_flag = response.get("status", {}).get("containsSyntheticMedia")
         if actual_flag != contains_synthetic_media:
             raise DisclosureNotConfirmed(
-                f"requested containsSyntheticMedia={contains_synthetic_media}, but the API "
+                f"requested containsSyntheticMedia={contains_synthetic_media}, but the insert "
                 f"response reports {actual_flag!r} — upload succeeded but disclosure is NOT "
                 f"confirmed. Do not treat this video as compliantly disclosed.",
                 video_id=video_id,
-                raw_response={"insert": response, "confirmation": confirmation},
+                raw_response={"insert": response},
             )
 
         return UploadResult(

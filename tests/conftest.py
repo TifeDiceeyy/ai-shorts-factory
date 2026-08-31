@@ -31,6 +31,14 @@ except Exception:
 _REAL_PROVIDER_ENV_VARS = [
     "LLM_PROVIDER", "TTS_PROVIDER", "IMAGE_PROVIDER", "VIDEO_PROVIDER", "SEARCH_PROVIDER",
     "FAL_KEY", "SEARCH_API_KEY", "TAVILY_API_KEY",
+    # Added 2026-08-30: real gap surfaced the moment YOUTUBE_CLIENT_SECRETS_FILE
+    # was actually set for the first time (previously always blank, so this
+    # leak had never manifested as a test failure before). Settings.
+    # youtube_configured just checks this string's truthiness — an unguarded
+    # test asserting YouTubeNotConfigured silently saw the real, now-non-empty
+    # value from this machine's own .env and failed downstream instead
+    # (test_publish.py::test_publish_refuses_when_youtube_not_configured).
+    "YOUTUBE_CLIENT_SECRETS_FILE", "YOUTUBE_TOKEN_FILE",
 ]
 
 

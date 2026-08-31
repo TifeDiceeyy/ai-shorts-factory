@@ -205,6 +205,14 @@ def _scene_base_image_path(
 # left after that.
 MAX_REAL_CLIPS_PER_SCENE = 2
 
+# Generation-speed fix (2026-08-29): bounded worker counts for the
+# per-scene image/TTS calls below, matching the same "cap concurrency,
+# don't flood the provider" reasoning as MAX_REAL_CLIPS_PER_SCENE's own
+# ThreadPoolExecutor above it — lighter/faster calls than video generation,
+# so a higher cap than that one's is reasonable.
+IMAGE_MAX_WORKERS = 3
+TTS_MAX_WORKERS = 3
+
 
 def _render_scene_clips(
     video_provider,
@@ -447,15 +455,22 @@ def run_pipeline(
         # verification target duration) is driven by the measured value so
         # nothing can drift out of sync with what's actually on the timeline. ---
         stage = "tts"
-        tts = get_tts_provider(
-            settings.tts.provider,
-            settings.credential_for(settings.tts),
-            settings.tts.model_or_voice,
-            settings.tts_voice,
-            settings.tts_cost_per_1k_chars_usd,
-            gateway=fal_gateway,
-        )
-        scene_audio = assembly.synthesize_scenes(tts, script["scenes"], workdir / "audio", cost_tracker)
+
+        # A factory, not a shared instance — synthesize_scenes() now renders
+        # scenes concurrently, and fal_client's synchronous client is not
+        # thread-safe (same constraint documented on render_clip/
+        # render_scene_image above); each worker needs its own gateway.
+        def make_tts_provider():
+            return get_tts_provider(
+                settings.tts.provider,
+                settings.credential_for(settings.tts),
+                settings.tts.model_or_voice,
+                settings.tts_voice,
+                settings.tts_cost_per_1k_chars_usd,
+                gateway=FalGateway(settings.fal_key) if uses_fal else None,
+            )
+
+        scene_audio = assembly.synthesize_scenes(make_tts_provider, script["scenes"], workdir / "audio", cost_tracker)
         actual_durations = [a.duration for a in scene_audio]
         scripted_durations = [a.scripted_duration for a in scene_audio]
         actual_total = sum(actual_durations)
@@ -527,10 +542,55 @@ def run_pipeline(
             hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
             hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
 
-            def sticker_image_source(i: int, scene: dict[str, Any]) -> Path:
-                return _scene_base_image_path(
-                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+            # Generation-speed fix, 2026-08-29: per-scene image calls used to
+            # run one at a time (a plain for-loop) — real wall time for a
+            # 6-scene video is dominated by these sequential network calls,
+            # not by the (fast, local) ffmpeg assembly after them. Parallelized
+            # the same way _render_scene_clips already parallelizes ai_video's
+            # clip rendering: the shared hero reference must exist BEFORE any
+            # worker starts (created here, synchronously, exactly once — the
+            # same lazy condition _scene_base_image_path itself uses, so a
+            # script with zero mascot-type scenes still never pays for a hero
+            # it wouldn't use), and every worker gets its OWN image provider
+            # (and FalGateway) rather than sharing one across threads —
+            # fal_client's synchronous client is not thread-safe (the same
+            # constraint _render_scene_clips's own worker_gateway already
+            # documents for video).
+            if any(
+                scene.get("scene_type", "mascot") not in ("ingredient_grid", "process_action")
+                for scene in script["scenes"]
+            ):
+                _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+
+            def render_scene_image(i: int, scene: dict[str, Any]) -> Path:
+                worker_gateway = FalGateway(settings.fal_key) if uses_fal else None
+                worker_image_provider = get_image_provider(
+                    settings.image.provider,
+                    settings.credential_for(settings.image),
+                    settings.image.model_or_voice,
+                    settings.image_cost_per_image_usd,
+                    gateway=worker_gateway,
+                    visual_style="" if mascot else settings.visual_style,
+                    style_preset=settings.image_style,
                 )
+                return _scene_base_image_path(
+                    worker_image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
+
+            base_image_paths: list[Path | None] = [None] * len(script["scenes"])
+            with ThreadPoolExecutor(max_workers=min(IMAGE_MAX_WORKERS, len(script["scenes"]))) as executor:
+                pending = {
+                    executor.submit(render_scene_image, i, scene): i
+                    for i, scene in enumerate(script["scenes"])
+                }
+                for future in as_completed(pending):
+                    base_image_paths[pending[future]] = future.result()
+
+            def sticker_image_source(i: int, _scene: dict[str, Any]) -> Path:
+                path = base_image_paths[i]
+                if path is None:
+                    raise RuntimeError(f"scene image {i} did not complete")
+                return path
 
             generated_result = assembly.assemble_stickers(
                 scenes=script["scenes"],

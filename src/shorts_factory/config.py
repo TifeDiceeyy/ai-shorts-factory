@@ -121,7 +121,16 @@ def require_budget_approval_if_paid(settings: Settings) -> None:
 
 
 def _env(name: str, default: str = "") -> str:
-    return os.environ.get(name, default).strip()
+    """Real bug found 2026-08-29: os.environ.get(name, default) only falls
+    back to `default` when the key is entirely ABSENT from the environment
+    — a .env line like `YOUTUBE_TOKEN_FILE=` (present, explicitly empty)
+    returns "" instead, silently skipping a documented default (".env's own
+    comment says 'Defaults to <repo root>/.youtube_token.json if unset' —
+    an explicitly-blank line is not meaningfully different from unset for
+    every other var in this file). Treat present-but-blank the same as
+    absent."""
+    value = os.environ.get(name, "").strip()
+    return value if value else default
 
 
 def load_settings() -> Settings:

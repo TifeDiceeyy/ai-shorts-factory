@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -1357,8 +1358,11 @@ def write_captions_meta(
     out_path.write_text(json.dumps({"frame_width": FRAME_WIDTH, "frame_height": FRAME_HEIGHT, "scenes": entries}, indent=2), encoding="utf-8")
 
 
+SYNTHESIZE_SCENES_MAX_WORKERS = 3
+
+
 def synthesize_scenes(
-    tts_provider: TTSProvider,
+    tts_provider: TTSProvider | Callable[[], TTSProvider],
     scenes: list[dict[str, Any]],
     audio_dir: Path,
     cost_tracker: CostTracker,
@@ -1369,13 +1373,39 @@ def synthesize_scenes(
     vs. generated-image) is being assembled, so the caller synthesizes once
     and reuses the same SceneAudio list for every stage — a real TTS provider
     must not be charged twice for identical narration just because the
-    pipeline renders the video twice."""
+    pipeline renders the video twice.
+
+    tts_provider may be a plain TTSProvider instance (used for every scene —
+    the original behavior, and still what every existing caller/test passes)
+    or a zero-arg factory callable returning a fresh provider per call.
+    Generation-speed fix, 2026-08-29: scenes render concurrently (bounded by
+    SYNTHESIZE_SCENES_MAX_WORKERS) instead of one at a time — real wall time
+    for a multi-scene video was dominated by this being a sequential loop of
+    network calls. A real (fal-backed) provider MUST be passed as a factory
+    to get any benefit from this: fal_client's synchronous client is not
+    thread-safe, so sharing one provider instance across worker threads
+    would be unsafe — pass a callable that builds a fresh provider (and
+    fresh FalGateway) per call, mirroring pipeline.py's own
+    render_clip/render_scene_image worker-isolation pattern. A plain
+    instance (e.g. StubTTSProvider(), used by every test) is reused as-is,
+    since the stub has no shared real-network client to race on."""
     audio_dir.mkdir(parents=True, exist_ok=True)
-    result = []
-    for i, scene in enumerate(scenes):
-        path = build_scene_audio(tts_provider, scene, i, audio_dir, cost_tracker)
+    get_provider = tts_provider if callable(tts_provider) and not isinstance(tts_provider, TTSProvider) else (
+        lambda: tts_provider
+    )
+
+    def render(i: int, scene: dict[str, Any]) -> SceneAudio:
+        path = build_scene_audio(get_provider(), scene, i, audio_dir, cost_tracker)
         actual_duration = probe_duration(path)
-        result.append(SceneAudio(path=path, duration=actual_duration, scripted_duration=scene["duration"]))
+        return SceneAudio(path=path, duration=actual_duration, scripted_duration=scene["duration"])
+
+    if not scenes:
+        return []
+    result: list[SceneAudio | None] = [None] * len(scenes)
+    with ThreadPoolExecutor(max_workers=min(SYNTHESIZE_SCENES_MAX_WORKERS, len(scenes))) as executor:
+        pending = {executor.submit(render, i, scene): i for i, scene in enumerate(scenes)}
+        for future in as_completed(pending):
+            result[pending[future]] = future.result()
     return result
 
 

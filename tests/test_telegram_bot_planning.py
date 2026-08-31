@@ -75,3 +75,30 @@ def test_needs_retrieval_false_when_citation_store_exists(controller, tmp_path, 
     citation_dir.mkdir(parents=True)
     (citation_dir / "candle_making.citations.json").write_text("{}")
     assert controller.needs_retrieval("candle making") is False
+
+
+def test_needs_retrieval_false_when_the_brain_covers_the_topic(controller, monkeypatch):
+    """Real gap found 2026-08-29 via a live Telegram test: this gate only
+    ever checked for a citations.json file, so the bot kept prompting "Run
+    retrieval now?" even for topics the brain already covers for free —
+    out of sync with run_pipeline's own brain-first check (pipeline.py)."""
+    import shorts_factory.brain_integration as brain_integration
+
+    monkeypatch.setattr(brain_integration, "load_brain", lambda: object())
+    monkeypatch.setattr(brain_integration, "brain_covers_topic", lambda brain, topic: (True, {"key_facts": ["x"]}))
+    assert controller.needs_retrieval("a topic with definitely no citations yet") is False
+
+
+def test_needs_retrieval_true_when_brain_does_not_cover_and_no_citations(controller, monkeypatch):
+    import shorts_factory.brain_integration as brain_integration
+
+    monkeypatch.setattr(brain_integration, "load_brain", lambda: object())
+    monkeypatch.setattr(brain_integration, "brain_covers_topic", lambda brain, topic: (False, None))
+    assert controller.needs_retrieval("a topic with definitely no citations yet") is True
+
+
+def test_needs_retrieval_true_when_brain_is_not_built_and_no_citations(controller, monkeypatch):
+    import shorts_factory.brain_integration as brain_integration
+
+    monkeypatch.setattr(brain_integration, "load_brain", lambda: None)
+    assert controller.needs_retrieval("a topic with definitely no citations yet") is True
