@@ -50,8 +50,6 @@ def test_build_stickers_trigger_words_fit_schema():
         tw = sticker.get("trigger_words")
         if tw is not None:
             assert len(tw) <= 3
-        if sticker.get("uses_hero"):
-            assert "trigger_words" not in sticker
 
     script = {
         "topic": "metal",

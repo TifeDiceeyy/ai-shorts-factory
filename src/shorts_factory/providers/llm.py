@@ -130,19 +130,12 @@ STICKER_POSITIONS = ("center", "top_left", "top_right", "bottom_left", "bottom_r
 TRIGGER_WORDS_MAX = 3
 
 
-def _trigger_words_from_phrase(phrase: str, *, max_words: int = TRIGGER_WORDS_MAX) -> list[str]:
-    """Extract 1-3 spoken nouns for word-sync timing — must fit schema maxItems."""
-    words = [w.strip() for w in re.split(r"[\s,/]+", phrase.strip()) if w.strip()]
-    content = [w for w in words if len(w) >= 3] or words
-    return content[:max_words]
-
-
 def _sanitize_sticker_fields(sticker: dict[str, Any]) -> None:
     tw = sticker.get("trigger_words")
     if tw is None:
         return
     if isinstance(tw, str):
-        cleaned = _trigger_words_from_phrase(tw)
+        cleaned = [w for w in re.split(r"[\s,/]+", tw) if w][:TRIGGER_WORDS_MAX]
     elif isinstance(tw, list):
         cleaned = [str(w).strip() for w in tw if str(w).strip()][:TRIGGER_WORDS_MAX]
     else:
@@ -203,9 +196,7 @@ def build_stickers_for_scene(
             }
             if label_stickers_enabled:
                 sticker["label"] = item.upper()[:18]
-            trigger = _trigger_words_from_phrase(item)
-            if trigger:
-                sticker["trigger_words"] = trigger
+            sticker["trigger_words"] = [w for w in re.split(r"[\s,/]+", item) if w][:TRIGGER_WORDS_MAX]
             stickers.append(sticker)
         return stickers
 
@@ -258,10 +249,9 @@ def build_stickers_for_scene(
             sticker["appear_at"] = 0.0
         elif uses_hero:
             sticker["uses_hero"] = True
-        if not uses_hero:
-            trigger = _trigger_words_from_phrase(subject)
-            if trigger:
-                sticker["trigger_words"] = trigger
+        subject_words = [w for w in re.split(r"[\s,/]+", subject) if len(w) > 2][:TRIGGER_WORDS_MAX]
+        if subject_words:
+            sticker["trigger_words"] = subject_words
         stickers.append(sticker)
     return stickers
 
