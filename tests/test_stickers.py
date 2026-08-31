@@ -271,6 +271,7 @@ def test_subscribe_cta_appears_near_the_end_of_the_assembled_video_not_earlier(t
     assembly.assemble_stickers(
         scenes, image_source, audio, tmp_path / "work", out_mp4,
         caption_style="comic_punch_orange", subscribe_cta_text="SUBSCRIBE!",
+        scene_transition="none",
     )
 
     total_duration = assembly.probe_duration(out_mp4)

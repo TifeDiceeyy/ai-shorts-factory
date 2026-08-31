@@ -31,6 +31,7 @@ from .captions import (
     draw_subscribe_cta,
     subscribe_cta_overlay_png,
     typewriter_overlay_frames,
+    word_chunk_overlay_frames,
 )
 from .cost_tracker import CostTracker
 from .media_probe import probe_duration
@@ -144,6 +145,27 @@ def narration_caption_cues(
         cues.append(CaptionCue(text=chunk, start=cursor, end=end))
         cursor = end
     return cues
+
+
+def narration_word_timings(narration: str, duration: float) -> list[tuple[str, float, float]]:
+    """Per-word start/end times within measured TTS duration.
+
+    Uses the same character-weight model as narration_caption_cues(), but at
+    word granularity so sticker appear_at can land on the exact spoken noun.
+    """
+    words = narration.split()
+    if not words:
+        return []
+
+    weights = [max(1, len(re.sub(r"[^A-Za-z0-9]", "", word))) for word in words]
+    total_weight = sum(weights)
+    cursor = 0.0
+    timings: list[tuple[str, float, float]] = []
+    for index, (word, weight) in enumerate(zip(words, weights)):
+        end = duration if index == len(words) - 1 else cursor + duration * weight / total_weight
+        timings.append((word, cursor, end))
+        cursor = end
+    return timings
 
 
 def build_timed_caption_overlays(
@@ -718,6 +740,23 @@ def _caption_punch_frame_paths(overlay_image: Image.Image, box: CaptionBox, out_
     return paths
 
 
+def _caption_word_chunk_frame_paths(
+    text: str,
+    cue_duration: float,
+    style: str | None,
+    out_dir: Path,
+    prefix: str,
+) -> list[Path]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    frames, _box = word_chunk_overlay_frames(text, cue_duration, style=style, fps=FPS)
+    paths: list[Path] = []
+    for frame_idx, frame in enumerate(frames):
+        path = out_dir / f"{prefix}_{frame_idx:03d}.png"
+        frame.save(path)
+        paths.append(path)
+    return paths
+
+
 def _caption_typewriter_frame_paths(
     text: str,
     cue_duration: float,
@@ -762,6 +801,18 @@ def _append_caption_cue_stage(
         return label, next_input_index + 1
 
     mode = caption_animation_mode.strip().lower()
+    if mode == "word_chunk":
+        wc_dir = segments_dir / "caption_word_chunk"
+        prefix = f"chunk_{index:02d}_{cue_index:02d}"
+        cue_text = timed.text or _caption_text_from_overlay(timed.image)
+        _caption_word_chunk_frame_paths(cue_text, cue_duration, caption_style, wc_dir, prefix)
+        wc_pattern = wc_dir / f"{prefix}_%03d.png"
+        cmd.extend(["-framerate", str(FPS), "-i", str(wc_pattern)])
+        filters.append(
+            f"[{next_input_index}:v]format=rgba,setpts=PTS+{timed.start:.3f}/TB[{label}]"
+        )
+        return label, next_input_index + 1
+
     if mode == "typewriter":
         tw_dir = segments_dir / "caption_typewriter"
         prefix = f"type_{index:02d}_{cue_index:02d}"
@@ -1281,8 +1332,12 @@ def assemble_stickers(
     *,
     sticker_image_paths: dict[str, Path] | None = None,
     entrance_style: str = "fade",
-    caption_animation_mode: str = "typewriter",
+    caption_animation_mode: str = "word_chunk",
     typewriter_cursor: bool = True,
+    scene_transition: str = "flash_white",
+    scene_transition_duration_s: float = 0.3,
+    music_sfx_source: str | None = None,
+    music_sfx_volume_db: float = -22.0,
 ) -> dict[str, Any]:
     """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
     image_source(index, scene) -> that scene's already-generated still image
@@ -1373,17 +1428,55 @@ def assemble_stickers(
             )
         segment_paths.append(seg_path)
 
-    tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)
+    tail = concat_and_mux(
+        segment_paths,
+        [a.path for a in audio],
+        workdir,
+        out_mp4,
+        scene_transition=scene_transition,
+        scene_transition_duration_s=scene_transition_duration_s,
+        music_sfx_source=music_sfx_source,
+        music_sfx_volume_db=music_sfx_volume_db,
+    )
     return {
         "caption_boxes": caption_boxes,
         **tail,
     }
 
 
-def concat_video_segments(segment_paths: list[Path], workdir: Path, out_path: Path) -> Path:
+def _write_white_flash_segment(workdir: Path, duration: float, index: int) -> Path:
+    out_path = workdir / f"flash_{index:02d}.mp4"
+    _run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-f", "lavfi",
+        "-i", f"color=c=white:s={FRAME_WIDTH}x{FRAME_HEIGHT}:r={FPS}:d={duration:.3f}",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1",
+        str(out_path),
+    ])
+    return out_path
+
+
+def concat_video_segments(
+    segment_paths: list[Path],
+    workdir: Path,
+    out_path: Path,
+    *,
+    scene_transition: str = "none",
+    scene_transition_duration_s: float = 0.3,
+) -> Path:
+    paths = list(segment_paths)
+    if scene_transition == "flash_white" and len(paths) > 1 and scene_transition_duration_s > 0:
+        interleaved: list[Path] = []
+        for index, segment in enumerate(paths):
+            interleaved.append(segment)
+            if index < len(paths) - 1:
+                interleaved.append(_write_white_flash_segment(workdir, scene_transition_duration_s, index))
+        paths = interleaved
+
     list_file = workdir / "segments.txt"
     with open(list_file, "w", encoding="utf-8") as f:
-        for p in segment_paths:
+        for p in paths:
             f.write(f"file '{p.resolve()}'\n")
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
@@ -1398,7 +1491,35 @@ def concat_video_segments(segment_paths: list[Path], workdir: Path, out_path: Pa
     return out_path
 
 
-def concat_audio(audio_paths: list[Path], workdir: Path, out_path: Path) -> Path:
+def _write_silence_wav(workdir: Path, duration: float, index: int) -> Path:
+    out_path = workdir / f"silence_{index:02d}.wav"
+    _run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono",
+        "-t", f"{duration:.3f}",
+        "-fflags", "+bitexact", "-flags:a", "+bitexact",
+        str(out_path),
+    ])
+    return out_path
+
+
+def concat_audio(
+    audio_paths: list[Path],
+    workdir: Path,
+    out_path: Path,
+    *,
+    scene_transition: str = "none",
+    scene_transition_duration_s: float = 0.3,
+) -> Path:
+    paths = list(audio_paths)
+    if scene_transition == "flash_white" and len(paths) > 1 and scene_transition_duration_s > 0:
+        interleaved: list[Path] = []
+        for index, audio_path in enumerate(paths):
+            interleaved.append(audio_path)
+            if index < len(paths) - 1:
+                interleaved.append(_write_silence_wav(workdir, scene_transition_duration_s, index))
+        paths = interleaved
+
     list_file = workdir / "audio_segments.txt"
     with open(list_file, "w", encoding="utf-8") as f:
         for p in audio_paths:
@@ -1733,6 +1854,11 @@ def concat_and_mux(
     audio_paths: list[Path],
     workdir: Path,
     out_mp4: Path,
+    *,
+    scene_transition: str = "none",
+    scene_transition_duration_s: float = 0.3,
+    music_sfx_source: str | None = None,
+    music_sfx_volume_db: float = -22.0,
 ) -> dict[str, Any]:
     """The reassembly tail shared by both a full assemble() run and a
     single-scene regeneration (Phase 4): concat all video segments, concat
@@ -1740,17 +1866,44 @@ def concat_and_mux(
     means: the expensive per-scene steps (image gen, TTS) aren't repeated for
     scenes that didn't change, only this reassembly is."""
     video_only = workdir / "video_only.mp4"
-    concat_video_segments(segment_paths, workdir, video_only)
+    concat_video_segments(
+        segment_paths,
+        workdir,
+        video_only,
+        scene_transition=scene_transition,
+        scene_transition_duration_s=scene_transition_duration_s,
+    )
 
     narration_raw = workdir / "narration_raw.wav"
-    concat_audio(audio_paths, workdir, narration_raw)
+    concat_audio(
+        audio_paths,
+        workdir,
+        narration_raw,
+        scene_transition=scene_transition,
+        scene_transition_duration_s=scene_transition_duration_s,
+    )
 
     loudnorm_stats_pass1 = loudnorm_measure(narration_raw)
 
     narration_normalized = workdir / "narration_normalized.wav"
     loudnorm_apply(narration_raw, narration_normalized, measured=loudnorm_stats_pass1)
 
-    mux_final(video_only, narration_normalized, out_mp4)
+    narration_for_mux = narration_normalized
+    sfx_path = Path(music_sfx_source) if music_sfx_source else None
+    if sfx_path and sfx_path.exists():
+        narration_with_sfx = workdir / "narration_with_sfx.wav"
+        _run([
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", str(narration_normalized),
+            "-i", str(sfx_path),
+            "-filter_complex",
+            f"[1:a]volume={music_sfx_volume_db:.1f}dB[sfx];[0:a][sfx]amix=inputs=2:duration=first:dropout_transition=0",
+            "-ar", "48000",
+            str(narration_with_sfx),
+        ])
+        narration_for_mux = narration_with_sfx
+
+    mux_final(video_only, narration_for_mux, out_mp4)
 
     # The WAV lands within ~0.05 LU of target after the two-pass normalize
     # above, but mux_final's AAC re-encode (lossy, 160kbps) can shift the

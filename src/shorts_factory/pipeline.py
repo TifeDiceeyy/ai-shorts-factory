@@ -21,7 +21,10 @@ from .cost_tracker import BudgetExceeded, CostTracker
 from .dashboard import review_state
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
-from .providers.llm import LLMResponseFormatError, StubLLMProvider, assign_stickers_to_script, get_llm_provider
+from .providers.llm import LLMResponseFormatError, StubLLMProvider, assign_stickers_to_script, get_llm_provider, repair_sticker_manifest
+from .sticker_compositor import configure_motion
+from .sticker_qa import validate_sticker_image
+from .sticker_timing import sync_sticker_appear_times
 from .providers.tts import get_tts_provider
 from .providers.video import get_video_provider
 from .providers.fal import FalGateway
@@ -215,10 +218,25 @@ TTS_MAX_WORKERS = 3
 
 
 def _ensure_script_stickers(script: dict[str, Any], settings) -> None:
-    if any(scene.get("stickers") for scene in script["scenes"]):
-        return
-    target = (settings.sticker_target_min + settings.sticker_target_max) // 2
-    assign_stickers_to_script(script, target_total=target)
+    repair_sticker_manifest(
+        script,
+        target_min=settings.sticker_target_min,
+        target_max=settings.sticker_target_max,
+        mascot_lock=settings.mascot_lock,
+        label_stickers_enabled=settings.label_stickers_enabled,
+    )
+
+
+def _expected_muxed_duration(
+    audio_total: float,
+    scene_count: int,
+    *,
+    scene_transition: str,
+    scene_transition_duration_s: float,
+) -> float:
+    if scene_transition == "flash_white" and scene_count > 1 and scene_transition_duration_s > 0:
+        return audio_total + (scene_count - 1) * scene_transition_duration_s
+    return audio_total
 
 
 def _assembly_motion_settings(settings) -> dict[str, Any]:
@@ -226,6 +244,10 @@ def _assembly_motion_settings(settings) -> dict[str, Any]:
         "entrance_style": settings.entrance_style,
         "caption_animation_mode": settings.caption_animation_mode,
         "typewriter_cursor": settings.typewriter_cursor,
+        "scene_transition": settings.scene_transition,
+        "scene_transition_duration_s": settings.scene_transition_duration_s,
+        "music_sfx_source": settings.music_sfx_source or None,
+        "music_sfx_volume_db": settings.music_sfx_volume_db,
     }
 
 
@@ -246,11 +268,21 @@ def _generate_sticker_images(
     pending: list[tuple[dict[str, Any], Path]] = []
     for scene in scenes:
         for sticker in scene.get("stickers", []):
+            if sticker.get("is_label"):
+                continue
             out_path = stickers_dir / f"{sticker['id']}.png"
             if out_path.exists():
-                sticker_paths[sticker["id"]] = out_path
-            else:
-                pending.append((sticker, out_path))
+                if settings.sticker_qa_enabled:
+                    qa = validate_sticker_image(out_path)
+                    if not qa.ok:
+                        out_path.unlink(missing_ok=True)
+                    else:
+                        sticker_paths[sticker["id"]] = out_path
+                        continue
+                else:
+                    sticker_paths[sticker["id"]] = out_path
+                    continue
+            pending.append((sticker, out_path))
 
     if not pending:
         return sticker_paths
@@ -268,13 +300,22 @@ def _generate_sticker_images(
             style_preset=settings.image_style,
         )
         reference = hero_path if sticker.get("uses_hero") else None
-        worker_image_provider.generate_scene_image(
-            {"visual_prompt": sticker["visual_prompt"]},
-            sticker["id"],
-            out_path,
-            cost_tracker,
-            reference_image_path=reference,
-        )
+        max_attempts = 1 + (settings.sticker_qa_max_retries if settings.sticker_qa_enabled else 0)
+        for attempt in range(max_attempts):
+            worker_image_provider.generate_scene_image(
+                {"visual_prompt": sticker["visual_prompt"]},
+                sticker["id"],
+                out_path,
+                cost_tracker,
+                reference_image_path=reference,
+            )
+            if not settings.sticker_qa_enabled:
+                break
+            qa = validate_sticker_image(out_path)
+            if qa.ok:
+                break
+            if attempt < max_attempts - 1:
+                out_path.unlink(missing_ok=True)
         return sticker["id"], out_path
 
     with ThreadPoolExecutor(max_workers=min(IMAGE_MAX_WORKERS, len(pending))) as executor:
@@ -546,6 +587,10 @@ def run_pipeline(
         actual_durations = [a.duration for a in scene_audio]
         scripted_durations = [a.scripted_duration for a in scene_audio]
         actual_total = sum(actual_durations)
+
+        sync_sticker_appear_times(script["scenes"], actual_durations)
+        configure_motion(settings.sticker_motion_scale)
+        script_out.write_text(json.dumps(script, indent=2), encoding="utf-8")
 
         # --- Captions (timing derived from ACTUAL audio duration, not the script's estimate) ---
         captions_srt = artifacts_dir / "captions.srt"
@@ -822,11 +867,18 @@ def run_pipeline(
         stage = "verification"
         verification = verify.run_verification(
             mp4_path=final_mp4,
-            scripted_total_seconds=actual_total,
+            scripted_total_seconds=_expected_muxed_duration(
+                actual_total,
+                len(script["scenes"]),
+                scene_transition=settings.scene_transition if sticker_mode else "none",
+                scene_transition_duration_s=settings.scene_transition_duration_s,
+            ),
             captions_meta_path=captions_meta,
             cost_report_path=cost_report_path,
             budget_cap_usd=settings.budget_cap_usd,
             artifacts_dir=artifacts_dir,
+            expect_sticker_motion=sticker_mode,
+            caption_scripted_total_seconds=actual_total,
         )
         verification_path = artifacts_dir / "verification-report.json"
         verification_path.write_text(json.dumps(verification, indent=2), encoding="utf-8")
@@ -921,13 +973,23 @@ def regenerate_scene(
     if new_narration:
         scenes[scene_index]["narration"] = new_narration
         scenes[scene_index]["caption"] = _caption_from_claim(new_narration)
-        # Re-estimate the nominal duration too (same heuristic StubLLMProvider
-        # uses) so script.json doesn't keep a stale estimate around — the
-        # ACTUAL duration below is still what really drives the render either way.
         word_count = len(new_narration.split())
         scenes[scene_index]["duration"] = round(
             max(MIN_SCENE_SECONDS, min(MAX_SCENE_SECONDS, 2.5 + 0.35 * word_count)), 1
         )
+        repair_sticker_manifest(
+            script,
+            target_min=settings.sticker_target_min,
+            target_max=settings.sticker_target_max,
+            mascot_lock=settings.mascot_lock,
+            label_stickers_enabled=settings.label_stickers_enabled,
+        )
+        stickers_dir = workdir / "generated" / "stickers"
+        for sticker in scenes[scene_index].get("stickers") or []:
+            if sticker.get("is_label"):
+                continue
+            stale = stickers_dir / f"{sticker['id']}.png"
+            stale.unlink(missing_ok=True)
         script_path.write_text(json.dumps(script, indent=2), encoding="utf-8")
 
     # Cumulative cost across this video's full lifetime (original render +
@@ -960,6 +1022,17 @@ def regenerate_scene(
         scene = scenes[scene_index]
         new_audio_path = assembly.build_scene_audio(tts, scene, scene_index, audio_dir, cost_tracker)
         new_duration = assembly.probe_duration(new_audio_path)
+        configure_motion(settings.sticker_motion_scale)
+
+        all_durations_probe = []
+        for i, sc in enumerate(scenes):
+            if i == scene_index:
+                all_durations_probe.append(new_duration)
+            else:
+                wav = audio_dir / f"scene_{i:02d}.wav"
+                all_durations_probe.append(assembly.probe_duration(wav))
+        sync_sticker_appear_times(scenes, all_durations_probe)
+        script_path.write_text(json.dumps(script, indent=2), encoding="utf-8")
 
         image_provider = get_image_provider(
             settings.image.provider,
@@ -1096,7 +1169,17 @@ def regenerate_scene(
                 all_boxes.append(prior_captions_meta[i])  # reuse the previously-computed box, don't re-derive it
 
         final_mp4 = artifacts_dir / f"{topic}.mp4"
-        assembly.concat_and_mux(all_segment_paths, all_audio_paths, generated_dir, final_mp4)
+        motion = _assembly_motion_settings(settings)
+        assembly.concat_and_mux(
+            all_segment_paths,
+            all_audio_paths,
+            generated_dir,
+            final_mp4,
+            scene_transition=motion["scene_transition"],
+            scene_transition_duration_s=motion["scene_transition_duration_s"],
+            music_sfx_source=motion.get("music_sfx_source"),
+            music_sfx_volume_db=motion.get("music_sfx_volume_db", -22.0),
+        )
 
         captions_meta = artifacts_dir / "captions.meta.json"
         assembly.write_captions_meta(scenes, all_durations, all_boxes, captions_meta)
@@ -1108,11 +1191,18 @@ def regenerate_scene(
 
         verification = verify.run_verification(
             mp4_path=final_mp4,
-            scripted_total_seconds=sum(all_durations),
+            scripted_total_seconds=_expected_muxed_duration(
+                sum(all_durations),
+                len(scenes),
+                scene_transition=settings.scene_transition if sticker_mode else "none",
+                scene_transition_duration_s=settings.scene_transition_duration_s,
+            ),
             captions_meta_path=captions_meta,
             cost_report_path=cost_report_path,
             budget_cap_usd=settings.budget_cap_usd,
             artifacts_dir=artifacts_dir,
+            expect_sticker_motion=sticker_mode,
+            caption_scripted_total_seconds=sum(all_durations),
         )
         (artifacts_dir / "verification-report.json").write_text(json.dumps(verification, indent=2), encoding="utf-8")
         result.verification = verification

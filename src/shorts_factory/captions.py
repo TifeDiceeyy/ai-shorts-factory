@@ -590,6 +590,42 @@ def typewriter_overlay_frames(
     return frames, box
 
 
+WORD_CHUNK_FADE_SECONDS = 0.15
+
+
+def word_chunk_overlay_frames(
+    text: str,
+    cue_duration: float,
+    style: CaptionStyle | str | None = None,
+    *,
+    fps: int = 30,
+    fade_seconds: float = WORD_CHUNK_FADE_SECONDS,
+) -> tuple[list[Image.Image], CaptionBox]:
+    """Reference-style captions: 2–3 words appear as a chunk with a quick
+    fade-in, no scale bounce and no letter-by-letter typewriter."""
+    if not text:
+        img, box = caption_overlay_png("…", style=style)
+        return [img], box
+
+    total_frames = max(1, int(round(cue_duration * fps)))
+    fade_frames = max(1, min(total_frames - 1, int(round(fade_seconds * fps))))
+    _, box = caption_overlay_png(text, style=style)
+    full_frame, _ = caption_overlay_png(text, style=style)
+    frames: list[Image.Image] = []
+    for frame_idx in range(total_frames):
+        if frame_idx < fade_frames:
+            alpha = (frame_idx + 1) / fade_frames
+            faded = full_frame.copy()
+            r, g, b, a = faded.split()
+            a = a.point(lambda p, al=alpha: int(p * al))
+            frame_img = Image.merge("RGBA", (r, g, b, a))
+            bg = Image.new("RGBA", full_frame.size, (0, 0, 0, 0))
+            frames.append(Image.alpha_composite(bg, frame_img))
+        else:
+            frames.append(full_frame.copy())
+    return frames, box
+
+
 CAUTION_BADGE_STYLE = CaptionStyle(
     name="caution_badge",
     font_family="modern_clean",

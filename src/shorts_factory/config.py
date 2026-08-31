@@ -67,11 +67,21 @@ class Settings:
     # aggressive motion prompting, which the sticker approach sidesteps
     # entirely by not depending on AI-generated motion at all.
     animation_mode: str = "sticker"
-    caption_animation_mode: str = "typewriter"
+    caption_animation_mode: str = "word_chunk"
     entrance_style: str = "fade"
     typewriter_cursor: bool = True
     sticker_target_min: int = 12
     sticker_target_max: int = 15
+    scene_transition: str = "flash_white"
+    scene_transition_duration_s: float = 0.3
+    mascot_lock: bool = True
+    label_stickers_enabled: bool = True
+    sticker_motion_scale: float = 1.75
+    sticker_qa_enabled: bool = True
+    sticker_qa_max_retries: int = 2
+    script_min_total_seconds: float = 40.0
+    script_max_total_seconds: float = 90.0
+    music_sfx_volume_db: float = -22.0
 
     stub_fields: list[str] = field(default_factory=list)
 
@@ -237,10 +247,20 @@ def load_settings() -> Settings:
         telegram_allowed_user_ids=tuple(telegram_ids),
         default_mascot_id=_env("DEFAULT_MASCOT", "mascot_4"),
         animation_mode=_env("ANIMATION_MODE", "sticker").strip().lower(),
-        caption_animation_mode=_env("CAPTION_ANIMATION_MODE", "typewriter").strip().lower(),
+        caption_animation_mode=_env("CAPTION_ANIMATION_MODE", "word_chunk").strip().lower(),
         entrance_style=_env("ENTRANCE_STYLE", "fade").strip().lower(),
         typewriter_cursor=_env("TYPEWRITER_CURSOR", "true").strip().lower() in ("1", "true", "yes", "on"),
         sticker_target_min=int(_env("STICKER_TARGET_MIN", "12")),
         sticker_target_max=int(_env("STICKER_TARGET_MAX", "15")),
+        scene_transition=_env("SCENE_TRANSITION", "flash_white").strip().lower(),
+        scene_transition_duration_s=float(_env("SCENE_TRANSITION_DURATION_S", "0.3")),
+        mascot_lock=_env("MASCOT_LOCK", "true").strip().lower() in ("1", "true", "yes", "on"),
+        label_stickers_enabled=_env("LABEL_STICKERS_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"),
+        sticker_motion_scale=float(_env("STICKER_MOTION_SCALE", "1.75")),
+        sticker_qa_enabled=_env("STICKER_QA_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"),
+        sticker_qa_max_retries=int(_env("STICKER_QA_MAX_RETRIES", "2")),
+        script_min_total_seconds=float(_env("SCRIPT_MIN_TOTAL_SECONDS", "40")),
+        script_max_total_seconds=float(_env("SCRIPT_MAX_TOTAL_SECONDS", "90")),
+        music_sfx_volume_db=float(_env("MUSIC_SFX_VOLUME_DB", "-22")),
         stub_fields=stub_fields,
     )

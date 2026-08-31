@@ -119,6 +119,11 @@ SCRIPT_SCENE_KEYS = {
     "stickers",
 }
 
+STICKER_KEYS = {
+    "id", "visual_prompt", "appear_at", "entrance", "idle", "position",
+    "uses_hero", "label", "is_label", "parent_id", "trigger_words",
+}
+
 STICKER_ENTRANCES = ("fade_in", "slide_up", "slide_left")
 STICKER_IDLES = ("float", "flicker", "drift", "spin", "hold", "breathe")
 STICKER_POSITIONS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
@@ -146,6 +151,9 @@ def build_stickers_for_scene(
     scene_duration: float,
     visual_style: str,
     sticker_ids: list[str],
+    *,
+    mascot_lock: bool = True,
+    label_stickers_enabled: bool = True,
 ) -> list[dict[str, Any]]:
     scene_type = scene.get("scene_type", "mascot_reaction")
     props = [p.strip() for p in (scene.get("props") or "workshop tool").split(",") if p.strip()]
@@ -158,19 +166,21 @@ def build_stickers_for_scene(
         positions = ["top_left", "top_right", "bottom_left", "bottom_right"]
         stagger = scene_duration / (len(items) + 1)
         for j, (sid, item) in enumerate(zip(sticker_ids, items)):
-            stickers.append(
-                {
-                    "id": sid,
-                    "visual_prompt": (
-                        f"{visual_style}: isolated flat cartoon sticker of {item} on pure solid white "
-                        "#FFFFFF background, thick black outline, no text, no floor shadow"
-                    ),
-                    "appear_at": round(stagger * (j + 1), 2),
-                    "entrance": "fade_in",
-                    "idle": "float",
-                    "position": positions[j % len(positions)],
-                }
-            )
+            sticker: dict[str, Any] = {
+                "id": sid,
+                "visual_prompt": (
+                    f"{visual_style}: isolated flat cartoon sticker of {item} on pure solid white "
+                    "#FFFFFF background, thick black outline, no text, no floor shadow, single object only"
+                ),
+                "appear_at": round(stagger * (j + 1), 2),
+                "entrance": "fade_in",
+                "idle": "float",
+                "position": positions[j % len(positions)],
+            }
+            if label_stickers_enabled:
+                sticker["label"] = item.upper()[:18]
+            sticker["trigger_words"] = re.split(r"[\s,/]+", item)
+            stickers.append(sticker)
         return stickers
 
     appear_offsets = [0.0]
@@ -181,13 +191,13 @@ def build_stickers_for_scene(
     subjects: list[tuple[str, str, str, bool]] = [
         (
             "mascot character with expressive face and work apron",
-            "center",
+            "bottom_left" if mascot_lock else "center",
             "breathe",
             True,
         ),
         (
             props[0] if props else "workshop prop",
-            "bottom_left",
+            "bottom_right",
             _idle_for_props(props[0] if props else None, fx),
             False,
         ),
@@ -199,7 +209,7 @@ def build_stickers_for_scene(
         ),
         (
             scene.get("action") or "process detail",
-            "bottom_right",
+            "top_left",
             "float",
             False,
         ),
@@ -210,20 +220,86 @@ def build_stickers_for_scene(
             "id": sid,
             "visual_prompt": (
                 f"{visual_style}: isolated flat cartoon sticker of {subject} on pure solid white "
-                "#FFFFFF background, thick black outline, no text, no floor shadow"
+                "#FFFFFF background, thick black outline, no text, no floor shadow, single object only"
             ),
             "appear_at": appear_offsets[j] if j < len(appear_offsets) else round(scene_duration * 0.5, 2),
             "entrance": STICKER_ENTRANCES[j % len(STICKER_ENTRANCES)],
             "idle": idle,
             "position": position,
         }
-        if uses_hero:
+        if uses_hero and mascot_lock:
             sticker["uses_hero"] = True
+            sticker["appear_at"] = 0.0
+        elif uses_hero:
+            sticker["uses_hero"] = True
+        subject_words = [w for w in re.split(r"[\s,/]+", subject) if len(w) > 2]
+        if subject_words:
+            sticker["trigger_words"] = subject_words
         stickers.append(sticker)
     return stickers
 
 
-def assign_stickers_to_script(script: dict[str, Any], target_total: int = 13) -> dict[str, Any]:
+def _image_sticker_count(script: dict[str, Any]) -> int:
+    return sum(
+        1
+        for scene in script.get("scenes", [])
+        for sticker in scene.get("stickers") or []
+        if not sticker.get("is_label")
+    )
+
+
+def repair_sticker_manifest(
+    script: dict[str, Any],
+    *,
+    target_min: int = 12,
+    target_max: int = 15,
+    mascot_lock: bool = True,
+    label_stickers_enabled: bool = True,
+) -> dict[str, Any]:
+    """Always normalize sticker count and structure — repair partial LLM output."""
+    scenes = script["scenes"]
+    target = (target_min + target_max) // 2
+    image_count = _image_sticker_count(script)
+    needs_rebuild = (
+        image_count < target_min
+        or image_count > target_max
+        or any(not scene.get("stickers") for scene in scenes)
+    )
+    if needs_rebuild:
+        assign_stickers_to_script(
+            script,
+            target_total=target,
+            mascot_lock=mascot_lock,
+            label_stickers_enabled=label_stickers_enabled,
+        )
+        return script
+
+    for scene in scenes:
+        stickers = scene.get("stickers") or []
+        image_stickers = [s for s in stickers if not s.get("is_label")]
+        if mascot_lock and scene.get("scene_type", "mascot_reaction") != "ingredient_grid":
+            hero = next((s for s in image_stickers if s.get("uses_hero")), None)
+            if hero is None and image_stickers:
+                image_stickers[0]["uses_hero"] = True
+            for sticker in image_stickers:
+                if sticker.get("uses_hero"):
+                    sticker["appear_at"] = 0.0
+                    sticker["position"] = sticker.get("position") or "bottom_left"
+        if label_stickers_enabled and scene.get("scene_type") == "ingredient_grid":
+            props = [p.strip() for p in (scene.get("props") or "").split(",") if p.strip()]
+            for idx, sticker in enumerate(image_stickers):
+                if props and idx < len(props):
+                    sticker["label"] = props[idx].upper()
+    return script
+
+
+def assign_stickers_to_script(
+    script: dict[str, Any],
+    target_total: int = 13,
+    *,
+    mascot_lock: bool = True,
+    label_stickers_enabled: bool = True,
+) -> dict[str, Any]:
     scenes = script["scenes"]
     counts = _sticker_counts_per_scene(len(scenes), target=target_total)
     next_id = 1
@@ -231,7 +307,12 @@ def assign_stickers_to_script(script: dict[str, Any], target_total: int = 13) ->
         ids = [f"stk-{next_id + i:03d}" for i in range(count)]
         next_id += count
         scene["stickers"] = build_stickers_for_scene(
-            scene, float(scene["duration"]), script["visual_style"], ids
+            scene,
+            float(scene["duration"]),
+            script["visual_style"],
+            ids,
+            mascot_lock=mascot_lock,
+            label_stickers_enabled=label_stickers_enabled,
         )
     return script
 
@@ -574,7 +655,10 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "flat cartoon sticker on pure white #FFFFFF, no text), appear_at (seconds into that scene, >=0 and "
         "< scene duration), entrance ('fade_in'|'slide_up'|'slide_left'), idle ('float'|'flicker'|'drift'|"
         "'spin'|'hold'|'breathe'), position ('center'|'top_left'|'top_right'|'bottom_left'|'bottom_right'), "
-        "and optional uses_hero (boolean, true only for mascot stickers). "
+        "optional uses_hero (boolean, true only for mascot stickers), optional trigger_words (array of 1-3 "
+        "nouns from the narration that should make this sticker appear when spoken, e.g. ['limestone'] or "
+        "['stone','sand']), and optional label (string, short ingredient name for grid scenes). "
+        "Set appear_at to 0 for all stickers — the pipeline rewrites timing from TTS word sync. "
         "The top-level object must contain exactly topic, language, visual_style, and scenes, with no other keys. "
         "Each scene must contain only the scene fields listed above; never add helper, reasoning, notes, index, "
         "or metadata fields. Every scene must use exactly one supplied source_claim_id; source_claim_id must "

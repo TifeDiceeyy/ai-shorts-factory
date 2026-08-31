@@ -89,6 +89,32 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
+MIN_MOTION_MEAN_DELTA = 3.5
+
+
+def measure_frame_motion(mp4_path: Path, at_seconds: float, delta_seconds: float = 0.5) -> dict[str, Any]:
+    """Compare two consecutive-ish frames for compositional change."""
+    from PIL import ImageChops, ImageStat
+
+    tmp_a = mp4_path.parent / "_motion_a.png"
+    tmp_b = mp4_path.parent / "_motion_b.png"
+    ok_a, _ = extract_frame(mp4_path, at_seconds, tmp_a)
+    ok_b, _ = extract_frame(mp4_path, at_seconds + delta_seconds, tmp_b)
+    if not (ok_a and ok_b):
+        return {"ok": False, "mean_delta": 0.0, "reason": "frame extraction failed"}
+    a = Image.open(tmp_a).convert("RGB")
+    b = Image.open(tmp_b).convert("RGB")
+    diff = ImageChops.difference(a, b)
+    mean_delta = sum(ImageStat.Stat(diff).mean) / 3
+    return {
+        "ok": mean_delta >= MIN_MOTION_MEAN_DELTA,
+        "mean_delta": round(mean_delta, 2),
+        "threshold": MIN_MOTION_MEAN_DELTA,
+        "at_seconds": at_seconds,
+        "delta_seconds": delta_seconds,
+    }
+
+
 def run_verification(
     mp4_path: Path,
     scripted_total_seconds: float,
@@ -96,8 +122,12 @@ def run_verification(
     cost_report_path: Path,
     budget_cap_usd: float,
     artifacts_dir: Path,
+    *,
+    expect_sticker_motion: bool = False,
+    caption_scripted_total_seconds: float | None = None,
 ) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
+    caption_total = caption_scripted_total_seconds if caption_scripted_total_seconds is not None else scripted_total_seconds
 
     def add(name: str, passed: bool, detail: Any):
         checks.append({"criterion": name, "passed": bool(passed), "detail": detail})
@@ -125,6 +155,8 @@ def run_verification(
         duration_ok,
         {"actual_duration": duration, "scripted_total": scripted_total_seconds, "tolerance": DURATION_TOLERANCE_S},
     )
+
+    caption_scripted_total = caption_total
 
     add(
         "exactly_one_video_one_audio_stream",
@@ -169,7 +201,7 @@ def run_verification(
         timing_monotonic = all(
             scenes_meta[i]["end"] == scenes_meta[i + 1]["start"] for i in range(len(scenes_meta) - 1)
         ) if len(scenes_meta) > 1 else True
-        timing_covers_duration = bool(scenes_meta) and abs(scenes_meta[-1]["end"] - scripted_total_seconds) < 1e-3
+        timing_covers_duration = bool(scenes_meta) and abs(scenes_meta[-1]["end"] - caption_scripted_total) < 1e-3
         add(
             "captions_inside_safe_margins",
             all_inside,
@@ -206,6 +238,22 @@ def run_verification(
         add("total_cost_under_budget_cap", False, {"error": "cost-report.json not found"})
 
     add("output_sha256", True, {"sha256": sha256_of(mp4_path)})
+
+    if expect_sticker_motion and duration > 1.0 and frame_ok:
+        sample_times = [duration * frac for frac in (0.2, 0.35, 0.5, 0.65)]
+        motion_results = [measure_frame_motion(mp4_path, max(0.5, min(t, duration - 1.0))) for t in sample_times]
+        best = max(motion_results, key=lambda m: m.get("mean_delta", 0.0))
+        add(
+            "mid_video_has_visible_motion",
+            best.get("ok", False),
+            {"samples": motion_results, "best": best},
+        )
+    else:
+        add(
+            "mid_video_has_visible_motion",
+            True,
+            {"skipped": not expect_sticker_motion, "reason": "sticker motion gate only applies to sticker-mode renders"},
+        )
 
     overall_pass = all(c["passed"] for c in checks)
     return {

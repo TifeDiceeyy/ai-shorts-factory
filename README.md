@@ -47,16 +47,23 @@ invoice; reconcile them with the provider billing dashboard.
 
 ## Video generation (defaults from Aug 2026)
 
-Every final render now uses **layered sticker animation** and **typewriter
-lyrics** automatically — no extra flags per run.
+Every final render uses **layered sticker animation**, **word-chunk captions**
+(matching the Roman-concrete reference style), and **white-flash step
+transitions** — no extra flags per run.
 
 | What you get | Default | Override |
 |---|---|---|
-| On-screen lyrics | Character-by-character typewriter, synced to narration | `CAPTION_ANIMATION_MODE=punch` (legacy bounce) |
+| On-screen lyrics | 2–3 word chunks with quick fade (reference style) | `CAPTION_ANIMATION_MODE=typewriter` or `punch` |
 | Sticker entrances | Smooth fade-in (no bounce) | `ENTRANCE_STYLE=pop` (legacy overshoot) |
 | Sticker count | **12–15** individually generated PNGs per video | `STICKER_TARGET_MIN` / `STICKER_TARGET_MAX` |
-| Scene motion | Per-sticker idle loops (`float`, `flicker`, `drift`, `spin`, `breathe`) | Set per sticker in `script.json` → `scenes[].stickers[]` |
-| Animation mode | `sticker` (still-image compositor, zero video-gen cost) | `ANIMATION_MODE=ai_video` (legacy Kling I2V, costs extra) |
+| Scene transitions | White flash (~0.3s) between chapters | `SCENE_TRANSITION=none` |
+| Mascot | Locked hero reused every scene (`uses_hero`) | `MASCOT_LOCK=false` |
+| Ingredient labels | Blue text under grid stickers | `LABEL_STICKERS_ENABLED=false` |
+| Motion amplitude | Stronger idle float/spin (`1.75×`) | `STICKER_MOTION_SCALE=1.0` |
+| Sticker QA | Reject/regen bad isolation PNGs | `STICKER_QA_ENABLED=false` |
+| Duration window | 40–90s scripted total | `SCRIPT_MIN/MAX_TOTAL_SECONDS` |
+| Sticker timing | Enters when its noun is **spoken** in narration | `trigger_words` in `script.json` |
+| Animation mode | `sticker` compositor (zero video-gen cost) | `ANIMATION_MODE=ai_video` |
 
 ### `.env` checklist before a real (paid) run
 
@@ -67,12 +74,20 @@ LLM_PROVIDER=fal
 TTS_PROVIDER=fal
 IMAGE_PROVIDER=fal
 IMAGE_COST_PER_IMAGE_USD=0.04  # budget guard uses this × ~15 stickers + hero
-CAPTION_ANIMATION_MODE=typewriter
+CAPTION_ANIMATION_MODE=word_chunk
 ENTRANCE_STYLE=fade
-TYPEWRITER_CURSOR=true
+SCENE_TRANSITION=flash_white
+MASCOT_LOCK=true
+LABEL_STICKERS_ENABLED=true
+STICKER_MOTION_SCALE=1.75
+STICKER_QA_ENABLED=true
 STICKER_TARGET_MIN=12
 STICKER_TARGET_MAX=15
+SCRIPT_MIN_TOTAL_SECONDS=40
+SCRIPT_MAX_TOTAL_SECONDS=90
 ANIMATION_MODE=sticker
+MUSIC_SFX_SOURCE=assets/ambient_loop.mp3  # optional
+MUSIC_SFX_VOLUME_DB=-22
 ```
 
 Budget note: a typical video now generates **1 hero image + 12–15 sticker
@@ -97,7 +112,7 @@ Windows equivalents (`.ps1` wrappers, same arguments):
 
 ```powershell
 .\retrieve.ps1 soap
-.\run.ps1 soap               # generates script + 12-15 stickers + typewriter MP4
+.\run.ps1 soap               # generates script + 12-15 stickers + word-chunk MP4
 .\dashboard.ps1
 .\telegram.ps1
 $env:PYTHONPATH="src"; .venv\Scripts\python -m shorts_factory.publish soap

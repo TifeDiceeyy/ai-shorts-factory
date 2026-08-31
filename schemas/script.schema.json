@@ -58,7 +58,15 @@
                   "type": "string",
                   "enum": ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
                 },
-                "uses_hero": { "type": "boolean" }
+                "uses_hero": { "type": "boolean" },
+                "label": { "type": "string", "maxLength": 24 },
+                "trigger_words": {
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 1 },
+                  "maxItems": 6
+                },
+                "is_label": { "type": "boolean" },
+                "parent_id": { "type": "string", "pattern": "^stk-[0-9]{3}$" }
               }
             }
           }
