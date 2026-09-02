@@ -22,6 +22,8 @@ from .dashboard import review_state
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
 from .providers.llm import LLMResponseFormatError, StubLLMProvider, get_llm_provider
+from .providers.music import build_mood_prompt, get_music_provider
+from .providers.stt import get_stt_provider
 from .providers.tts import get_tts_provider
 from .providers.video import get_video_provider
 from .providers.fal import FalGateway
@@ -102,6 +104,11 @@ def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
             layout=scene.get("layout", "auto"),
             scene_type=scene.get("scene_type", "mascot"),
             fx=scene.get("fx"),
+            # The script's own description of the shot. Previously dropped
+            # whenever any structured field was present, which is what made
+            # images generic and off-concept — see build_scene_prompt's
+            # `subject` docstring for the measured case.
+            subject=scene.get("visual_prompt") or "",
         )
     return scene.get("visual_prompt", mascot.hero_image_prompt)
 
@@ -169,6 +176,59 @@ def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, c
     return hero_path
 
 
+def _align_scene_captions(settings, scene_audio, cost_tracker) -> list[list] | None:
+    """Word timings per scene, or None to keep the estimate.
+
+    Every failure mode — stub provider, provider error, an alignment whose
+    word count doesn't match the narration — resolves to "use the estimate".
+    Captions are a finishing touch; none of this is worth losing a paid
+    render over.
+    """
+    if settings.stt.is_stub:
+        return None
+    try:
+        provider = get_stt_provider(
+            settings.stt.provider,
+            settings.credential_for(settings.stt),
+            settings.stt.model_or_voice,
+            settings.stt_cost_per_minute_usd,
+        )
+        timings = [provider.align(audio.path, cost_tracker) for audio in scene_audio]
+    except Exception as err:  # noqa: BLE001 - deliberately non-fatal
+        print(f"caption alignment unavailable ({err}) — using estimated timings", file=sys.stderr)
+        return None
+    return timings if any(timings) else None
+
+
+def _get_or_create_music_bed(settings, topic: str, workdir: Path, cost_tracker) -> Path | None:
+    """The topic's music bed, generated once and reused.
+
+    An explicit MUSIC_SFX_SOURCE always wins — if someone has supplied a
+    real track, never spend money generating one over the top of it.
+    """
+    explicit = (settings.music_sfx_source or "").strip()
+    if explicit and Path(explicit).exists():
+        return Path(explicit)
+    if settings.music.is_stub:
+        return None
+    bed_path = workdir / "music_bed.wav"
+    if bed_path.exists():
+        return bed_path
+    try:
+        provider = get_music_provider(
+            settings.music.provider,
+            settings.credential_for(settings.music),
+            settings.music.model_or_voice,
+            settings.music_cost_per_bed_usd,
+        )
+        return provider.generate_bed(
+            build_mood_prompt(topic, settings.visual_style), bed_path, cost_tracker
+        )
+    except Exception as err:  # noqa: BLE001 - deliberately non-fatal
+        print(f"music bed unavailable ({err}) — rendering without one", file=sys.stderr)
+        return None
+
+
 def _scene_base_image_path(
     image_provider,
     mascot: Mascot,
@@ -178,8 +238,13 @@ def _scene_base_image_path(
     generated_dir: Path,
     cost_tracker: CostTracker,
     character_free: bool = False,
+    shot_index: int = 0,
 ) -> Path:
-    """Generates this scene's base image, one call per scene, every scene.
+    """Generates one image for a scene — shot_index selects which shot of it.
+
+    shot_index 0 is the scene's main image. Higher indices are additional
+    SHOTS within the same scene, framed differently via
+    SHOT_FRAMING_VARIANTS so cutting between them reads as an edit.
 
     character_free forces the character OUT of the render, for scenes where
     the rigged puppet (mascot_rig.py) will supply an ANIMATED mascot on top
@@ -210,16 +275,36 @@ def _scene_base_image_path(
         scene_prompt = get_scene_image_prompt({**scene, "scene_type": "process_action"}, mascot)
     else:
         scene_prompt = get_scene_image_prompt(scene, mascot)
-    out_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
+    if shot_index:
+        scene_prompt = f"{scene_prompt} {SHOT_FRAMING_VARIANTS[shot_index % len(SHOT_FRAMING_VARIANTS)]}"
+    suffix = "" if not shot_index else f"_{shot_index}"
+    out_path = generated_dir / "raw" / f"raw_{scene_index:02d}{suffix}.png"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     reference_image_path = None
     if not character_free and stype not in ("ingredient_grid", "process_action"):
         reference_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
+    # Keep the plain int id for a scene's main image: callers and tests
+    # distinguish real per-scene renders from the hero/rig-sheet calls by
+    # that type, and stringifying every id silently hid them all. Only the
+    # extra shots get the "<index>_<shot>" form.
+    image_id = scene_index if not shot_index else f"{scene_index}{suffix}"
     image_provider.generate_scene_image(
-        {"visual_prompt": scene_prompt}, scene_index, out_path, cost_tracker,
+        {"visual_prompt": scene_prompt}, image_id, out_path, cost_tracker,
         reference_image_path=reference_image_path,
     )
     return out_path
+
+
+# Appended to the prompt for a scene's SECOND and THIRD shot. Two images of
+# the same subject drawn from the same prompt come back near-identical, and
+# cutting between near-identical frames reads as a glitch, not an edit — the
+# shot has to actually change. These say how, without changing what the shot
+# is about.
+SHOT_FRAMING_VARIANTS = (
+    "",
+    "Draw this as a closer view: the key object or detail large in frame, the rest cropped out.",
+    "Draw this as a wider view: the whole scene smaller in frame with more empty space around it.",
+)
 
 
 # Direct user feedback (2026-08-28): once a real clip's motion runs out
@@ -454,6 +539,7 @@ def run_pipeline(
     topic: str,
     idea: dict[str, Any] | None = None,
     artifacts_root: Path | None = None,
+    target_seconds: float | None = None,
 ) -> PipelineResult:
     """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
     steers script framing (brief_builder.build_brief_from_citations), never
@@ -544,6 +630,11 @@ def run_pipeline(
                     brief = build_brief_from_brain(
                         topic, research, safety_class.value, caution=caution_line(topic), idea=idea,
                     )
+                    # The brain path builds its own brief, so the requested
+                    # length has to be stamped on here too — otherwise asking
+                    # for 30s does nothing whenever the brain covers the topic.
+                    if target_seconds:
+                        brief["target_seconds"] = float(target_seconds)
                     # One scene per claim, so a short brief is literally a
                     # short video. Real case 2026-09-01: brain covers "roman
                     # concrete" well enough to use, but its extractive
@@ -570,6 +661,7 @@ def run_pipeline(
                                 safety_class.value,
                                 caution=caution_line(topic),
                                 idea=idea,
+                                target_seconds=target_seconds,
                             )
                         except InsufficientVerifiedClaims:
                             richer = None
@@ -590,6 +682,7 @@ def run_pipeline(
                     safety_class.value,
                     caution=caution_line(topic),
                     idea=idea,
+                    target_seconds=target_seconds,
                 )
         else:
             brief_path = REPO_ROOT / "data" / topic / f"{topic}.brief.json"
@@ -693,6 +786,18 @@ def run_pipeline(
             )
 
         scene_audio = assembly.synthesize_scenes(make_tts_provider, script["scenes"], workdir / "audio", cost_tracker)
+
+        # Caption timing from the actual audio, where an STT provider is
+        # configured. Falls back silently to the length-weighted estimate:
+        # slightly-off captions are worth far more than a failed render, so
+        # nothing here is allowed to break the run.
+        scene_word_timings = _align_scene_captions(settings, scene_audio, cost_tracker)
+
+        # One music bed per topic, cached in the topic's own workdir. The
+        # reference runs a continuous bed under the whole voiceover, and
+        # that bed is also what gives it a 1.7 LU loudness range where ours
+        # measures 3.5 (verified 2026-09-02).
+        music_bed_path = _get_or_create_music_bed(settings, topic, workdir, cost_tracker)
         actual_durations = [a.duration for a in scene_audio]
         scripted_durations = [a.scripted_duration for a in scene_audio]
         actual_total = sum(actual_durations)
@@ -838,11 +943,8 @@ def run_pipeline(
                 rig_parts=rig_parts,
                 rig_scene_types=RIG_SCENE_TYPES if rig_parts else (),
                 sfx_enabled=settings.sfx_enabled,
-                music_path=(
-                    Path(settings.music_sfx_source)
-                    if settings.music_sfx_source and Path(settings.music_sfx_source).exists()
-                    else None
-                ),
+                music_path=music_bed_path,
+                word_timings=scene_word_timings,
             )
         elif ai_video_mode:
             video_provider = get_video_provider(
@@ -870,25 +972,44 @@ def run_pipeline(
             # Video generation dominates wall time (the six real clips in a
             # measured run took ~34 minutes serially); bounded parallelism
             # roughly halves that without flooding the provider.
-            base_image_paths = [
-                _scene_base_image_path(
-                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
-                )
-                for i, scene in enumerate(script["scenes"])
-            ]
-            # Worst case, per scene: MAX_REAL_CLIPS_PER_SCENE clips (see
-            # _render_scene_clips) — an early sanity check against that
-            # ceiling, not the only guard: check_budget() also runs before
-            # every individual real clip call inside generate_scene_video().
-            batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"]) * MAX_REAL_CLIPS_PER_SCENE
-            cost_tracker.check_budget("video.generate_batch", batch_estimate)
-
             # Not every scene earns a paid clip — see choose_animated_scenes.
             # A scene left static still renders: assemble_animated hands an
             # empty clip list to build_scene_video_segment_from_clip, which
             # falls through to the pop-in-and-hold beat on the scene's own
             # base image (the same visual language the sticker path uses).
             animate_scene = choose_animated_scenes(script["scenes"])
+
+            base_image_paths = [
+                _scene_base_image_path(
+                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                )
+                for i, scene in enumerate(script["scenes"])
+            ]
+
+            # Extra SHOTS for the scenes that get no clip. A static scene
+            # used to hold one image for its whole length — measured 19.5s
+            # of a 47.5s render with nothing changing on screen at all,
+            # against a reference whose shots run 0.7-2.0s. Each extra image
+            # is one more paid call (~$0.04), so they are only bought for
+            # scenes that are actually static and long enough to cut.
+            scene_shot_paths: list[list[Path]] = [[p] for p in base_image_paths]
+            for i, scene in enumerate(script["scenes"]):
+                if animate_scene[i]:
+                    continue
+                wanted = len(assembly.plan_shot_durations(scene_audio[i].duration))
+                for shot in range(1, min(wanted, len(SHOT_FRAMING_VARIANTS))):
+                    scene_shot_paths[i].append(
+                        _scene_base_image_path(
+                            image_provider, mascot, hero_path, scene, i, generated_dir,
+                            cost_tracker, shot_index=shot,
+                        )
+                    )
+            # Worst case, per scene: MAX_REAL_CLIPS_PER_SCENE clips (see
+            # _render_scene_clips) — an early sanity check against that
+            # ceiling, not the only guard: check_budget() also runs before
+            # every individual real clip call inside generate_scene_video().
+            batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"]) * MAX_REAL_CLIPS_PER_SCENE
+            cost_tracker.check_budget("video.generate_batch", batch_estimate)
 
             def render_clip(i: int, scene: dict[str, Any]) -> list[Path]:
                 if not animate_scene[i]:
@@ -937,13 +1058,10 @@ def run_pipeline(
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
                 subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
-                image_source=lambda i, _scene: base_image_paths[i],
+                image_source=lambda i, _scene: scene_shot_paths[i],
                 sfx_enabled=settings.sfx_enabled,
-                music_path=(
-                    Path(settings.music_sfx_source)
-                    if settings.music_sfx_source and Path(settings.music_sfx_source).exists()
-                    else None
-                ),
+                music_path=music_bed_path,
+                word_timings=scene_word_timings,
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.

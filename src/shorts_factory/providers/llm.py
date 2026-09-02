@@ -112,6 +112,20 @@ class LLMResponseFormatError(ValueError):
     """The provider answered, but its script payload was not usable JSON."""
 
 
+def _brief_target_seconds(brief: dict[str, Any]) -> float:
+    """The finished length this brief is asking for.
+
+    Falls back to TARGET_TOTAL_SECONDS so every existing caller — and every
+    brief written before target_seconds existed — keeps the 45s behaviour
+    exactly. Clamped to the same 15-180s range the brief schema allows, so a
+    malformed value can't produce a one-scene or twenty-minute script.
+    """
+    raw = brief.get("target_seconds")
+    if not isinstance(raw, (int, float)) or raw <= 0:
+        return TARGET_TOTAL_SECONDS
+    return float(min(180.0, max(15.0, raw)))
+
+
 def _caption_from_claim(claim_text: str) -> str:
     """Short on-screen caption derived from a claim (schema caps at 90 chars)."""
     cap = claim_text.strip()
@@ -191,12 +205,12 @@ def _normalize_generated_script(
         normalized_scenes.append(clean)
 
     normalized["scenes"] = normalized_scenes
-    _fit_script_duration(normalized_scenes)
+    _fit_script_duration(normalized_scenes, brief)
     return normalized
 
 
 
-def _fit_script_duration(scenes: list[dict[str, Any]]) -> None:
+def _fit_script_duration(scenes: list[dict[str, Any]], brief: dict[str, Any] | None = None) -> None:
     """Rescale scene durations so the total lands inside the accepted window.
 
     Real case 2026-09-01: a good paid 15-scene script came back totalling
@@ -210,7 +224,9 @@ def _fit_script_duration(scenes: list[dict[str, Any]]) -> None:
     Scale, clamp to the per-scene bounds, then scale once more, because
     clamping can itself push the total back out.
     """
-    from ..schema_validate import SCRIPT_MAX_TOTAL_SECONDS, SCRIPT_MIN_TOTAL_SECONDS
+    from ..schema_validate import script_duration_window
+
+    SCRIPT_MIN_TOTAL_SECONDS, SCRIPT_MAX_TOTAL_SECONDS = script_duration_window(brief)
 
     usable = [s for s in scenes if isinstance(s.get("duration"), (int, float))]
     if not usable:
@@ -273,7 +289,8 @@ class StubLLMProvider(LLMProvider):
             raw_durations.append(max(MIN_SCENE_SECONDS, min(MAX_SCENE_SECONDS, raw)))
 
         raw_total = sum(raw_durations)
-        scale = TARGET_TOTAL_SECONDS / raw_total if raw_total else 1.0
+        target_total = _brief_target_seconds(brief)
+        scale = target_total / raw_total if raw_total else 1.0
         durations = [round(d * scale, 1) for d in raw_durations]
 
         scenes = []
@@ -446,7 +463,8 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
             "must still frame its claim through this same angle, not just default to a generic explainer."
         )
     n_claims = len(brief.get("claims") or []) or 1
-    avg_duration = TARGET_TOTAL_SECONDS / n_claims
+    target_total = _brief_target_seconds(brief)
+    avg_duration = target_total / n_claims
     # Only the part of a scene that is actually SPEECH converts to words —
     # the rest is the fixed per-scene head/tail silence.
     speaking_seconds = max(0.6, avg_duration - SCENE_AUDIO_OVERHEAD_SECONDS)
@@ -454,8 +472,8 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
     min_words, max_words = max(4, target_words - 1), target_words + 1
     duration_instruction = (
         f" There are {n_claims} claims, so {n_claims} scenes. The SUM of every scene's duration must land "
-        f"between 40 and 50 seconds total — with {n_claims} scenes that means roughly {avg_duration:.1f} "
-        "seconds per scene on average. "
+        f"between {target_total * 0.9:.0f} and {target_total * 1.1:.0f} seconds total — with {n_claims} "
+        f"scenes that means roughly {avg_duration:.1f} seconds per scene on average. "
         # A duration in seconds turned out to be something the model cannot
         # map to a length it actually writes: measured 2026-09-01 on a real
         # 15-scene script, narration ran 179 words against a 49s script and

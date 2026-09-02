@@ -76,15 +76,36 @@ class Mascot:
         scene_type: str = "mascot",
         fx: str | None = None,
         grid_items: list[str] | None = None,
+        subject: str = "",
     ) -> str:
-        """Builds a scene visual prompt adhering to the video's 3 core scene archetypes."""
+        """Builds a scene visual prompt adhering to the video's 3 core scene archetypes.
+
+        `subject` is the script's own visual_prompt — the one description
+        written by the model that knew this topic, this claim and this
+        process. It leads the prompt when present.
+
+        Measured 2026-09-02: it used to be DISCARDED entirely whenever any
+        structured field existed, and the prompt was rebuilt from `action`
+        and `props` alone. On a real scene the model had written "a simple
+        kiln with flames visible inside, a piece of limestone rock entering
+        the kiln, a puff of quicklime powder exiting the top" and we sent
+        "legionary observes the kiln process" instead — so the image came
+        back as a generic foundry pouring molten metal. That is the "visuals
+        are unrealistic" failure: the accurate description existed and was
+        thrown away.
+        """
+        # rstrip("."): the caller's sentence already ends in one, and our
+        # own templates add theirs, which produced ".." in the prompt.
+        subject = (subject or "").strip().rstrip(".")
         if scene_type == "ingredient_grid" or (grid_items and len(grid_items) >= 2):
             items_str = ", ".join(grid_items) if grid_items else (props or "raw ingredients")
             return (
                 f"Multi-item 2x2 ingredient recipe grid breakdown, drawn in the SAME flat cel-shaded cartoon "
                 f"illustration style as the mascot — bold black ink outlines, clean flat cel shading, no "
                 f"photoreal or 3D-render textures, no glossy CGI materials. Clean isolated cartoon-sticker icons "
-                f"displaying: {items_str}. Each item is cleanly isolated, flat-shaded, simplified — an "
+                f"displaying: {subject or items_str}. "
+                f"{' '.join(_no_text_depiction_hint(items_str))} "
+                f"Each item is cleanly isolated, flat-shaded, simplified — an "
                 f"illustrated icon, not a rendered photograph. "
                 f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — objects only. "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
@@ -92,18 +113,30 @@ class Mascot:
             )
 
         if scene_type == "process_action":
-            return (
-                f"Dynamic process demonstration action scene, drawn in the SAME flat cel-shaded cartoon "
-                f"illustration style as the mascot — bold black ink outlines, clean flat cel shading, no "
-                f"photoreal or 3D-render textures, no glossy CGI materials, no dramatic studio lighting. "
-                f"Close-up isolated physical action, illustrated as a cartoon: {action or props or 'pouring mixture into mold'}. "
-                f"Simplified flat-shaded materials and stylized illustrated motion lines, not realistic liquid "
-                f"physics or photoreal rendering. "
-                f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — the "
-                f"equipment/materials act entirely on their own, as if operated by an invisible presence. "
-                f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows, clean sticker framing. "
-                f"No text or labels rendered directly on the image."
-            )
+            # BOTH, not either. The authored description is usually the
+            # richer of the two, but it is not always trustworthy on its own
+            # — some scripts carry a placeholder visual_prompt while the
+            # structured `action` holds the real content — so dropping
+            # `action` in favour of `subject` loses the shot on those.
+            pieces = [p for p in (subject, action.strip().rstrip(".")) if p]
+            # Drop a piece that the other already says, so a script whose
+            # visual_prompt merely restates its action doesn't say it twice.
+            if len(pieces) == 2 and pieces[1].lower() in pieces[0].lower():
+                pieces = pieces[:1]
+            content = ". ".join(pieces) or props or "pouring mixture into mold"
+            parts = [f"Close-up cartoon process demonstration: {content}."]
+            # Only demand an empty stage when the description doesn't already
+            # place a character in it. Asserting "NO people" alongside an
+            # action that names the legionary is a straight contradiction,
+            # and the model resolved it by inventing an unrelated scene.
+            if not _mentions_character(content):
+                parts.append(
+                    "NO people, NO characters, NO hands, NO faces — the equipment and materials act "
+                    "on their own."
+                )
+            parts.append("Simplified flat-shaded materials and stylized motion lines.")
+            parts.append(_style_tail(self.visual_style))
+            return " ".join(parts)
 
         # Mascot scenes (reaction, hazard, or split-canvas)
         if layout == "auto":
@@ -112,41 +145,58 @@ class Mascot:
         if layout in ("split_bottom_left", "split_bottom_right"):
             corner = "bottom-left" if layout == "split_bottom_left" else "bottom-right"
             opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
-            prompt_parts = [
-                CLOSED_MOUTH_RULE,
-                "Split-canvas flat cel-shaded cartoon explainer composition, drawn in the SAME flat "
-                "illustration style as the mascot — bold black ink outlines, flat clean shading, NOT a "
-                "3D render, NOT photoreal, NOT glossy CGI — on a stark pure solid white background (#FFFFFF).",
-                f"In the {corner} quadrant, the smaller full-body {self.name} mascot (occupying roughly 40% of vertical height, clearly visible and recognizable, not tiny) stands looking and pointing up with {_expand_emotion(emotion) or 'an expressive engaging gesture'} as {scene_role or 'a demonstrator'}.",
+            # CONTENT FIRST. Measured 2026-09-02: this prompt had grown to
+            # 301 words, of which the actual subject of the shot was about
+            # 20 — the rest was style boilerplate repeated three and four
+            # times over ("white background" x3, "labels" x3, "zero" x4).
+            # The image model spreads its attention across the whole string,
+            # so burying the subject that deep is why shots came back
+            # generic, with stray lettering and non-white backgrounds. Say
+            # each rule ONCE, and say what the picture is BEFORE how it is
+            # drawn.
+            prompt_parts = [p for p in (subject,) if p]
+            # Name the composition — two words, not the 40-word block this
+            # replaced, whose style and background clauses now live once in
+            # _style_tail.
+            prompt_parts.append("Split-canvas explainer composition.")
+            prompt_parts += [
+                f"In the {corner} quadrant, the full-body {self.name} mascot (about 40% of frame height, "
+                f"clearly visible, not tiny) stands looking and pointing up.",
+                # Role and emotion as their own clauses: interpolating them
+                # mid-sentence produced "pointing up with thoughtful as
+                # Discovery", since the raw values are adjectives and
+                # story-beat names, and _expand_emotion returns a whole
+                # multi-clause phrase that broke the sentence outright.
+                f"Role: {scene_role or 'a demonstrator'}. Emotion: {_expand_emotion(emotion) or 'an expressive engaging gesture'}.",
             ]
             if props:
                 prompt_parts.append(
-                    f"In the {opp_corner} quadrant, a large floating illustrated object/diagram, drawn flat "
-                    f"and cel-shaded (not a rendered 3D sticker), shows {props}."
+                    f"In the {opp_corner} quadrant, a large floating illustrated object shows {props}."
                 )
+                prompt_parts.extend(_no_text_depiction_hint(props))
             if fx:
                 prompt_parts.append(f"Visual FX: {fx}.")
             if action:
                 prompt_parts.append(f"Action: {action}.")
-            prompt_parts.append(
-                f"Style: {self.visual_style}. Pure solid white background only, zero scenery, zero shadows, sticker framing. No text or labels."
-            )
+            prompt_parts.append(CLOSED_MOUTH_RULE)
+            prompt_parts.append(_style_tail(self.visual_style))
             return " ".join(prompt_parts)
         else:
-            prompt_parts = [
-                CLOSED_MOUTH_RULE,
-                f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 28% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
+            prompt_parts = [p for p in (subject,) if p]
+            prompt_parts += [
+                f"Full-body {self.name} mascot centered vertically in frame, small — no more than 28% "
+                f"of frame height, with generous empty space all around it.",
                 f"Role: {scene_role or 'explainer'}. Emotion: {_expand_emotion(emotion) or 'friendly enthusiastic expression'}.",
             ]
             if action:
                 prompt_parts.append(f"Action: {action}.")
             if props:
                 prompt_parts.append(f"Holding: {props}.")
+                prompt_parts.extend(_no_text_depiction_hint(props))
             if fx:
                 prompt_parts.append(f"Contextual Visual FX: {fx} actively billowing around or interacting with the character.")
-            prompt_parts.append(
-                f"Style: {self.visual_style}. Pure solid white background only, zero background scenery, zero floor shadows, sticker framing. No text or labels."
-            )
+            prompt_parts.append(CLOSED_MOUTH_RULE)
+            prompt_parts.append(_style_tail(self.visual_style))
             return " ".join(prompt_parts)
 
     def build_scene_motion_prompt(
@@ -325,10 +375,102 @@ _FEAR_EMOTION_EXPANSION = (
 # in image models, which tend to render the very noun being negated. Telling
 # it what line to DRAW works where telling it what to omit does not.
 CLOSED_MOUTH_RULE = (
-    "The mouth is drawn as one simple thin closed curved line with the lips sealed shut, "
-    "the way a calm resting mouth is drawn in flat cartoon line art — a sealed line only, "
-    "with no gap between the lips, no visible teeth, no tongue and no dark mouth interior."
+    "Draw the mouth as one thin closed line, lips sealed — no gap, no teeth, no open mouth."
 )
+
+
+# Visuals that only convey meaning through writing. Asking for one while the
+# same prompt says "do not render any text, words, letters, labels, or signs"
+# is a direct contradiction, and the model resolves it by drawing a
+# meaningless graphic shape — this is the "scenes out of concept" failure
+# (measured 2026-09-02: 8 of 73 scenes across all scripts request one, e.g.
+# "timeline graphic", "three-field rotation diagram", "blast furnace
+# diagram"). Rather than drop the no-text rule, which would put unreadable
+# invented lettering back on screen, the prompt gains a positive instruction
+# for how to depict the idea WITHOUT words — the same lesson as
+# CLOSED_MOUTH_RULE: say what to draw, not only what to omit.
+_TEXT_DEPENDENT_PROP_TERMS = (
+    "timeline", "chart", "graph", "diagram", "flowchart", "flow chart", "label",
+    "sign", "table", "list", "infographic", "gauge", "meter", "formula",
+    "equation", "map", "schematic", "blueprint",
+)
+
+_PICTORIAL_DEPICTIONS = {
+    "timeline": "a left-to-right row of small illustrated scenes joined by arrows",
+    "flowchart": "a row of illustrated picture-icons joined by arrows",
+    "flow chart": "a row of illustrated picture-icons joined by arrows",
+    "chart": "a set of simple coloured bars or wedges of differing sizes, no numbers",
+    "graph": "a simple rising or falling coloured line over plain axes, no numbers",
+    "list": "a vertical stack of small illustrated picture-icons",
+    "table": "a simple grid of small illustrated picture-icons",
+    "diagram": "a clear pictorial cutaway or exploded view drawn purely as pictures",
+    "schematic": "a clear pictorial cutaway drawn purely as pictures",
+    "blueprint": "a clear pictorial cutaway drawn purely as pictures",
+    "infographic": "a group of illustrated picture-icons arranged clearly",
+    "map": "a simple illustrated landmass shape with pictorial markers",
+    "gauge": "a round dial with a single pointer and coloured arc, no numbers",
+    "meter": "a round dial with a single pointer and coloured arc, no numbers",
+    "formula": "the physical ingredients themselves shown side by side with a plus sign",
+    "equation": "the physical ingredients themselves shown side by side with a plus sign",
+    "label": "the object itself, unlabelled",
+    "sign": "the object itself, unlabelled",
+}
+
+
+_STYLE_DEDUPE_RE = re.compile(
+    r"[^.]*\b(?:white background|zero (?:background )?scenery|zero (?:floor )?shadows|"
+    r"do not render any text|no text)\b[^.]*\.\s*",
+    re.IGNORECASE,
+)
+
+
+_CHARACTER_WORDS = re.compile(
+    r"\b(mascot|legionary|character|figure|person|man|woman|dwarf|engineer|"
+    r"explorer|alchemist|builder|hands?|he|she|they)\b",
+    re.IGNORECASE,
+)
+
+
+def _mentions_character(text: str) -> bool:
+    """Whether a scene description already puts a person in the shot."""
+    return bool(_CHARACTER_WORDS.search(text or ""))
+
+
+def _style_tail(visual_style: str) -> str:
+    """The one and only style/background/no-text clause of a scene prompt.
+
+    Each mascot's visual_style already ends with its own white-background and
+    no-text sentences, and the callers used to append their own on top, so a
+    finished prompt said "white background" three times, "labels" three times
+    and "zero" four times (measured 2026-09-02). Repetition doesn't reinforce
+    an instruction to an image model — it just crowds out the sentence that
+    says what the picture is actually of. So the duplicated sentences are
+    stripped from visual_style and the canonical pair is appended once.
+    """
+    trimmed = _STYLE_DEDUPE_RE.sub("", visual_style).strip().rstrip(".")
+    parts = [p for p in (trimmed,) if p]
+    parts.append("Pure solid white background (#FFFFFF), no scenery, no shadows, sticker framing")
+    parts.append("No text, words, letters or numbers anywhere in the image")
+    return "Style: " + ". ".join(parts) + "."
+
+
+def _no_text_depiction_hint(props: str) -> list[str]:
+    """Guidance for rendering a text-dependent prop as pure pictures.
+
+    Returns [] when the prop needs no help, so prompts for ordinary physical
+    objects are left exactly as they were.
+    """
+    blob = (props or "").lower()
+    matched = [term for term in _TEXT_DEPENDENT_PROP_TERMS if term in blob]
+    if not matched:
+        return []
+    depiction = next(
+        (_PICTORIAL_DEPICTIONS[t] for t in matched if t in _PICTORIAL_DEPICTIONS), None
+    )
+    hint = "Draw that object as pictures only — icons, arrows and symbols, never writing."
+    if depiction:
+        hint += f" Depict it as {depiction}."
+    return [hint]
 
 
 def _expand_emotion(emotion: str) -> str:

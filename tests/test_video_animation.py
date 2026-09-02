@@ -205,8 +205,16 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     # across scenes, see providers/llm.py).
     scenes = res.script["scenes"]
     per_scene_image_calls = [c for c in image_calls if c[0] != "hero"]
-    assert len(per_scene_image_calls) == len(scenes)
-    for s_idx, had_reference in per_scene_image_calls:
+    # One image per scene, PLUS the extra shots a static scene is cut into
+    # (see assembly.plan_shot_durations). Those arrive with a "<index>_<shot>"
+    # id, so the base images are the ones with a plain integer id.
+    base_calls = [c for c in per_scene_image_calls if "_" not in str(c[0])]
+    assert len(base_calls) == len(scenes)
+    assert len(per_scene_image_calls) > len(scenes), (
+        "static scenes should have bought extra shots to cut between"
+    )
+    for s_idx, had_reference in base_calls:
+        s_idx = int(s_idx)
         stype = scenes[s_idx].get("scene_type")
         if stype in ("ingredient_grid", "process_action"):
             assert had_reference is False
@@ -709,3 +717,60 @@ def test_split_canvas_and_process_still_fill_the_budget():
         + [{"scene_type": "ingredient_grid", "motion": "items appear"}]
     )
     assert sum(choose_animated_scenes(scenes)) == 9
+
+
+def test_static_scenes_are_cut_into_several_shots():
+    """A held still is the most inert thing in the video.
+
+    With scene selection deliberately leaving most scenes static, one image
+    held for a whole scene meant 19.5s of a 47.5s render where nothing
+    changed at all — against a reference whose shots run 0.7-2.0s (median
+    1.7s, measured by scene detection 2026-09-02). Splitting a static scene
+    into 2-3 shots is what closes that, and it also creates the cut points
+    the SFX track hangs sounds on.
+    """
+    from shorts_factory.assembly import (
+        MAX_SHOTS_PER_SCENE,
+        MIN_SHOT_SECONDS,
+        MIN_SPLITTABLE_SCENE_SECONDS,
+        plan_shot_durations,
+    )
+
+    # Too short to cut: one shot, unchanged.
+    assert plan_shot_durations(1.8) == [1.8]
+
+    for total in (2.4, 3.2, 4.2, 5.5, 8.0):
+        shots = plan_shot_durations(total)
+        assert 2 <= len(shots) <= MAX_SHOTS_PER_SCENE, total
+        assert sum(shots) == pytest.approx(total), "shots must sum to the scene exactly"
+        assert min(shots) >= MIN_SHOT_SECONDS, f"{total}s produced a flash-length shot"
+        # Uneven on purpose: an even split is as metronomic as no split.
+        assert len(set(round(s, 2) for s in shots)) > 1, f"{total}s split evenly"
+
+    assert plan_shot_durations(MIN_SPLITTABLE_SCENE_SECONDS - 0.01) == [
+        MIN_SPLITTABLE_SCENE_SECONDS - 0.01
+    ]
+
+
+def test_shot_median_lands_near_the_reference():
+    """The point of splitting is to match the reference's pace, so check the
+    resulting median rather than just that a split happened."""
+    from shorts_factory.assembly import REFERENCE_MEDIAN_SHOT_SECONDS, plan_shot_durations
+
+    scene_lengths = [3.0, 3.5, 3.0, 3.2, 3.5, 3.0]
+    shots = [d for total in scene_lengths for d in plan_shot_durations(total)]
+    median = sorted(shots)[len(shots) // 2]
+    assert abs(median - REFERENCE_MEDIAN_SHOT_SECONDS) < 0.5, (
+        f"median shot {median:.2f}s is far from the reference's {REFERENCE_MEDIAN_SHOT_SECONDS}s"
+    )
+
+
+def test_extra_shots_are_framed_differently():
+    """Two images of the same subject from the same prompt come back
+    near-identical, and cutting between near-identical frames reads as a
+    glitch rather than an edit."""
+    from shorts_factory.pipeline import SHOT_FRAMING_VARIANTS
+
+    assert SHOT_FRAMING_VARIANTS[0] == "", "the first shot takes the prompt unchanged"
+    extras = [v for v in SHOT_FRAMING_VARIANTS[1:]]
+    assert len(extras) == len(set(extras)) and all(extras), "each extra shot needs its own framing"

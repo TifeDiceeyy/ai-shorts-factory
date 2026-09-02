@@ -26,6 +26,21 @@ SAMPLE_RATE = 44100
 
 # Well below the narration. The reference sits at -19.4 LUFS overall with a
 # -53.6dB floor; the bed has to be present without competing with the voice.
+#
+# Measured against a real generated bed (2026-09-02), gain vs the resulting
+# mix floor and the share of near-silent windows:
+#     -26 dB -> floor -44.4 dB, 0.0% silent   <- chosen
+#     -30 dB -> floor -47.4 dB, 0.6% silent
+#     -34 dB -> floor -49.7 dB, 1.0% silent
+#     -38 dB -> floor -51.1 dB, 1.0% silent
+# Quieter settings land nearer the reference's floor but let dead air back
+# in, because a generated bed dips where the reference's does not. "No
+# silence anywhere" is the property worth having, so -26 stays.
+#
+# Note the bed does NOT close the loudness-range gap: mixing one in moved
+# LRA 3.6 -> 3.5 against the reference's 1.7. That gap has some other cause,
+# still unidentified — don't assume the bed or the loudnorm LRA parameter
+# will fix it, both have been measured and neither does.
 MUSIC_BED_GAIN_DB = -26.0
 SFX_GAIN_DB = -18.0
 
@@ -88,6 +103,47 @@ def thud(duration: float = 0.18, pitch: float = 130.0) -> np.ndarray:
     return (body * _envelope(n, 0.01, 0.14)).astype(np.float32)
 
 
+def ding(duration: float = 0.35, pitch: float = 1760.0) -> np.ndarray:
+    """Bright bell — a point being made, a fact landing.
+
+    One of the names the script's own `sfx` field actually asks for.
+    """
+    n = int(SAMPLE_RATE * duration)
+    t = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+    bell = np.sin(2 * np.pi * pitch * t)
+    bell += 0.5 * np.sin(2 * np.pi * pitch * 2.76 * t)   # inharmonic partial
+    bell += 0.25 * np.sin(2 * np.pi * pitch * 5.40 * t)
+    return (bell * _envelope(n, 0.005, 0.22)).astype(np.float32)
+
+
+def sizzle(duration: float = 0.45) -> np.ndarray:
+    """Sustained high noise — heating, burning, a reaction running."""
+    n = int(SAMPLE_RATE * duration)
+    rng = np.random.default_rng(11)           # fixed seed: audio is deterministic
+    noise = rng.standard_normal(n).astype(np.float32)
+    # High-pass by subtracting a slow-moving average, so it hisses rather
+    # than rumbles.
+    out = np.zeros(n, dtype=np.float32)
+    acc = 0.0
+    for i in range(n):
+        acc += 0.02 * (noise[i] - acc)
+        out[i] = noise[i] - acc
+    env = _envelope(n, 0.10, 0.9)
+    return (out * env).astype(np.float32)
+
+
+def sparkle(duration: float = 0.40) -> np.ndarray:
+    """Three rising blips — something appearing or being revealed."""
+    n = int(SAMPLE_RATE * duration)
+    out = np.zeros(n, dtype=np.float32)
+    for k, pitch in enumerate((1400.0, 2100.0, 2800.0)):
+        start = int(n * 0.18 * k)
+        blip = pop(duration=0.10, pitch=pitch, click=0.4)
+        end = min(n, start + len(blip))
+        out[start:end] += blip[: end - start] * (1.0 - 0.2 * k)
+    return out.astype(np.float32)
+
+
 def _normalized(fn):
     """Each effect peaks at exactly 1.0 before gain.
 
@@ -104,7 +160,44 @@ def _normalized(fn):
     return wrapped
 
 
-SFX_LIBRARY = {"pop": _normalized(pop), "whoosh": _normalized(whoosh), "thud": _normalized(thud)}
+SFX_LIBRARY = {
+    "pop": _normalized(pop),
+    "whoosh": _normalized(whoosh),
+    "thud": _normalized(thud),
+    "ding": _normalized(ding),
+    "sizzle": _normalized(sizzle),
+    "sparkle": _normalized(sparkle),
+}
+
+# The script's own per-scene `sfx` field is free text written by the model,
+# so it names sounds we don't synthesize. Map the words it actually uses onto
+# the closest thing we have rather than dropping the cue: measured 2026-09-02,
+# a real 5-scene script asked for whoosh/ding/sizzle/pop/sparkle and every one
+# of those hints was being ignored outright.
+_SFX_ALIASES = {
+    "ding": "ding", "chime": "ding", "bell": "ding", "ting": "ding", "sparkle": "sparkle",
+    "twinkle": "sparkle", "shimmer": "sparkle", "magic": "sparkle", "reveal": "sparkle",
+    "sizzle": "sizzle", "hiss": "sizzle", "fizz": "sizzle", "burn": "sizzle",
+    "crackle": "sizzle", "fire": "sizzle", "steam": "sizzle", "bubble": "sizzle",
+    "pop": "pop", "click": "pop", "tap": "pop", "snap": "pop", "appear": "pop",
+    "whoosh": "whoosh", "swoosh": "whoosh", "swipe": "whoosh", "wind": "whoosh",
+    "transition": "whoosh", "rush": "whoosh",
+    "thud": "thud", "thump": "thud", "boom": "thud", "crash": "thud", "impact": "thud",
+    "bang": "thud", "crack": "thud", "rumble": "thud", "land": "thud",
+}
+
+
+def resolve_sfx_name(raw: str | None) -> str | None:
+    """Map a script's free-text sfx hint onto an effect we can synthesize."""
+    text = (raw or "").strip().lower()
+    if not text:
+        return None
+    if text in SFX_LIBRARY:
+        return text
+    for word, effect in _SFX_ALIASES.items():
+        if word in text:
+            return effect
+    return None
 
 
 def _db_to_gain(db: float) -> float:
@@ -205,12 +298,45 @@ def scene_sfx_cues(scenes: list[dict], durations: list[float]) -> list[tuple[flo
     Modelled on the reference's own pattern: a hit on each scene change, and
     one per ingredient as it appears (its accumulation sequence carried ~14
     hits across 13.6s, about one per item).
+
+    Every scene also contributes its OWN authored `sfx` hint, placed just
+    after the cut so it reads as belonging to that shot rather than to the
+    transition. Without this the ai_video path produced almost no sound at
+    all: it has no `stickers` and rarely an ingredient_grid, so the whole
+    generator collapsed to one whoosh per cut — measured 0.09 hits/sec on a
+    real render against the reference's 1.73 (2026-09-02), while the script
+    had written whoosh/ding/sizzle/pop/sparkle on its five scenes and every
+    one was ignored.
     """
     cues: list[tuple[float, str]] = []
     cursor = 0.0
     for scene, duration in zip(scenes, durations):
         if cursor > 0.0:
             cues.append((cursor, "whoosh"))
+
+        authored = resolve_sfx_name(scene.get("sfx"))
+        if authored:
+            # Offset so it doesn't collide with the transition whoosh on the
+            # same frame, where the two would just sum into one louder hit.
+            at = cursor + min(0.25, duration * 0.15)
+            cues.append((at, authored))
+
+        # A static scene is now cut into 2-3 shots (assembly.
+        # plan_shot_durations), and every one of those cuts is a moment the
+        # reference would put a sound on. Without this the extra cuts would
+        # be silent, leaving the track at roughly half the reference's
+        # density.
+        if not scene.get("stickers"):
+            from .assembly import plan_shot_durations
+
+            shot_at = cursor
+            for shot_duration in plan_shot_durations(duration)[:-1]:
+                shot_at += shot_duration
+                # A cut, so it gets the cut sound. Using "pop" here would
+                # conflate it with the ingredient-appeared sound and make a
+                # grid seem to have more items than it does.
+                cues.append((shot_at, "whoosh"))
+
         stickers = scene.get("stickers") or []
         if stickers:
             for sticker in stickers:

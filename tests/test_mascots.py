@@ -504,12 +504,17 @@ def test_closed_mouth_rule_leads_the_prompt_and_avoids_bare_negation():
     """
     from shorts_factory.mascots import CLOSED_MOUTH_RULE
 
-    assert CLOSED_MOUTH_RULE.startswith("The mouth is drawn as"), (
+    assert CLOSED_MOUTH_RULE.startswith("Draw the mouth as"), (
         "the rule must lead with what to DRAW, not with what to omit"
     )
+    # The rule is short enough to stay effective without leading the whole
+    # prompt. It leads the HERO prompt (one character, nothing competing);
+    # in a scene prompt the SUBJECT leads, because burying what the picture
+    # is actually of behind boilerplate is what made shots generic.
+    assert len(CLOSED_MOUTH_RULE.split()) <= 20, "rule must stay compact"
     for mascot in MASCOTS.values():
         assert mascot.hero_image_prompt.startswith(CLOSED_MOUTH_RULE), f"{mascot.id}"
-        assert mascot.build_scene_prompt(scene_role="x").startswith(CLOSED_MOUTH_RULE)
+        assert CLOSED_MOUTH_RULE in mascot.build_scene_prompt(scene_role="x")
 
 
 def test_fear_scenes_do_not_ask_for_a_grimace():
@@ -525,3 +530,51 @@ def test_fear_scenes_do_not_ask_for_a_grimace():
         expanded = _expand_emotion(keyword).lower()
         for banned in ("grimace", "teeth", "gasp", "open mouth", "shout", "scream"):
             assert banned not in expanded, f"{keyword!r} expansion still says {banned!r}"
+
+
+def test_text_dependent_props_get_a_pictorial_instruction():
+    """Asking for a timeline while forbidding text is a contradiction.
+
+    Measured 2026-09-02: 8 of 73 scenes across all scripts request a visual
+    that only conveys meaning through writing ("timeline graphic",
+    "three-field rotation diagram", "blast furnace diagram") in a prompt
+    that also says "do not render any text, words, letters, labels, or
+    signs". The model resolves that by drawing a meaningless graphic shape
+    — the "scenes out of concept" failure. The no-text rule stays (dropping
+    it puts unreadable invented lettering back on screen); the prompt
+    instead gains a positive instruction for depicting the idea in pictures.
+    """
+    mascot = get_mascot("mascot_1")
+    prompt = mascot.build_scene_prompt(
+        scene_role="Discovery", emotion="thoughtful",
+        props="timeline graphic", layout="split_bottom_left",
+    )
+    assert "pictures only" in prompt
+    assert "row of small illustrated scenes joined by arrows" in prompt
+
+
+def test_ordinary_physical_props_are_left_alone():
+    """The hint must not fire on props that are already drawable, or every
+    prompt grows for no reason."""
+    from shorts_factory.mascots import _no_text_depiction_hint
+
+    for ordinary in ("a clay pot", "volcanic ash and lime", "a bronze helmet", "seawater"):
+        assert _no_text_depiction_hint(ordinary) == [], ordinary
+    for texty in ("timeline graphic", "a blast furnace diagram", "floating list of items"):
+        assert _no_text_depiction_hint(texty), texty
+
+
+def test_split_canvas_role_and_emotion_are_grammatical():
+    """Interpolating the raw fields mid-sentence produced "stands looking
+    and pointing up with thoughtful as Discovery" — the values are
+    adjectives and story-beat names, not sentence fragments, and the fear
+    expansion returns a whole multi-clause phrase that broke the sentence
+    outright."""
+    mascot = get_mascot("mascot_1")
+    for emotion in ("thoughtful", "alarmed"):
+        prompt = mascot.build_scene_prompt(
+            scene_role="Discovery", emotion=emotion, layout="split_bottom_left",
+        )
+        assert "up with " not in prompt, "role/emotion must not be spliced mid-sentence"
+        assert "Role: Discovery." in prompt
+        assert "Emotion: " in prompt

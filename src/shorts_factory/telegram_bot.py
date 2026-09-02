@@ -60,6 +60,7 @@ class PlanningStates(StatesGroup):
     choosing_topic = State()
     confirming_new_topic = State()
     confirming_retrieval = State()
+    choosing_length = State()
     confirming_generate = State()
     reviewing_generated = State()
 
@@ -211,8 +212,10 @@ class TelegramController:
         cost_tracker.write_report(cost_report_path)
         return {"result": result, "spent": cost_tracker.total_spent_usd, "cap": settings.budget_cap_usd}
 
-    def run_generate(self, topic: str, idea: dict | None = None) -> PipelineResult:
-        return run_pipeline(topic, idea=idea)
+    def run_generate(
+        self, topic: str, idea: dict | None = None, target_seconds: float | None = None
+    ) -> PipelineResult:
+        return run_pipeline(topic, idea=idea, target_seconds=target_seconds)
 
 
 HELP = (
@@ -222,6 +225,29 @@ HELP = (
     "/reject <topic> | <reason>\n/publish <topic>\n\n"
     "Publishing requires prior approval and uploads privately by default."
 )
+
+
+# Offered video lengths, in seconds. Kept inside the Shorts range the
+# pacing was actually tuned against: one scene runs ~3s (brief_builder.
+# SECONDS_PER_SCENE), so these map to ~10/15/20 scenes. Video generation is
+# the dominant cost, so the label carries a rough estimate — a longer video
+# is proportionally more expensive, and that should not be a surprise.
+LENGTH_CHOICES: tuple[tuple[int, str], ...] = (
+    (30, "30s · ~10 scenes"),
+    (45, "45s · ~15 scenes"),
+    (60, "60s · ~20 scenes"),
+)
+DEFAULT_LENGTH_SECONDS = 45
+
+
+def _length_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=label, callback_data=f"length_{seconds}")]
+            for seconds, label in LENGTH_CHOICES
+        ]
+        + [[InlineKeyboardButton(text="Cancel", callback_data="length_cancel")]]
+    )
 
 
 def _confirm_cancel_kb(prefix: str) -> InlineKeyboardMarkup:
@@ -270,13 +296,24 @@ def build_router(controller: TelegramController) -> Router:
     job_lock = asyncio.Lock()
     job_state = _JobState()
 
+    async def enter_length_choice(message: Message, state: FSMContext, topic: str) -> None:
+        await state.set_state(PlanningStates.choosing_length)
+        await state.update_data(topic=topic)
+        await message.answer(
+            f"How long should {topic!r} be? One scene runs about 3 seconds, so a longer "
+            "video means more scenes — and more scenes cost proportionally more.",
+            reply_markup=_length_kb(),
+        )
+
     async def enter_generate_confirm(message: Message, state: FSMContext, topic: str) -> None:
+        stored = await state.get_data()
+        seconds = stored.get("target_seconds") or DEFAULT_LENGTH_SECONDS
         await state.set_state(PlanningStates.confirming_generate)
         await state.update_data(topic=topic)
         await message.answer(
-            f"Ready to generate {topic!r} — the mascot is chosen automatically from the story. Real cost is "
-            "~$0.30/video once real providers are configured (stub providers cost $0) — enforced against "
-            "BUDGET_CAP_USD either way. Generate now?",
+            f"Ready to generate {topic!r} at ~{seconds}s — the mascot is chosen automatically from the "
+            "story. Real cost is ~$0.30/video once real providers are configured (stub providers cost $0) "
+            "— enforced against BUDGET_CAP_USD either way. Generate now?",
             reply_markup=_confirm_cancel_kb("generate"),
         )
 
@@ -353,9 +390,11 @@ def build_router(controller: TelegramController) -> Router:
             f"{result['verified_count']}/{result['citation_count']} verified. "
             f"Spent ${outcome['spent']:.4f} / ${outcome['cap']:.2f} cap."
         )
-        await enter_generate_confirm(message, state, topic)
+        await enter_length_choice(message, state, topic)
 
-    async def run_locked_generate(message: Message, state: FSMContext, topic: str) -> None:
+    async def run_locked_generate(
+        message: Message, state: FSMContext, topic: str, target_seconds: float | None = None
+    ) -> None:
         if job_lock.locked():
             await message.answer(f"A job is already running ({job_state.topic}). Try again shortly.")
             return
@@ -363,7 +402,9 @@ def build_router(controller: TelegramController) -> Router:
             job_state.topic = f"generate:{topic}"
             await message.answer(f"Generating {topic!r}… this can take a few minutes.")
             try:
-                result = await asyncio.to_thread(controller.run_generate, topic)
+                result = await asyncio.to_thread(
+                    controller.run_generate, topic, None, target_seconds
+                )
             except Exception as exc:
                 logger.exception("Telegram generation failed for topic %r", topic)
                 await message.answer(f"Refused: {exc}")
@@ -507,12 +548,35 @@ def build_router(controller: TelegramController) -> Router:
                     await run_locked_retrieval(message, state, topic)
                 elif data == "retrieval_cancel":
                     await message.answer("Skipped retrieval.")
+                    await enter_length_choice(message, state, topic)
+            elif current_state == PlanningStates.choosing_length.state:
+                stored = await state.get_data()
+                topic = stored.get("topic")
+                if data == "length_cancel":
+                    await message.answer("Cancelled.")
+                    await state.clear()
+                elif data.startswith("length_"):
+                    try:
+                        seconds = int(data.split("_", 1)[1])
+                    except ValueError:
+                        await message.answer("Unrecognised length.")
+                        return
+                    # Only ever accept a length we actually offered — the
+                    # callback payload is attacker-controllable in principle,
+                    # and an arbitrary value would drive both scene count and
+                    # spend.
+                    if seconds not in {opt for opt, _label in LENGTH_CHOICES}:
+                        await message.answer("Unrecognised length.")
+                        return
+                    await state.update_data(target_seconds=seconds)
                     await enter_generate_confirm(message, state, topic)
             elif current_state == PlanningStates.confirming_generate.state:
                 stored = await state.get_data()
                 topic = stored.get("topic")
                 if data == "generate_confirm":
-                    await run_locked_generate(message, state, topic)
+                    await run_locked_generate(
+                        message, state, topic, stored.get("target_seconds")
+                    )
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")
                     await state.clear()

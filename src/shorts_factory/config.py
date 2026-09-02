@@ -66,6 +66,19 @@ class Settings:
     # Synthesized pops/whooshes under the narration. On by default: the
     # reference short carries ~40 transients across 43s and the pop is what
     # sells an ingredient appearing, since it snaps on with no motion path.
+    # Optional extras, defaulted to the stub so that an install which
+    # configures neither behaves exactly as it did before they existed:
+    # captions fall back to the length-weighted estimate and the video
+    # ships with no music bed. Defaulted also means every existing caller
+    # constructing Settings(...) keeps working unchanged.
+    stt: ProviderConfig = field(
+        default_factory=lambda: ProviderConfig(kind="stt", provider=STUB, model_or_voice="")
+    )
+    music: ProviderConfig = field(
+        default_factory=lambda: ProviderConfig(kind="music", provider=STUB, model_or_voice="")
+    )
+    stt_cost_per_minute_usd: float = 0.0
+    music_cost_per_bed_usd: float = 0.0
     sfx_enabled: bool = True
     # Rigged puppet mascot (mascot_rig.py). On by default, but every failure
     # point falls back to the previous static behaviour, so a bad character
@@ -99,7 +112,16 @@ class Settings:
         configured for this kind. fal.ai is the only paid generation gateway;
         search retains its separate Tavily credential."""
         name = provider_config.provider.strip().lower()
-        return self.fal_key if name == "fal" and provider_config.kind in ("llm", "tts", "image", "video") else ""
+        # Every fal-backed kind must be listed here. A kind that is missing
+        # gets an empty credential and fails with "FAL_KEY is required" even
+        # though the key is present and correct — which is exactly what
+        # happened when stt/music were first added.
+        return (
+            self.fal_key
+            if name == "fal"
+            and provider_config.kind in ("llm", "tts", "image", "video", "stt", "music")
+            else ""
+        )
 
 
 class BudgetApprovalRequired(Exception):
@@ -193,6 +215,8 @@ def load_settings() -> Settings:
     image = provider_cfg("image", "IMAGE_PROVIDER", "IMAGE_MODEL")
     video = provider_cfg("video", "VIDEO_PROVIDER", "VIDEO_MODEL")
     search = provider_cfg("search", "SEARCH_PROVIDER", "SEARCH_MODEL")
+    stt = provider_cfg("stt", "STT_PROVIDER", "STT_MODEL")
+    music = provider_cfg("music", "MUSIC_PROVIDER", "MUSIC_MODEL")
 
     search_api_key = _env("SEARCH_API_KEY") or _env("TAVILY_API_KEY")
     if not search.is_stub and not search_api_key:
@@ -230,6 +254,8 @@ def load_settings() -> Settings:
         image=image,
         video=video,
         search=search,
+        stt=stt,
+        music=music,
         search_api_key=search_api_key,
         fal_key=_env("FAL_KEY"),
         fal_llm_endpoint=_env("FAL_LLM_ENDPOINT", "openrouter/router"),
@@ -245,6 +271,8 @@ def load_settings() -> Settings:
         tts_cost_per_1k_chars_usd=money("TTS_COST_PER_1K_CHARS_USD"),
         image_cost_per_image_usd=money("IMAGE_COST_PER_IMAGE_USD"),
         video_cost_per_second_usd=money("VIDEO_COST_PER_SECOND_USD"),
+        stt_cost_per_minute_usd=money("STT_COST_PER_MINUTE_USD"),
+        music_cost_per_bed_usd=money("MUSIC_COST_PER_BED_USD"),
         youtube_client_secrets_file=youtube_client_secrets_file,
         youtube_token_file=youtube_token_file,
         telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),

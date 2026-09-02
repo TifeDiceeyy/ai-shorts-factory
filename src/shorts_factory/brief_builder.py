@@ -23,6 +23,10 @@ MIN_CLAIMS_FOR_BRIEF = 4
 # with fewer simply yields fewer scenes — MIN_CLAIMS_FOR_BRIEF still
 # guards the floor.
 MAX_CLAIMS_FOR_BRIEF = 15
+# One claim is one scene, and the reference short cuts roughly every 3s
+# (43.45s across 14 cuts, measured 2026-09-01). This is what converts a
+# requested video LENGTH into a scene count when the caller asks for one.
+SECONDS_PER_SCENE = 3.0
 
 
 class InsufficientVerifiedClaims(Exception):
@@ -44,12 +48,19 @@ def build_brief_from_citations(
     caution: str | None = None,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     idea: dict[str, Any] | None = None,
+    target_seconds: float | None = None,
 ) -> dict[str, Any]:
     """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
     steers HOW the script frames the (still citation-bound) facts below —
     never a source of facts itself. No caller currently populates it (the
     interactive idea-selection step was removed 2026-08-28); idea=None is
-    the fully-supported default and the param is kept for that framing hook."""
+    the fully-supported default and the param is kept for that framing hook.
+
+    target_seconds, if given, is the requested finished video length. One
+    claim becomes one scene, so it sets the claim cap at roughly one scene
+    per SECONDS_PER_SCENE; it is also recorded on the brief so the script
+    generator paces narration to the same length rather than the default.
+    None keeps MAX_CLAIMS_FOR_BRIEF and the default 45s pacing."""
     verified = [
         c for c in citation_store.get("citations", [])
         if c.get("verified") and c.get("confidence", 0) >= min_confidence
@@ -58,7 +69,12 @@ def build_brief_from_citations(
         raise InsufficientVerifiedClaims(topic, len(verified), MIN_CLAIMS_FOR_BRIEF)
 
     verified.sort(key=lambda c: c.get("confidence", 0), reverse=True)
-    selected = verified[:MAX_CLAIMS_FOR_BRIEF]
+    cap = MAX_CLAIMS_FOR_BRIEF
+    if target_seconds:
+        # Never below the floor: a 15s request must still produce a brief
+        # that build_brief's own MIN_CLAIMS_FOR_BRIEF check would accept.
+        cap = max(MIN_CLAIMS_FOR_BRIEF, round(target_seconds / SECONDS_PER_SCENE))
+    selected = verified[:cap]
 
     claims = []
     for i, c in enumerate(selected, start=1):
@@ -72,6 +88,14 @@ def build_brief_from_citations(
         })
 
     brief: dict[str, Any] = {"topic": topic, "safety_class": safety_class, "claims": claims}
+    if target_seconds:
+        # One claim is one shot. If the store can't supply enough claims for
+        # the requested length, SHORTEN the video rather than stretching the
+        # shots it does have: measured 2026-09-02, the scripts with too few
+        # claims for their length ran 7.2-7.8s per shot against the
+        # reference's 3.1s, which is exactly the "scenes aren't changing"
+        # complaint. A shorter, correctly-paced video beats a slow one.
+        brief["target_seconds"] = float(min(target_seconds, len(claims) * SECONDS_PER_SCENE))
     if caution:
         brief["caution"] = caution
     if idea:

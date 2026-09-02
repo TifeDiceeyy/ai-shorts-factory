@@ -15,6 +15,26 @@ SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
 SCRIPT_MIN_TOTAL_SECONDS = 40.0
 SCRIPT_MAX_TOTAL_SECONDS = 50.0
+# The accepted window is the requested length +-10%. The two constants above
+# remain the DEFAULT window (i.e. a 45s target), so a brief that asks for no
+# particular length validates exactly as it always has.
+SCRIPT_DURATION_TOLERANCE = 0.10
+
+
+def script_duration_window(brief: dict[str, Any] | None = None) -> tuple[float, float]:
+    """The (min, max) total-duration window a script must land in.
+
+    Derived from the brief's own target_seconds when it has one. Without
+    this, asking for a 30s or 60s video produced a script that the validator
+    then rejected against the fixed 45s window — and the caller silently
+    fell back to the deterministic stub script, so the requested length
+    would have appeared to do nothing at all.
+    """
+    target = (brief or {}).get("target_seconds")
+    if not isinstance(target, (int, float)) or target <= 0:
+        return SCRIPT_MIN_TOTAL_SECONDS, SCRIPT_MAX_TOTAL_SECONDS
+    target = float(min(180.0, max(15.0, target)))
+    return target * (1 - SCRIPT_DURATION_TOLERANCE), target * (1 + SCRIPT_DURATION_TOLERANCE)
 
 
 class ValidationError(Exception):
@@ -62,8 +82,9 @@ def validate_script_against_brief(script: dict[str, Any], brief: dict[str, Any])
             )
 
     total = sum(s["duration"] for s in script["scenes"])
-    if not (SCRIPT_MIN_TOTAL_SECONDS <= total <= SCRIPT_MAX_TOTAL_SECONDS):
+    min_total, max_total = script_duration_window(brief)
+    if not (min_total <= total <= max_total):
         raise ValidationError(
             f"total scripted duration {total:.2f}s is outside the "
-            f"{SCRIPT_MIN_TOTAL_SECONDS}-{SCRIPT_MAX_TOTAL_SECONDS}s window"
+            f"{min_total:.1f}-{max_total:.1f}s window"
         )

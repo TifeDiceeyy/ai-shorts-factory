@@ -102,3 +102,78 @@ def test_needs_retrieval_true_when_brain_is_not_built_and_no_citations(controlle
 
     monkeypatch.setattr(brain_integration, "load_brain", lambda: None)
     assert controller.needs_retrieval("a topic with definitely no citations yet") is True
+
+
+def test_length_choices_stay_inside_the_shorts_range():
+    """The offered lengths must be ones the pacing was actually tuned for.
+
+    One scene runs ~3s (brief_builder.SECONDS_PER_SCENE), and the duration
+    budget was calibrated against real renders in this range. Anything
+    longer is untested pacing and proportionally more spend, since video
+    generation dominates cost.
+    """
+    from shorts_factory.telegram_bot import DEFAULT_LENGTH_SECONDS, LENGTH_CHOICES
+
+    seconds = [s for s, _label in LENGTH_CHOICES]
+    assert seconds == sorted(seconds), "offer lengths in ascending order"
+    assert all(15 <= s <= 180 for s in seconds), "outside the brief schema's range"
+    assert DEFAULT_LENGTH_SECONDS in seconds
+
+
+def test_requested_length_drives_scene_count_and_validation_window():
+    """Asking for 30s or 60s has to change BOTH the scene count and the
+    window the script is validated against.
+
+    Without moving the window too, a 30s script would be generated and then
+    rejected against the fixed 40-50s default — and the caller silently
+    falls back to the deterministic stub script, so choosing a length would
+    have appeared to do nothing at all.
+    """
+    import json
+    from pathlib import Path
+
+    from shorts_factory.brief_builder import build_brief_from_citations
+    from shorts_factory.cost_tracker import CostTracker
+    from shorts_factory.providers.llm import StubLLMProvider
+    from shorts_factory.schema_validate import (
+        script_duration_window,
+        validate_script_against_brief,
+    )
+
+    store = json.loads(
+        Path("data/roman_concrete/roman_concrete.citations.json").read_text(encoding="utf-8")
+    )
+    counts = {}
+    for seconds in (30, 45, 60):
+        brief = build_brief_from_citations(
+            "roman concrete", store, "green", target_seconds=seconds
+        )
+        assert brief["target_seconds"] == seconds
+        low, high = script_duration_window(brief)
+        assert low < seconds < high
+
+        script = StubLLMProvider().generate_script(
+            brief, "English", "flat", CostTracker(budget_cap_usd=1)
+        )
+        validate_script_against_brief(script, brief)
+        total = sum(s["duration"] for s in script["scenes"])
+        assert low <= total <= high, f"{seconds}s request produced {total:.1f}s"
+        counts[seconds] = len(script["scenes"])
+
+    assert counts[30] < counts[45] < counts[60], counts
+
+
+def test_no_requested_length_keeps_the_original_behaviour():
+    """Every existing caller, and every brief written before this field
+    existed, must validate against the unchanged 40-50s window."""
+    from shorts_factory.schema_validate import (
+        SCRIPT_MAX_TOTAL_SECONDS,
+        SCRIPT_MIN_TOTAL_SECONDS,
+        script_duration_window,
+    )
+
+    for brief in ({}, {"target_seconds": None}, {"target_seconds": 0}):
+        assert script_duration_window(brief) == (
+            SCRIPT_MIN_TOTAL_SECONDS,
+            SCRIPT_MAX_TOTAL_SECONDS,
+        )

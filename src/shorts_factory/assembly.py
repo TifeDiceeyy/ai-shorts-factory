@@ -40,6 +40,15 @@ from .providers.tts import TTSProvider
 FPS = 30
 LOUDNORM_TARGET_I = -14.0
 LOUDNORM_TARGET_TP = -1.5
+# A ceiling, not a target, and a near-inert one: measured 2026-09-02 by
+# re-normalising a real render at LRA 11/5/3/2, the finished loudness range
+# only moved 3.5 -> 3.1 LU. Narration is already flat, so this parameter has
+# almost nothing to compress.
+#
+# The reference short sits at 1.7 LU, and that is NOT a compression setting —
+# it is a consequence of its continuous music bed filling the gaps between
+# sentences. Ours reads wider because those gaps are near-silent. Adding the
+# bed is what closes this; tightening this number is not.
 LOUDNORM_TARGET_LRA = 11.0
 # verify.py's actual gate is +/-1.0 LU on the FINAL .mp4. Correct proactively
 # at a tighter internal margin so a single post-mux correction pass reliably
@@ -133,12 +142,15 @@ def narration_caption_cues(
     narration: str,
     duration: float,
     words_per_line: int = CAPTION_WORDS_PER_LINE,
+    word_timings: "list | None" = None,
 ) -> list[CaptionCue]:
     """Split the exact narration into short, contiguous timed captions.
 
-    Timing is proportional to spoken-character weight within the measured
-    TTS duration. This keeps every displayed word identical to the voiceover
-    without requiring a second speech-to-text provider call.
+    When `word_timings` is supplied (providers/stt.py aligned the real
+    audio) each word is shown when it is actually SPOKEN. Otherwise timing
+    falls back to spoken-character weight within the measured TTS duration —
+    a decent estimate, but blind to pauses and emphasis, and wrong whenever
+    two words of similar length take different times to say.
 
     One cue per word, each showing the line accumulated so far — a typewriter
     reveal that stays readable — clearing every words_per_line words. There is
@@ -158,6 +170,14 @@ def narration_caption_cues(
     # Timing is weighted by each NEW word's own spoken length, not by the
     # accumulated text — otherwise later words in a line would each be held
     # progressively longer than they're actually spoken.
+    spoken = _aligned_word_bounds(words, word_timings, duration)
+    if spoken is not None:
+        for index, (start, end) in enumerate(spoken):
+            line_start = (index // words_per_line) * words_per_line
+            text = " ".join(words[line_start:index + 1])
+            cues.append(CaptionCue(text=text, start=start, end=end))
+        return cues
+
     weights = [max(1, len(re.sub(r"[^A-Za-z0-9]", "", w))) for w in words]
     total_weight = sum(weights)
     for index, (word, weight) in enumerate(zip(words, weights)):
@@ -169,12 +189,42 @@ def narration_caption_cues(
     return cues
 
 
+def _aligned_word_bounds(
+    words: list[str], word_timings, duration: float
+) -> list[tuple[float, float]] | None:
+    """Turn STT word timings into contiguous per-word (start, end) spans.
+
+    Returns None — meaning "use the estimate" — unless the alignment covers
+    exactly the words being displayed. A partial or mismatched alignment is
+    worse than the estimate, because captions would drift against the voice
+    rather than merely being slightly off.
+
+    Spans are made CONTIGUOUS: STT reports the silence between words as gaps,
+    and a caption that blanks between every word flickers. Each word is held
+    until the next one starts.
+    """
+    if not word_timings or len(word_timings) != len(words):
+        return None
+    starts = [float(t.start) for t in word_timings]
+    if any(b < a for a, b in zip(starts, starts[1:])):
+        return None          # out of order: not a usable alignment
+    bounds: list[tuple[float, float]] = []
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else max(duration, float(word_timings[-1].end))
+        bounds.append((start, max(end, start + 0.01)))
+    # The first caption should be on screen from the top of the scene rather
+    # than after the speaker's lead-in silence.
+    bounds[0] = (0.0, bounds[0][1])
+    return bounds
+
+
 def build_timed_caption_overlays(
     narration: str,
     duration: float,
     caption_style: str | None = None,
     caution_text: str | None = None,
     subscribe_cta_text: str | None = None,
+    word_timings: "list | None" = None,
 ) -> tuple[list[TimedCaptionOverlay], CaptionBox]:
     """subscribe_cta_text, unlike caution_text, is composited onto only the
     LAST cue's overlay (not every cue) — it's an end-of-video call to
@@ -182,7 +232,7 @@ def build_timed_caption_overlays(
     across a whole scene."""
     overlays: list[TimedCaptionOverlay] = []
     caution_box: CaptionBox | None = None
-    for cue in narration_caption_cues(narration, duration):
+    for cue in narration_caption_cues(narration, duration, word_timings=word_timings):
         image, box = caption_overlay_png(cue.text, style=caption_style)
         if caution_text:
             caution_overlay, caution_box = caution_badge_overlay_png(caution_text)
@@ -437,6 +487,44 @@ def extract_last_frame(clip_path: Path, out_path: Path) -> Path:
     return out_path
 
 
+# Reference shot lengths, measured by scene-detection on the real short
+# (2026-09-02): median 1.7s, mostly 0.7-2.0s, and only 2 of 15 shots over 4s.
+# Ours were a uniform 3.0s — inside spec but monotonous next to that, because
+# we render exactly one shot per narration claim while the reference cuts
+# more often than it changes subject.
+REFERENCE_MEDIAN_SHOT_SECONDS = 1.7
+# Below this a scene isn't worth cutting up; the cut would read as a glitch.
+MIN_SPLITTABLE_SCENE_SECONDS = 2.4
+# A single shot shorter than this reads as a flash rather than a beat.
+MIN_SHOT_SECONDS = 0.9
+MAX_SHOTS_PER_SCENE = 3
+# Deliberately uneven. Splitting 3.2s into 1.6+1.6 is as metronomic as not
+# splitting it at all; the reference's shots vary widely, and that variation
+# is most of what makes it feel alive.
+_SHOT_SPLITS = {2: (0.45, 0.55), 3: (0.30, 0.34, 0.36)}
+
+
+def plan_shot_durations(total: float) -> list[float]:
+    """Split one scene's screen time into 1-3 unevenly-sized shots.
+
+    Returns [total] unchanged when the scene is too short to cut, so callers
+    can always treat the result as the scene's shot list.
+    """
+    if total < MIN_SPLITTABLE_SCENE_SECONDS:
+        return [total]
+    shots = min(MAX_SHOTS_PER_SCENE, max(2, int(total // REFERENCE_MEDIAN_SHOT_SECONDS)))
+    while shots > 1:
+        weights = _SHOT_SPLITS[shots]
+        durations = [total * w for w in weights]
+        if min(durations) >= MIN_SHOT_SECONDS:
+            # Absorb rounding into the last shot so the sum is exact — a
+            # scene that drifts even 0.05s desynchronises from its narration.
+            durations[-1] = total - sum(durations[:-1])
+            return durations
+        shots -= 1
+    return [total]
+
+
 def build_scene_video_segment_from_clip(
     clip_paths: list[Path],
     duration: float,
@@ -445,7 +533,7 @@ def build_scene_video_segment_from_clip(
     segments_dir: Path,
     *,
     timed_caption_overlays: list[TimedCaptionOverlay] | None = None,
-    image_path: Path | None = None,
+    image_path: Path | list[Path] | None = None,
 ) -> Path:
     """Same role as build_scene_video_segment(), for one or more animated
     clips instead of a static frame: skips any leading static/frozen hold in
@@ -533,27 +621,45 @@ def build_scene_video_segment_from_clip(
 
     pad_duration = remaining
     clips_used = len(motion_labels)
-    use_cut_in = image_path is not None and pad_duration > CUT_IN_MIN_PAD_SECONDS
+    still_paths = (
+        [] if image_path is None
+        else ([image_path] if isinstance(image_path, Path) else list(image_path))
+    )
+    use_cut_in = bool(still_paths) and pad_duration > CUT_IN_MIN_PAD_SECONDS
 
     if use_cut_in:
-        cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(image_path)])
-        if CUT_IN_POP_ZOOM:
-            motion_filters.append(
-                f"[{clips_used}:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
-                f"zoompan=z='{_pop_in_zoom_expr()}':"
-                "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-                f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1,"
-                f"trim=duration={pad_duration:.3f}[cutin0]"
-            )
-        else:
-            # Hard cut to the still, held at true size with no scale move at
-            # all. See CUT_IN_POP_ZOOM.
-            motion_filters.append(
-                f"[{clips_used}:v]scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS},setsar=1,"
-                f"trim=duration={pad_duration:.3f}[cutin0]"
-            )
-        motion_labels.append("cutin0")
-        clips_used += 1
+        # Cut BETWEEN the supplied stills rather than holding one for the
+        # whole beat. A held still is the most inert thing in the video, and
+        # with most scenes now deliberately static that was a lot of screen
+        # time where nothing changed at all — measured 19.5s of a 47.5s
+        # render. plan_shot_durations splits the time unevenly, matching the
+        # reference's varied 0.7-2.0s shots instead of one 3.2s hold.
+        shot_durations = plan_shot_durations(pad_duration)[: len(still_paths)]
+        # Give the last shot whatever time the others didn't take, so the
+        # segment still sums to exactly pad_duration.
+        if shot_durations:
+            shot_durations[-1] = pad_duration - sum(shot_durations[:-1])
+        for shot_index, shot_duration in enumerate(shot_durations):
+            still = still_paths[shot_index]
+            label = f"cutin{shot_index}"
+            cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(still)])
+            if CUT_IN_POP_ZOOM:
+                motion_filters.append(
+                    f"[{clips_used}:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
+                    f"zoompan=z='{_pop_in_zoom_expr()}':"
+                    "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                    f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1,"
+                    f"trim=duration={shot_duration:.3f}[{label}]"
+                )
+            else:
+                # Hard cut to the still, held at true size with no scale move
+                # at all. See CUT_IN_POP_ZOOM.
+                motion_filters.append(
+                    f"[{clips_used}:v]scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS},setsar=1,"
+                    f"trim=duration={shot_duration:.3f}[{label}]"
+                )
+            motion_labels.append(label)
+            clips_used += 1
     elif pad_duration > 0.05 and motion_filters:
         # Sub-threshold remainder (or no image_path given): extend the LAST
         # clip's own hold via tpad instead of a separate cut — a near-
@@ -1568,6 +1674,7 @@ def assemble_stickers(
     music_path: Path | None = None,
     rig_parts: dict[str, Any] | None = None,
     rig_scene_types: tuple[str, ...] = (),
+    word_timings: list[list] | None = None,
 ) -> dict[str, Any]:
     """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
     image_source(index, scene) -> that scene's already-generated still image
@@ -1591,6 +1698,7 @@ def assemble_stickers(
             caption_style=caption_style,
             caution_text=caution_text if i == len(scenes) - 1 else None,
             subscribe_cta_text=subscribe_cta_text if i == len(scenes) - 1 else None,
+            word_timings=word_timings[i] if word_timings else None,
         )
         caption_boxes.append(box)
 
@@ -1977,6 +2085,7 @@ def assemble_animated(
     subscribe_cta_text: str | None = None,
     sfx_enabled: bool = False,
     music_path: Path | None = None,
+    word_timings: list[list] | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
     an ordered list of one or more raw, uncaptioned animated clip paths for
@@ -2013,6 +2122,7 @@ def assemble_animated(
             caption_style=caption_style,
             caution_text=caution_text if i == len(scenes) - 1 else None,
             subscribe_cta_text=subscribe_cta_text if i == len(scenes) - 1 else None,
+            word_timings=word_timings[i] if word_timings else None,
         )
         caption_boxes.append(box)
 

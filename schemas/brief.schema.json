@@ -13,6 +13,7 @@
     "angle": { "type": "string" },
     "chosen_hook": { "type": "string" },
     "payoff": { "type": "string" },
+    "target_seconds": { "type": "number", "minimum": 15, "maximum": 180 },
     "claims": {
       "type": "array",
       "minItems": 4,
