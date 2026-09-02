@@ -97,3 +97,32 @@ def test_video_duration_follows_actual_audio_not_scripted_estimate(tmp_path):
     assert abs(actual_rendered - scripted_total) > 0.5, (
         "fixture is only meaningful if scripted and actual totals clearly differ"
     )
+
+
+def test_word_budget_accounts_for_per_scene_audio_overhead():
+    """The word budget must subtract fixed per-scene overhead before
+    converting a scene's duration into words.
+
+    Measured by least squares over 11 real generated videos (2026-09-01):
+    total audio = 0.3219s/word + 0.426s/scene. That second term is the
+    head/tail silence each separately-synthesized scene carries, and it
+    scales with scene COUNT, not word count. Budgeting words as
+    duration * rate with no overhead term put the first 15-scene video at
+    50.6s against a 50s ceiling — 15 x 0.43s = 6.4s unbudgeted, essentially
+    the whole overshoot. At 6 scenes the same omission was only 2.6s, which
+    is why it survived until the scene count trebled.
+    """
+    from shorts_factory.providers.llm import (
+        NARRATION_WORDS_PER_SECOND,
+        SCENE_AUDIO_OVERHEAD_SECONDS,
+        TARGET_TOTAL_SECONDS,
+    )
+
+    for n_scenes in (4, 6, 10, 15):
+        avg_duration = TARGET_TOTAL_SECONDS / n_scenes
+        speaking = max(0.6, avg_duration - SCENE_AUDIO_OVERHEAD_SECONDS)
+        words = max(5, round(speaking * NARRATION_WORDS_PER_SECOND))
+        predicted = n_scenes * words / NARRATION_WORDS_PER_SECOND + n_scenes * SCENE_AUDIO_OVERHEAD_SECONDS
+        assert 40.0 <= predicted <= 50.0, (
+            f"{n_scenes} scenes x {words} words predicts {predicted:.1f}s, outside the 40-50s window"
+        )

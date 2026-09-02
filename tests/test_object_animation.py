@@ -29,6 +29,26 @@ def _prop_image(tmp_path, name="scene.png", color=(200, 100, 40)) -> Path:
     return path
 
 
+
+def _textured_prop_image(tmp_path, name="textured.png") -> Path:
+    """A striped block on white. A SOLID fill is useless for measuring a mesh
+    warp: displacing uniform pixels reproduces the same uniform pixels, so a
+    working warp reads as a ~1-unit diff coming only from the block's edges
+    (measured 1.17 while the same warp on a real textured scene measured
+    7.49). Internal detail is what makes the deformation observable — same
+    reasoning as test_stickers._still_image's own docstring."""
+    from PIL import ImageDraw
+    path = tmp_path / name
+    img = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    cx, cy = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    draw.rectangle((cx - 200, cy - 200, cx + 200, cy + 200), fill=(200, 100, 40))
+    for i in range(-200, 200, 16):
+        draw.line((cx + i, cy - 200, cx + i, cy + 200), fill=(90, 40, 15), width=6)
+    img.save(path)
+    return path
+
+
 def _blank_image(tmp_path, name="blank.png") -> Path:
     path = tmp_path / name
     Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255)).save(path)
@@ -99,7 +119,7 @@ def test_content_mask_region_excludes_content_outside_the_box(tmp_path):
 
 
 def test_narrated_object_cue_start_matches_a_real_cue_for_process_action(tmp_path):
-    narration = "Watch closely as the metal begins to melt near the roaring fire."
+    narration = "Watch closely as the roaring fire melts this metal down slowly."
     duration = 6.0
     start = assembly._narrated_object_cue_start(narration, duration, "process_action")
     assert start is not None
@@ -229,7 +249,7 @@ def test_object_pulse_preserves_the_real_object_color_before_it_starts(tmp_path)
     match what was actually drawn, not some unrelated blended color."""
     color = (200, 100, 40)
     img_path = _prop_image(tmp_path, color=color)
-    narration = "Watch closely as the metal begins to melt near the roaring fire."
+    narration = "Watch closely as the roaring fire melts this metal down slowly."
     duration = 6.0
     start = assembly._narrated_object_cue_start(narration, duration, "process_action")
     assert start is not None and start > 0.5
@@ -250,7 +270,7 @@ def test_object_pulse_preserves_the_real_object_color_before_it_starts(tmp_path)
 
 def test_object_pulse_stays_static_before_the_matched_cue_and_animates_after(tmp_path):
     img_path = _prop_image(tmp_path)
-    narration = "Watch closely as the metal begins to melt near the roaring fire."
+    narration = "Watch closely as the roaring fire melts this metal down slowly."
     duration = 6.0
     start = assembly._narrated_object_cue_start(narration, duration, "process_action")
     assert start is not None and start > 0.5, "test needs real static time before the pulse starts"
@@ -287,7 +307,7 @@ def test_object_pulse_stays_static_before_the_matched_cue_and_animates_after(tmp
 
 def test_object_pulse_leaves_the_white_background_untouched(tmp_path):
     img_path = _prop_image(tmp_path)
-    narration = "Watch closely as the metal begins to melt near the roaring fire."
+    narration = "Watch closely as the roaring fire melts this metal down slowly."
     duration = 6.0
     start = assembly._narrated_object_cue_start(narration, duration, "process_action")
     assert start is not None
@@ -333,12 +353,27 @@ def test_object_drift_changes_pixel_position_not_just_brightness(tmp_path):
     # toward center in the final frame, so source-space coordinates (the
     # rectangle's own top edge, drawn at cy-150) must be remapped through
     # that same scale to find where it actually lands in the output.
-    rest_scale = 1.0 / assembly.STICKER_HEADROOM
+    # 1:1 since 2026-09-01. The zoompan used to rest at 1.0 over a
+    # STICKER_HEADROOM-padded canvas, displaying the art at 1/1.6 of true
+    # size, so source coordinates had to be scaled down to find them in the
+    # output. The zoom now rests AT the headroom (so the artwork fills the
+    # frame instead of floating in white margins), which cancels the padding
+    # and makes source and output coordinates line up directly.
+    rest_scale = 1.0
     edge_x, edge_y = round(cx), round(cy + (cy - 150 - cy) * rest_scale)
 
+    # Sampled across a full OBJECT_DRIFT_PERIOD_SECONDS at a fine enough
+    # step to land near the crest wherever the cycle's phase happens to
+    # start. Five coarse 0.3s samples used to be enough only because
+    # 3-word caption cues put `start` at a lucky phase; word-for-word cues
+    # (2026-08-31) shifted it and the coarse sampling then straddled the
+    # peak (measured 65 against a <60 bar while the drift was working
+    # correctly). Denser sampling tests the same property without weakening
+    # the threshold.
+    offsets = [round(0.1 + 0.12 * i, 2) for i in range(14)]
     samples = [
         _frame_at(seg, start + off, tmp_path / f"drift_{off}.png").getpixel((edge_x, edge_y))
-        for off in (0.1, 0.4, 0.7, 1.0, 1.3)
+        for off in offsets
     ]
     dist_to_white = [sum(abs(255 - c) for c in px) for px in samples]
     dist_to_color = [sum(abs(v - c) for v, c in zip(px, color)) for px in samples]
@@ -439,23 +474,44 @@ def _mask_region_brightness_series(seg: Path, tmp_path, tag: str, start: float,
     return out
 
 
+
+def _mask_region_content_change(seg: Path, tmp_path, tag: str, start: float,
+                                n: int = 18, step: float = 1 / 30) -> float:
+    """Mean per-frame CONTENT change in the animated region.
+
+    Deliberately not a mean-brightness series: a mesh warp permutes pixels
+    rather than scaling them, so the region's average brightness barely
+    moves even while the object is visibly deforming. Frame-to-frame
+    absolute pixel difference captures both kinds of activity — spatial
+    (warp) and photometric (brightness pulse) — so the two styles can be
+    compared on the same footing.
+    """
+    import numpy as np
+    cx, cy = FRAME_WIDTH // 2, FRAME_HEIGHT // 2
+    region = (cx - 100, cy - 100, cx + 100, cy + 100)
+    frames = []
+    for i in range(n):
+        f = _frame_at(seg, start + 0.05 + i * step, tmp_path / f"cc_{tag}_{i}.png").crop(region)
+        frames.append(np.asarray(f.convert("L")).astype(np.int16))
+    deltas = [np.abs(frames[i + 1] - frames[i]).mean() for i in range(len(frames) - 1)]
+    return float(sum(deltas) / len(deltas))
+
+
 def _mean_abs_step(series: list[float]) -> float:
     return sum(abs(series[i + 1] - series[i]) for i in range(len(series) - 1)) / (len(series) - 1)
 
 
 def test_flicker_style_jitters_faster_and_harder_than_the_slow_breathing_pulse(tmp_path):
-    """Section 2 (localized fire/glow flicker): fire/spark scenes route to
-    style="flicker", which must render as a fast, irregular flame jitter —
-    _object_flicker_brightness_expr — NOT the slow even
-    _object_pulse_brightness_expr breathing that every other brightness
-    category falls back to. Fails-without-fix: before this change, "flicker"
-    reused _object_pulse_brightness_expr verbatim, so the two series below
-    had identical frame-to-frame motion (ratio ~1.0).
+    """fire/spark scenes route to style="flicker", which must be far more
+    active than the slow even breathing every unmatched category falls back
+    to. Since 2026-09-01 flicker is a mesh warp plus a luminance jitter
+    (_write_warped_scene_video) rather than a brightness expression, but the
+    property under test is unchanged: fire moves hard, the fallback breathes.
 
-    Validated live 2026-08-31 against the real furnace molten-iron scene:
-    flicker's frame-to-frame masked-region brightness delta ran ~4x the
-    slow pulse's, with no visible repeat cycle."""
-    img_path = _prop_image(tmp_path)
+    Uses the TEXTURED fixture deliberately — a warp resamples pixels, so on a
+    flat fill it reproduces the same flat fill and reads as no motion at all
+    (measured 1.17 vs 7.49 on real textured art)."""
+    img_path = _textured_prop_image(tmp_path)
     narration = "The fire roars and the metal starts to glow bright orange."
     duration = 6.0
     start = assembly._narrated_object_cue_start(narration, duration, "process_action")
@@ -475,8 +531,8 @@ def test_flicker_style_jitters_faster_and_harder_than_the_slow_breathing_pulse(t
         object_animation_style="pulse",
     )
 
-    flicker_step = _mean_abs_step(_mask_region_brightness_series(flicker_seg, tmp_path, "flick", start))
-    pulse_step = _mean_abs_step(_mask_region_brightness_series(pulse_seg, tmp_path, "pulse", start))
+    flicker_step = _mask_region_content_change(flicker_seg, tmp_path, "flick", start)
+    pulse_step = _mask_region_content_change(pulse_seg, tmp_path, "pulse", start)
     assert flicker_step > pulse_step * 2.0, (
         f"flicker should jitter far harder than the slow pulse: "
         f"flicker per-frame delta {flicker_step:.2f} vs pulse {pulse_step:.2f}"
@@ -526,3 +582,71 @@ def test_no_animation_wiring_when_object_animation_start_is_none(tmp_path):
     )
     assert seg.exists()
     assert not (tmp_path / "segments" / "objmask_00.png").exists()
+
+
+def _luma(path: Path):
+    import numpy as np
+    return np.asarray(Image.open(path).convert("L")).astype(np.int16)
+
+
+def test_prop_motion_is_rigid_and_confined_to_the_mask(tmp_path):
+    """Props MOVE; they do not deform.
+
+    Established by measuring a real reference short (2026-09-01): the
+    character's silhouette height held at exactly 463px through an entire
+    jump while its interior changed, and motion-compensating consecutive
+    frames left a 64-104% residual. An earlier mesh warp deformed the artwork
+    in place, which also visibly wobbled a rigid steel road roller — replaced
+    by rigid translation.
+
+    Three properties checked together, since they are only meaningful as a
+    set: exactly static before the trigger, real movement after it, and the
+    subject's SHAPE preserved (a rigid move keeps its drawn width/height; a
+    warp would not).
+    """
+    import numpy as np
+    img_path = _textured_prop_image(tmp_path)
+    duration, start = 4.0, 1.0
+    overlays, _box = assembly.build_timed_caption_overlays("Watch it pour and settle.", duration)
+    seg = assembly.build_scene_video_segment_from_still(
+        img_path, duration, 0, tmp_path / "segments",
+        timed_caption_overlays=overlays,
+        object_animation_start=start, object_animation_style="drift",
+    )
+    assert (tmp_path / "segments" / "objwarp_00.mp4").exists(), (
+        "the motion path must have run — its intermediate video is the proof"
+    )
+
+    def luma(t, name):
+        _frame_at(seg, t, tmp_path / name)
+        return _luma(tmp_path / name)
+
+    before_a, before_b = luma(0.45, "b1.png"), luma(0.85, "b2.png")
+    after_a, after_b = luma(start + 0.30, "a1.png"), luma(start + 0.90, "a2.png")
+
+    h, w = before_a.shape
+    prop = (slice(h // 3, 2 * h // 3), slice(w // 3, 2 * w // 3))
+    corner = (slice(0, 120), slice(0, 120))
+
+    assert np.abs(before_a - before_b)[prop].mean() < 1.0, "must hold static before the trigger"
+    assert np.abs(after_a - after_b)[prop].mean() > 2.0, "must visibly move after the trigger"
+    assert np.abs(after_a - after_b)[corner].mean() < 1.0, (
+        "content outside the mask must never be disturbed"
+    )
+
+    # Rigidity: the drawn subject must keep its SIZE as it moves. A warp
+    # stretches the silhouette; a translation does not.
+    def extent(frame):
+        # Below the caption band only. The caption legitimately changes text
+        # between these two moments (it is a word-by-word reveal), and
+        # including it measured the CAPTION's width changing 361->580 rather
+        # than the prop's.
+        ink = frame[int(frame.shape[0] * 0.28):] < 200
+        rows, cols = np.where(ink.any(1))[0], np.where(ink.any(0))[0]
+        return (rows[-1] - rows[0], cols[-1] - cols[0])
+
+    ha, wa = extent(after_a)
+    hb, wb = extent(after_b)
+    assert abs(ha - hb) <= 6 and abs(wa - wb) <= 6, (
+        f"subject changed size while moving ({ha}x{wa} vs {hb}x{wb}) — that is deformation, not rigid motion"
+    )

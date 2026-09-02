@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
 from . import assembly, verify
-from .captions import get_random_caption_style_name
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import BudgetExceeded, CostTracker
 from .dashboard import review_state
@@ -91,16 +91,19 @@ def get_scene_image_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
     """Builds the base image prompt for a scene. If structured fields are present,
     uses mascot.build_scene_prompt(); otherwise falls back to scene's visual_prompt."""
     if any(k in scene for k in ("scene_type", "mascot_role", "mascot_emotion", "layout", "props", "fx")):
+        # `or ""` not `.get(k, "")`: these fields are legitimately null on a
+        # character-free scene, and a null reaching build_scene_prompt renders
+        # the literal string "None" into the image prompt.
         return mascot.build_scene_prompt(
-            scene_role=scene.get("mascot_role", ""),
-            action=scene.get("action", ""),
-            emotion=scene.get("mascot_emotion", ""),
+            scene_role=scene.get("mascot_role") or "",
+            action=scene.get("action") or "",
+            emotion=scene.get("mascot_emotion") or "",
             props=scene.get("props"),
             layout=scene.get("layout", "auto"),
             scene_type=scene.get("scene_type", "mascot"),
             fx=scene.get("fx"),
         )
-    return scene.get("visual_prompt", mascot.hero_prompt)
+    return scene.get("visual_prompt", mascot.hero_image_prompt)
 
 
 def get_scene_motion_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
@@ -113,6 +116,18 @@ def get_scene_motion_prompt(scene: dict[str, Any], mascot: Mascot) -> str:
     nothing telling it what should actually move — real output showed the
     mascot bouncing/hopping while props stayed completely frozen. See
     mascots.Mascot.build_scene_motion_prompt()'s docstring for the fix."""
+    # Prefer the scene's OWN authored motion directive. The generic builder
+    # below matches a scene against 8 fixed keyword categories
+    # (smoke/water/fire/...) and can only produce text like "steam gently
+    # rising" — which describes nothing actually in the shot, and is why real
+    # Kling clips came back frozen for their whole duration. The script's
+    # `motion` field is written by the model that knows this topic, this
+    # claim, these props and this action, so it is the only source that can
+    # say what specifically should move. Falls back to the generic builder
+    # for older scripts that predate the field.
+    authored = (scene.get("motion") or "").strip()
+    if authored:
+        return authored
     return mascot.build_scene_motion_prompt(
         scene_type=scene.get("scene_type", "mascot"),
         props=scene.get("props"),
@@ -130,7 +145,7 @@ def _hero_cache_key(mascot: Mascot, image_model: str, image_style: str) -> str:
     IMAGE_MODEL (e.g. Recraft -> Nano Banana) or editing a mascot's
     hero_prompt while keeping the same mascot_id would otherwise silently
     keep reusing a hero image rendered under the old model/prompt."""
-    raw = f"{mascot.hero_prompt}|{image_model}|{image_style}"
+    raw = f"{mascot.hero_image_prompt}|{image_model}|{image_style}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
 
 
@@ -150,7 +165,7 @@ def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, c
     indefinitely."""
     if not hero_path.exists():
         hero_path.parent.mkdir(parents=True, exist_ok=True)
-        image_provider.generate_scene_image({"visual_prompt": mascot.hero_prompt}, "hero", hero_path, cost_tracker)
+        image_provider.generate_scene_image({"visual_prompt": mascot.hero_image_prompt}, "hero", hero_path, cost_tracker)
     return hero_path
 
 
@@ -162,8 +177,14 @@ def _scene_base_image_path(
     scene_index: int,
     generated_dir: Path,
     cost_tracker: CostTracker,
+    character_free: bool = False,
 ) -> Path:
     """Generates this scene's base image, one call per scene, every scene.
+
+    character_free forces the character OUT of the render, for scenes where
+    the rigged puppet (mascot_rig.py) will supply an ANIMATED mascot on top
+    instead. Without it the scene would carry a second, frozen copy of the
+    character underneath the animated one.
 
     ingredient_grid/process_action scenes render with no character at all —
     build_scene_prompt() omits the mascot from these entirely. Every other
@@ -183,11 +204,16 @@ def _scene_base_image_path(
     composition variety AND character consistency, instead of trading one
     for the other."""
     stype = scene.get("scene_type", "mascot")
-    scene_prompt = get_scene_image_prompt(scene, mascot)
+    if character_free:
+        # Reuse the character-free branch that ingredient_grid/process_action
+        # already take, rather than inventing a second no-mascot prompt.
+        scene_prompt = get_scene_image_prompt({**scene, "scene_type": "process_action"}, mascot)
+    else:
+        scene_prompt = get_scene_image_prompt(scene, mascot)
     out_path = generated_dir / "raw" / f"raw_{scene_index:02d}.png"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     reference_image_path = None
-    if stype not in ("ingredient_grid", "process_action"):
+    if not character_free and stype not in ("ingredient_grid", "process_action"):
         reference_image_path = _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
     image_provider.generate_scene_image(
         {"visual_prompt": scene_prompt}, scene_index, out_path, cost_tracker,
@@ -258,6 +284,170 @@ def _render_scene_clips(
         current_source = assembly.extract_last_frame(clip_path, last_frame_path)
 
     return clip_paths
+
+
+# Scene types where the rigged mascot replaces the drawn-in character.
+# ingredient_grid/process_action already render character-free by design.
+RIG_SCENE_TYPES = ("mascot", "mascot_reaction", "split_canvas")
+
+
+# --- Which scenes are worth paying to animate -------------------------------
+#
+# Measured on the reference short (2026-09-01): 9 of its 15 shots carry real
+# animation and the other 6 are held drawings. Animating everything is both
+# off-style and the dominant cost — video is 83% of a run's spend ($3.60 of
+# $4.34 at 16 clips), so every scene left static saves ~$0.22 AND removes a
+# chance for the model to invent motion the scene never called for.
+ANIMATED_SCENE_FRACTION = 0.6
+
+# A 2x2 grid of labelled icons has nothing to move; animating one only lets
+# the model drift and morph the items. process_action is the opposite case —
+# it exists to depict a physical process, so it always earns a clip.
+ALWAYS_STATIC_SCENE_TYPES = ("ingredient_grid",)
+ALWAYS_ANIMATED_SCENE_TYPES = ("process_action",)
+
+# Scene types that render the mascot large and centred, so its face — and
+# therefore its mouth — is big enough on screen to read.
+#
+# These are never animated (2026-09-02). Kling opens the mascot's mouth
+# partway through any clip containing a legible face: four separate levers
+# were tried (prompt wording, negative prompt, a closed-mouth source image,
+# and cfg_scale in both directions) and the best of them only held the mouth
+# shut for roughly the first 60% of a clip. Measured on real base images,
+# split_canvas renders the mascot substantially smaller than
+# mascot/mascot_reaction do, and Kling further reframes toward a close-up
+# once it starts from a large subject — so the reliable fix is to spend
+# clips on the smaller-mascot and character-free shots instead.
+#
+# This costs nothing: on the 15-scene script there are 7 split_canvas + 2
+# process_action scenes, exactly filling the 9-clip budget. It is also
+# closer to the reference short, which never animates a close-up — its
+# mascot sits at ~25% of frame height in every single shot.
+FACE_CLOSEUP_SCENE_TYPES = ("mascot", "mascot_reaction")
+
+# Verbs describing something physically moving or transforming on screen —
+# the shots animation actually buys something on. Worth more than a gesture.
+_TRANSFORM_MOTION_VERBS = (
+    "pour", "mix", "stir", "shake", "fall", "drop", "rise", "spin", "rotate",
+    "flow", "bubble", "boil", "erupt", "crack", "shatter", "crumble", "collapse",
+    "melt", "burn", "smoke", "splash", "spray", "swirl", "hammer", "carve", "dig",
+    "assemble", "stack", "tumble", "drip", "sink", "float", "fly", "grow", "shrink",
+    "roll", "slide", "throw", "jump", "dance", "walk", "run", "climb", "spill",
+    "harden", "set", "cure", "dry", "freeze", "crush", "grind", "sift", "knead",
+)
+# Character gestures: real movement, but small and localized. Enough to make a
+# scene animatable, not enough to outrank a scene where the subject transforms.
+_GESTURE_MOTION_VERBS = (
+    "raise", "gesture", "tilt", "point", "bow", "lean", "nod", "recoil", "wave",
+    "hold", "bring", "swing", "turn", "reach", "lift", "push", "pull", "open",
+    "close", "step", "shrug", "clap", "grab", "place", "set down", "present",
+)
+
+# Matched on WORD BOUNDARIES, with a trailing -s/-es/-ed/-ing allowed. Plain
+# substring matching silently fired on the wrong words — "run" inside
+# "around", "roll" inside "controlled", "set" inside "sunset" — which would
+# have bought paid clips for scenes that describe no motion at all.
+_MOTION_VERB_RE_CACHE: dict[tuple[str, ...], "re.Pattern[str]"] = {}
+
+
+def _motion_verb_pattern(verbs: tuple[str, ...]) -> "re.Pattern[str]":
+    cached = _MOTION_VERB_RE_CACHE.get(verbs)
+    if cached is None:
+        alternation = "|".join(re.escape(v) for v in sorted(verbs, key=len, reverse=True))
+        cached = re.compile(rf"\b(?:{alternation})(?:s|es|ed|ing)?\b")
+        _MOTION_VERB_RE_CACHE[verbs] = cached
+    return cached
+
+
+def scene_motion_score(scene: dict[str, Any]) -> int:
+    """How much real movement this scene's own text asks for.
+
+    Transform verbs (the subject itself moves or changes) count double;
+    character gestures count single. A scene that says "pours the mixture as
+    steam rises" outranks one that says "raises an arm", which in turn
+    outranks "stands looking concerned" — that last scores 0 and is never
+    animated, because paying to animate a shot whose script describes no
+    movement is exactly what produced invented, off-concept motion.
+    """
+    haystack = " ".join(
+        str(scene.get(field) or "") for field in ("motion", "action", "fx", "sfx")
+    ).lower()
+    transforms = set(_motion_verb_pattern(_TRANSFORM_MOTION_VERBS).findall(haystack))
+    gestures = set(_motion_verb_pattern(_GESTURE_MOTION_VERBS).findall(haystack))
+    return 2 * len(transforms) + len(gestures)
+
+
+def choose_animated_scenes(
+    scenes: list[dict[str, Any]], fraction: float = ANIMATED_SCENE_FRACTION
+) -> list[bool]:
+    """Decide, per scene, whether to spend a video clip on it.
+
+    Scene type settles the obvious cases; everything else is ranked by
+    scene_motion_score and the best-scoring scenes fill the remaining budget.
+    Ties break by scene order, so the choice is deterministic for a given
+    script — the determinism tests depend on that.
+
+    A scene that scores zero is never animated even if the budget has room:
+    paying to animate a shot whose own script describes no movement is what
+    produced the invented, off-concept motion in the first place. Neither is
+    a scene that puts the mascot's face large on screen — see
+    FACE_CLOSEUP_SCENE_TYPES for why, and note that leaving budget unspent
+    is the intended outcome there, not a bug.
+    """
+    budget = max(1, round(len(scenes) * fraction))
+    decisions = [False] * len(scenes)
+
+    forced = [
+        i for i, s in enumerate(scenes)
+        if (s.get("scene_type") or "") in ALWAYS_ANIMATED_SCENE_TYPES
+    ]
+    never = set(ALWAYS_STATIC_SCENE_TYPES) | set(FACE_CLOSEUP_SCENE_TYPES)
+    eligible = [
+        i for i, s in enumerate(scenes)
+        if i not in forced
+        and (s.get("scene_type") or "") not in never
+        and scene_motion_score(s) > 0
+    ]
+
+    for i in forced:
+        decisions[i] = True
+    remaining = max(0, budget - len(forced))
+    ranked = sorted(eligible, key=lambda i: (-scene_motion_score(scenes[i]), i))
+    for i in ranked[:remaining]:
+        decisions[i] = True
+    return decisions
+
+
+def _build_mascot_rig(settings, mascot, generated_dir: Path, image_provider, cost_tracker):
+    """Generate + slice the mascot's parts once per video.
+
+    Returns None on ANY problem, and the caller then renders exactly as it did
+    before the rig existed. That fallback is the point: a character sheet is a
+    generative output and cannot be relied on, so the rig must be a strict
+    improvement or a no-op — never a regression.
+    """
+    if not settings.mascot_rig_enabled:
+        return None
+    try:
+        from .mascot_rig import PART_NAMES, character_sheet_prompt, extract_parts_from_sheet
+        from PIL import Image as _Image
+
+        sheet = generated_dir / f"rig_sheet_{mascot.id}.png"
+        if not sheet.exists():
+            image_provider.generate_scene_image(
+                {"visual_prompt": character_sheet_prompt(mascot)}, "rig_sheet", sheet, cost_tracker,
+            )
+        parts_dir = generated_dir / f"rig_parts_{mascot.id}"
+        paths = extract_parts_from_sheet(sheet, parts_dir)
+        missing = [n for n in PART_NAMES if n not in paths]
+        if missing:
+            print(f"mascot rig: sheet yielded no {missing} — falling back to static mascot")
+            return None
+        return {name: _Image.open(paths[name]).convert("RGBA") for name in PART_NAMES}
+    except Exception as exc:                     # noqa: BLE001 - never fail a paid run over the rig
+        print(f"mascot rig unavailable ({exc}) — falling back to static mascot")
+        return None
+
 
 
 def run_pipeline(
@@ -354,6 +544,37 @@ def run_pipeline(
                     brief = build_brief_from_brain(
                         topic, research, safety_class.value, caution=caution_line(topic), idea=idea,
                     )
+                    # One scene per claim, so a short brief is literally a
+                    # short video. Real case 2026-09-01: brain covers "roman
+                    # concrete" well enough to use, but its extractive
+                    # fact-picking only yielded 9 usable facts, so the video
+                    # came out 9 scenes instead of the intended 15 while the
+                    # committed citation store for the same topic held 63
+                    # verified claims. Brain stays FIRST (it's free), but when
+                    # it can't fill the scene budget, fall back to citations —
+                    # and only if those genuinely do better, so a thin
+                    # citation store can never make the video WORSE than the
+                    # free brain brief we already have in hand.
+                    from .brief_builder import (
+                        MAX_CLAIMS_FOR_BRIEF,
+                        InsufficientVerifiedClaims,
+                        build_brief_from_citations,
+                    )
+
+                    if len(brief.get("claims", [])) < MAX_CLAIMS_FOR_BRIEF and citation_path.exists():
+
+                        try:
+                            richer = build_brief_from_citations(
+                                topic,
+                                json.loads(citation_path.read_text(encoding="utf-8")),
+                                safety_class.value,
+                                caution=caution_line(topic),
+                                idea=idea,
+                            )
+                        except InsufficientVerifiedClaims:
+                            richer = None
+                        if richer is not None and len(richer.get("claims", [])) > len(brief["claims"]):
+                            brief = richer
             if brief is None:
                 if not citation_path.exists():
                     raise FileNotFoundError(
@@ -428,11 +649,12 @@ def run_pipeline(
         # 2026-08-21) — the badge is composited on top of the real caption
         # instead, never instead of it.
         script["caution_text"] = caution_caption(topic)
-        # One caption style per video, chosen once and persisted — not
-        # re-randomized per scene/per render stage. regenerate_scene reads
-        # this same value back so a single-scene regeneration never mismatches
-        # the rest of the video's captions.
-        script["caption_style"] = get_random_caption_style_name()
+        # One caption style, persisted so regenerate_scene reads the same
+        # value back and a single-scene regeneration never mismatches the
+        # rest of the video. No longer randomized per video: the user picked
+        # one look (bold orange Impact, heavy black stroke) and asked for it
+        # everywhere. Override with CAPTION_STYLE in .env.
+        script["caption_style"] = settings.caption_style
         # Keep the provider result available when strict validation refuses
         # it. Previously the only copy was discarded, leaving Telegram with
         # an error but no artifact that explained which field was malformed.
@@ -562,6 +784,13 @@ def run_pipeline(
             ):
                 _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
 
+            # One character sheet per video buys unlimited articulated motion.
+            # Returns None on any problem, and every use below is guarded, so
+            # the run degrades to exactly the previous static behaviour.
+            rig_parts = _build_mascot_rig(
+                settings, mascot, generated_dir, image_provider, cost_tracker,
+            )
+
             def render_scene_image(i: int, scene: dict[str, Any]) -> Path:
                 worker_gateway = FalGateway(settings.fal_key) if uses_fal else None
                 worker_image_provider = get_image_provider(
@@ -574,7 +803,12 @@ def run_pipeline(
                     style_preset=settings.image_style,
                 )
                 return _scene_base_image_path(
-                    worker_image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
+                    worker_image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker,
+                    # With a rig available the mascot is animated on top, so
+                    # the background must NOT also contain a drawn one —
+                    # otherwise the scene carries a second, frozen character.
+                    character_free=bool(rig_parts)
+                    and scene.get("scene_type", "mascot") in RIG_SCENE_TYPES,
                 )
 
             base_image_paths: list[Path | None] = [None] * len(script["scenes"])
@@ -601,6 +835,14 @@ def run_pipeline(
                 caption_style=script["caption_style"],
                 caution_text=script["caution_text"],
                 subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
+                rig_parts=rig_parts,
+                rig_scene_types=RIG_SCENE_TYPES if rig_parts else (),
+                sfx_enabled=settings.sfx_enabled,
+                music_path=(
+                    Path(settings.music_sfx_source)
+                    if settings.music_sfx_source and Path(settings.music_sfx_source).exists()
+                    else None
+                ),
             )
         elif ai_video_mode:
             video_provider = get_video_provider(
@@ -641,7 +883,16 @@ def run_pipeline(
             batch_estimate = getattr(video_provider, "cost", 0.0) * len(script["scenes"]) * MAX_REAL_CLIPS_PER_SCENE
             cost_tracker.check_budget("video.generate_batch", batch_estimate)
 
+            # Not every scene earns a paid clip — see choose_animated_scenes.
+            # A scene left static still renders: assemble_animated hands an
+            # empty clip list to build_scene_video_segment_from_clip, which
+            # falls through to the pop-in-and-hold beat on the scene's own
+            # base image (the same visual language the sticker path uses).
+            animate_scene = choose_animated_scenes(script["scenes"])
+
             def render_clip(i: int, scene: dict[str, Any]) -> list[Path]:
+                if not animate_scene[i]:
+                    return []
                 # fal_client's synchronous client is not shared across worker
                 # threads; each concurrent request gets its own gateway.
                 worker_gateway = FalGateway(settings.fal_key)
@@ -687,6 +938,12 @@ def run_pipeline(
                 caution_text=script["caution_text"],
                 subscribe_cta_text=SUBSCRIBE_CTA_TEXT,
                 image_source=lambda i, _scene: base_image_paths[i],
+                sfx_enabled=settings.sfx_enabled,
+                music_path=(
+                    Path(settings.music_sfx_source)
+                    if settings.music_sfx_source and Path(settings.music_sfx_source).exists()
+                    else None
+                ),
             )
         else:
             # Keyed by mascot.id + _hero_cache_key() — see _get_or_create_hero_image's docstring.

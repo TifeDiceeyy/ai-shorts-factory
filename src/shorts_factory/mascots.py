@@ -40,6 +40,21 @@ class Mascot:
     motion_instruction: str
     scene_role_template: str = ""
 
+    @property
+    def hero_image_prompt(self) -> str:
+        """The hero prompt as actually sent to the image model.
+
+        Carries CLOSED_MOUTH_RULE so the one image every mascot scene is
+        edited from cannot hand Kling an open mouth to animate. Custom
+        mascots get their hero_prompt from the LLM, so applying it here
+        (rather than editing the hardcoded prompt strings) is what makes the
+        rule cover them too.
+
+        The rule goes FIRST. Appended to the end — after the long style and
+        background clauses — it was ignored outright in a real generation.
+        """
+        return f"{CLOSED_MOUTH_RULE} {self.hero_prompt}"
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -98,6 +113,7 @@ class Mascot:
             corner = "bottom-left" if layout == "split_bottom_left" else "bottom-right"
             opp_corner = "upper-right" if layout == "split_bottom_left" else "upper-left"
             prompt_parts = [
+                CLOSED_MOUTH_RULE,
                 "Split-canvas flat cel-shaded cartoon explainer composition, drawn in the SAME flat "
                 "illustration style as the mascot — bold black ink outlines, flat clean shading, NOT a "
                 "3D render, NOT photoreal, NOT glossy CGI — on a stark pure solid white background (#FFFFFF).",
@@ -118,6 +134,7 @@ class Mascot:
             return " ".join(prompt_parts)
         else:
             prompt_parts = [
+                CLOSED_MOUTH_RULE,
                 f"Full-body {self.name} mascot centered vertically in frame (small, occupying no more than 28% of vertical height, with generous empty white space above, below, and on both sides) on a stark pure solid white background (#FFFFFF).",
                 f"Role: {scene_role or 'explainer'}. Emotion: {_expand_emotion(emotion) or 'friendly enthusiastic expression'}.",
             ]
@@ -273,9 +290,44 @@ def object_fx_style_for(*texts: str | None) -> str | None:
 # — other emotions (curious, proud, triumphant, etc.) already render fine
 # and are left as plain adjectives.
 _FEAR_EMOTION_KEYWORDS = ("afraid", "scared", "alarmed", "terrified", "panicked", "panicking", "shocked", "frightened")
+# Note what is NOT said here: "grimace". The fear expansion used to end in
+# a "worried grimace", and a real generation drew exactly what a cartoon
+# grimace conventionally is — bared, gritted teeth (verified 2026-09-01),
+# defeating CLOSED_MOUTH_RULE on precisely the scenes that need it most.
+# The fear now lives in the eyes and brows, and the mouth is described as
+# the shape to draw rather than as an emotion word.
 _FEAR_EMOTION_EXPANSION = (
-    "wide terrified eyes, eyebrows raised in fear, mouth open in a startled gasp, recoiling slightly away "
-    "from what's in front of them"
+    "wide terrified eyes, eyebrows raised high in fear, the mouth a small tight closed line with the "
+    "corners pulled down, recoiling slightly away from what's in front of them"
+)
+
+
+# Measured root cause of the lip-sync failure (2026-09-01): the generated hero
+# and scene images carried an OPEN mouth (a grin with teeth showing), and Kling
+# was then told to animate them while simultaneously being pushed hard away
+# from holding still. Given a mouth that is already open and a mandate to move
+# something, the mouth is what it moves — which reads as talking. Two earlier
+# attempts only added more words to the Kling prompt and both failed, because
+# they were arguing against the anti-static pressure sitting beside them. The
+# mouth has to be SHUT IN THE SOURCE IMAGE so there is nothing there to
+# animate. Applied to every image prompt: hero and per-scene, hardcoded and
+# LLM-authored mascots alike.
+# Deliberately expression-NEUTRAL: it says only that the mouth is shut, never
+# that the character is smiling. An earlier wording ended "...in a gentle
+# closed-lip smile", which contradicted the emotion line on fear scenes
+# (then "lips pressed tightly together in a worried grimace") and left the
+# image model to reconcile a grimace with a smile.
+#
+# Phrased as a POSITIVE drawing instruction, not a list of negations. The
+# first version of this rule was mostly "no open mouth, no teeth showing" and
+# a real generation ignored it completely, rendering the usual open grin with
+# teeth (verified 2026-09-01) — the well-known failure of negative phrasing
+# in image models, which tend to render the very noun being negated. Telling
+# it what line to DRAW works where telling it what to omit does not.
+CLOSED_MOUTH_RULE = (
+    "The mouth is drawn as one simple thin closed curved line with the lips sealed shut, "
+    "the way a calm resting mouth is drawn in flat cartoon line art — a sealed line only, "
+    "with no gap between the lips, no visible teeth, no tongue and no dark mouth interior."
 )
 
 
@@ -298,7 +350,7 @@ MASCOT_1 = Mascot(
         "fill the frame. "
         "The character is fully clothed: wearing a classic polished bronze helmet with red brush crest, "
         "a red cape over a Roman tunic with leather armor strips and bronze buckles, and strapped sandals. "
-        "Expressive cartoon eyes, animated bushy eyebrows, and engaging friendly expression. "
+        "Expressive cartoon eyes, animated bushy eyebrows, and engaging friendly expression, mouth closed. "
         "No bare skin visible except face, forearms, and calves; do not depict shirtless or undressed. "
         "Stark pure solid white background (#FFFFFF) only, zero background details, zero floor shadows, sticker framing."
     ),
@@ -318,7 +370,7 @@ MASCOT_1 = Mascot(
         "Cast the Roman legionary mascot into a narrative role suited to each scene beat while preserving the bronze helmet and red cape DNA: "
         "Hook=alarmed legionary reacting to a crisis; Discovery=ancient legionary unearthing raw materials; "
         "Process=legionary builder in work tunic mixing materials with mortar tools; Challenge=legionary testing or pouring with tongs; "
-        "Payoff=triumphant legionary proudly displaying the finished invention with a victory grin."
+        "Payoff=triumphant legionary proudly displaying the finished invention with a closed-lip victory smile."
     ),
 )
 
@@ -348,7 +400,7 @@ MASCOT_2 = Mascot(
     motion_instruction=(
         "For every scene's `visual_prompt`, describe the Chibi Engineer's snappy cartoon movements and facial expressions "
         "(e.g. 'Chibi engineer scratches head in confusion with wide curious eyes, tilting head', "
-        "or 'Chibi engineer enthusiastically gestures with both hands with a bright open smile while explaining'). "
+        "or 'Chibi engineer enthusiastically gestures with both hands with a bright closed-lip smile while explaining'). "
         "Keep the character centered against the clean solid white background."
     ),
     scene_role_template=(
@@ -408,7 +460,7 @@ MASCOT_4 = Mascot(
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or "
         "fill the frame. "
         "Charming expressive facial features with tousled wavy brown hair, warm expressive animated eyes, "
-        "a neatly-groomed rugged full brown dwarf beard and mustache, and a friendly engaging smile. "
+        "a neatly-groomed rugged full brown dwarf beard and mustache, and a friendly engaging expression with the mouth closed. "
         "Wearing an antique metal skull-cap / iron kettle helmet, a frayed burlap cowl scarf draped around his neck, "
         "a weathered brown leather scavenger duster coat with frayed tattered hem, utility belt with pouches and brass buckles, "
         "leather work gloves, and sturdy strapped adventurer boots, holding a tall wooden walking staff in one hand and gesturing forward with open palm. "
@@ -425,7 +477,7 @@ MASCOT_4 = Mascot(
     ),
     motion_instruction=(
         "For every scene's `visual_prompt`, describe the Bearded Dwarf Explorer mascot's dynamic ACTION, EMOTIONS, and GESTURES for Hailuo-02 "
-        "(e.g. 'Bearded dwarf explorer points his wooden staff up and widens eyes with an amazed smile at the floating discovery', "
+        "(e.g. 'Bearded dwarf explorer points his wooden staff up and widens eyes with an amazed closed-lip smile at the floating discovery', "
         "or 'Bearded dwarf explorer strokes his beard thoughtfully, gesturing with open hand with curious expression'). "
         "Keep the character isolated against the stark solid white background."
     ),
@@ -435,7 +487,7 @@ MASCOT_4 = Mascot(
         "Discovery=bearded dwarf scholar examining raw minerals with magnifying glass; "
         "Process=bearded dwarf craftsman boiling and mixing ingredients in rustic cauldron; "
         "Challenge=bearded dwarf builder pressing hot casting molds with leather gloves; "
-        "Payoff=triumphant bearded dwarf explorer stroking beard and presenting the finished invention with a proud victory grin."
+        "Payoff=triumphant bearded dwarf explorer stroking beard and presenting the finished invention with a proud closed-lip victory smile."
     ),
 )
 
@@ -472,7 +524,7 @@ MASCOT_5 = Mascot(
         "Cast the Bushcraft Alchemist mascot into a narrative role suited to each scene beat while preserving the green hooded cowl and copper flask DNA: "
         "Hook=bushcraft survivor reacting to dirty/unusable wild material; Discovery=herbalist harvesting wild ash/resins; "
         "Process=alchemist distilling liquids in copper alembic with rising vapor; Challenge=survivalist filtering through charcoal layers; "
-        "Payoff=satisfied alchemist holding clean crystal-clear product with proud smile."
+        "Payoff=satisfied alchemist holding clean crystal-clear product with a proud closed-lip smile."
     ),
 )
 

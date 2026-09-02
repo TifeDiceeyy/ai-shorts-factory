@@ -3,9 +3,11 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from shorts_factory import assembly
 from shorts_factory.assembly import (
     assemble_animated,
     narration_caption_cues,
+    narration_caption_lines,
     probe_duration,
     synthesize_scenes,
     write_captions_srt,
@@ -35,14 +37,25 @@ def test_stub_video_provider_produces_a_clip_of_the_fixed_clip_length(tmp_path):
 
 
 def test_narration_caption_cues_preserve_every_spoken_word_and_cover_duration():
+    """Captions must never drift from the voiceover.
+
+    Since 2026-09-01 the display cues ACCUMULATE (a line types itself out
+    word by word before clearing), so joining their text no longer
+    reproduces the narration — each cue's newly-added word does, and the
+    line-level view does. Both are checked here; the contiguity and
+    full-duration-coverage guarantees are unchanged."""
     narration = "Could you make a metal tool from scratch? Ancient humans used smelting."
     cues = narration_caption_cues(narration, 7.25)
 
-    assert " ".join(cue.text for cue in cues) == narration
+    # one cue per word, and the new word of each cue walks the narration
+    assert [cue.text.split()[-1] for cue in cues] == narration.split()
+    # the line-level view (what the SRT uses) reproduces it verbatim
+    assert " ".join(c.text for c in narration_caption_lines(narration, 7.25)) == narration
+
     assert cues[0].start == 0.0
     assert cues[-1].end == 7.25
     assert all(a.end == b.start for a, b in zip(cues, cues[1:]))
-    assert all(len(cue.text.split()) <= 3 for cue in cues)
+    assert all(len(cue.text.split()) <= assembly.CAPTION_WORDS_PER_LINE for cue in cues)
 
 
 def test_srt_uses_exact_narration_chunks_not_summary_caption(tmp_path):
@@ -133,7 +146,7 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *args, **kwargs: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *args, **kwargs: FakeVideoProvider())
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None, subscribe_cta_text=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None, subscribe_cta_text=None, **kwargs):
         boxes = []
         for i, s in enumerate(scenes):
             clip_source(i, s)
@@ -200,12 +213,26 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
         else:
             assert had_reference is True
 
-    # 3. Video calls were made for all scenes, each animating that scene's
-    # own freshly-generated raw image (not the literal hero image directly)
-    # — this is what lets composition (small-and-pointing, big-and-reacting,
-    # split-canvas) actually vary per scene instead of every mascot scene
-    # animating one identical frozen pose.
-    assert len(video_calls) == len(scenes)
+    # 3. Video calls animate that scene's own freshly-generated raw image
+    # (not the literal hero image directly) — this is what lets composition
+    # (small-and-pointing, big-and-reacting, split-canvas) actually vary per
+    # scene instead of every mascot scene animating one identical frozen
+    # pose.
+    #
+    # NOT every scene gets a clip: since 2026-09-01 pipeline.
+    # choose_animated_scenes spends clips only on scenes whose own script
+    # describes real movement (see its docstring — animating a shot that
+    # describes none is what produced invented, off-concept motion, and
+    # video is 83% of a run's cost). So the assertion is that the scenes
+    # animated are exactly the ones chosen, not that all of them were.
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    expected_animated = [i for i, want in enumerate(choose_animated_scenes(scenes)) if want]
+    # sorted(): clips render on a thread pool, so completion order varies.
+    assert sorted(s_idx for s_idx, _n, _m in video_calls) == expected_animated
+    assert 0 < len(video_calls) < len(scenes), (
+        "this fixture should exercise a mix of animated and static scenes"
+    )
     for s_idx, base_image_name, _motion_prompt in video_calls:
         assert base_image_name == f"raw_{s_idx:02d}.png"
 
@@ -248,6 +275,15 @@ def test_hero_cache_key_changes_with_model_or_style_or_prompt():
     class _FakeMascot:
         hero_prompt = "a different hero prompt text"
         id = "mascot_4"
+
+        @property
+        def hero_image_prompt(self) -> str:
+            # Mirrors Mascot.hero_image_prompt: the cache key is built from
+            # the prompt as actually SENT to the image model, which carries
+            # the closed-mouth rule, not from the bare hero_prompt field.
+            from shorts_factory.mascots import CLOSED_MOUTH_RULE
+
+            return f"{CLOSED_MOUTH_RULE} {self.hero_prompt}"
 
     key_d = _hero_cache_key(_FakeMascot(), "fal-ai/recraft-v3", "digital_illustration/hand_drawn_outline")
     assert key_a != key_d, "changing the mascot's hero_prompt text must change the cache key"
@@ -299,7 +335,7 @@ def test_switching_mascot_never_reuses_a_different_mascots_hero_image(tmp_path, 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
     monkeypatch.setattr(pipeline, "get_video_provider", lambda *a, **k: FakeVideoProvider())
 
-    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None, subscribe_cta_text=None):
+    def fake_assemble_animated(scenes, clip_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, image_source=None, subscribe_cta_text=None, **kwargs):
         for i, s in enumerate(scenes):
             clip_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
@@ -391,7 +427,12 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
 
     monkeypatch.setattr(pipeline, "get_image_provider", lambda *a, **k: FakeImageProvider())
 
-    def fake_assemble_stickers(scenes, image_source, audio, workdir, out_mp4, caption_style=None, caution_text=None, subscribe_cta_text=None):
+    # **kwargs so this double survives new optional params on the real
+    # assemble_stickers (rig_parts/sfx_enabled/... were added 2026-09-01)
+    # without the test failing for a reason unrelated to what it checks.
+    def fake_assemble_stickers(scenes, image_source, audio, workdir, out_mp4,
+                               caption_style=None, caution_text=None,
+                               subscribe_cta_text=None, **kwargs):
         for i, s in enumerate(scenes):
             image_source(i, s)
         return {"caption_boxes": [assembly.CaptionBox(100, 300, 900, 500) for _ in scenes]}
@@ -453,7 +494,10 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
         i for i, s in enumerate(scenes) if s.get("scene_type") in ("ingredient_grid", "process_action")
     ]
     assert mascot_scene_indices, "test script must contain at least one mascot-type scene"
-    per_scene_calls = {idx: ref for idx, ref in image_calls if idx != "hero"}
+    # Keep only real per-scene renders. Non-scene calls use a string id: the
+    # hero, and since 2026-09-01 the mascot rig's character sheet — including
+    # them mixed int and str keys and broke the sort below.
+    per_scene_calls = {idx: ref for idx, ref in image_calls if isinstance(idx, int)}
     assert sorted(per_scene_calls) == list(range(len(scenes)))
     for i in mascot_scene_indices:
         assert per_scene_calls[i] == real_hero_path
@@ -540,3 +584,128 @@ def test_regenerate_scene_animate_path_does_not_crash(tmp_path, monkeypatch):
     assert result.verification is not None
     final_mp4 = tmp_path / "soap" / "soap.mp4"
     assert final_mp4.exists()
+
+
+def test_scenes_without_described_motion_are_never_animated():
+    """Paying to animate a shot whose own script describes no movement is
+    what produced invented, off-concept motion — the model has to put
+    SOMETHING on screen, so it invents it. A zero-scoring scene stays
+    static even when the animation budget still has room."""
+    from shorts_factory.pipeline import choose_animated_scenes, scene_motion_score
+
+    still = {"scene_type": "mascot", "motion": "stands looking concerned at the camera"}
+    assert scene_motion_score(still) == 0
+    decisions = choose_animated_scenes([still, still, still, still])
+    assert decisions == [False, False, False, False]
+
+
+def test_motion_verbs_match_on_word_boundaries_not_substrings():
+    """Substring matching silently fired on the wrong words: "run" inside
+    "around", "roll" inside "controlled", "set" inside "sunset". Each would
+    have bought a paid clip for a scene describing no motion at all."""
+    from shorts_factory.pipeline import scene_motion_score
+
+    for text in ("a wall in the background", "the sunset glow", "a controlled setting"):
+        assert scene_motion_score({"motion": text}) == 0, text
+    assert scene_motion_score({"motion": "walks around the pot"}) > 0
+
+
+def test_transforming_subjects_outrank_mere_gestures():
+    """Budget is limited, so ranking decides which scenes get the clips.
+    A shot where the subject itself changes is worth more than one where
+    the character moves an arm."""
+    from shorts_factory.pipeline import scene_motion_score
+
+    pour = {"motion": "pours the mixture as steam rises"}
+    gesture = {"motion": "raises an arm"}
+    assert scene_motion_score(pour) > scene_motion_score(gesture) > 0
+
+
+def test_scene_type_forces_the_obvious_cases():
+    """A 2x2 grid of labelled icons has nothing to move and animating it
+    only lets the model drift and morph the items; process_action exists to
+    depict a physical process and always earns its clip."""
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    scenes = [
+        {"scene_type": "ingredient_grid", "motion": "the items pour and swirl and bubble"},
+        {"scene_type": "process_action", "motion": ""},
+    ]
+    assert choose_animated_scenes(scenes) == [False, True]
+
+
+def test_animated_fraction_matches_the_measured_reference():
+    """The reference short animates 9 of its 15 shots and holds the other 6.
+    Animating everything is both off-style and the dominant cost — video is
+    83% of a run's spend, so each scene left static saves ~$0.22."""
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    # split_canvas, not mascot: mascot/mascot_reaction are close-ups and are
+    # excluded outright (see FACE_CLOSEUP_SCENE_TYPES), so they can never
+    # demonstrate the fraction cap.
+    scenes = [
+        {"scene_type": "split_canvas", "motion": f"pours and stirs and shakes item {i}"}
+        for i in range(15)
+    ]
+    assert sum(choose_animated_scenes(scenes)) == 9
+
+
+def test_choice_is_deterministic_for_a_given_script():
+    """The determinism tests require the same script to produce the same
+    render; ties must break by scene order, never by dict iteration."""
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    scenes = [{"scene_type": "split_canvas", "motion": "raises an arm"} for _ in range(10)]
+    first = choose_animated_scenes(scenes)
+    assert all(choose_animated_scenes(scenes) == first for _ in range(5))
+    assert first[0] is True, "ties must resolve toward the earlier scene"
+
+
+def test_face_closeups_are_never_animated():
+    """Kling opens the mascot's mouth partway through any clip containing a
+    legible face.
+
+    Four levers were tried and all fell short (2026-09-01/02): prompt
+    wording, negative prompt, a closed-mouth source image, and cfg_scale in
+    both directions. The best of them held the mouth shut for only about the
+    first 60% of a clip. Measured on real base images, mascot/mascot_reaction
+    render the character large and centred while split_canvas renders it
+    substantially smaller, and Kling reframes toward a close-up when it
+    starts from a large subject. So clips are spent on the smaller-mascot
+    and character-free shots instead — which is also what the reference
+    short does, never animating a close-up.
+    """
+    from shorts_factory.pipeline import FACE_CLOSEUP_SCENE_TYPES, choose_animated_scenes
+
+    scenes = [
+        {"scene_type": t, "motion": "pours and stirs and shakes and jumps and dances"}
+        for t in FACE_CLOSEUP_SCENE_TYPES
+    ]
+    assert choose_animated_scenes(scenes) == [False] * len(scenes), (
+        "a close-up must stay static even with a maximal motion score"
+    )
+
+
+def test_closeup_exclusion_leaves_the_budget_unspent_rather_than_substituting():
+    """Leaving clips unbought is the intended outcome, not a bug to paper
+    over: there is no such thing as a safe close-up clip, so the budget must
+    not be refilled from the excluded pool."""
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    scenes = [{"scene_type": "mascot_reaction", "motion": "jumps and dances"} for _ in range(10)]
+    assert sum(choose_animated_scenes(scenes)) == 0
+
+
+def test_split_canvas_and_process_still_fill_the_budget():
+    """The swap has to cost nothing. On the real 15-scene shape there are 7
+    split_canvas + 2 process_action scenes, which is exactly the 9-clip
+    budget the old close-up-inclusive selection also spent."""
+    from shorts_factory.pipeline import choose_animated_scenes
+
+    scenes = (
+        [{"scene_type": "split_canvas", "motion": "raises an arm and points"} for _ in range(7)]
+        + [{"scene_type": "process_action", "motion": "pours the mixture"} for _ in range(2)]
+        + [{"scene_type": "mascot_reaction", "motion": "jumps"} for _ in range(5)]
+        + [{"scene_type": "ingredient_grid", "motion": "items appear"}]
+    )
+    assert sum(choose_animated_scenes(scenes)) == 9

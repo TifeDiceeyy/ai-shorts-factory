@@ -421,7 +421,14 @@ def test_fal_video_uses_motion_prompt_not_raw_visual_prompt(tmp_path):
     assert args["prompt"].startswith("small mascot in the bottom-left corner pointing up at a floating soap bar")
     assert "stale description" not in args["prompt"]
     assert "must not speak or lip-sync" in args["prompt"]
-    assert "must never go completely static" in args["prompt"]
+    # The prompt used to also demand the frame "must never go completely
+    # static". That demand competed with the mouth-closed instruction beside
+    # it and the mouth lost: given a source image with an open mouth and an
+    # order to keep moving, Kling animated the mouth and the character
+    # appeared to talk (verified against real clips, 2026-09-01). Scenes that
+    # want no motion are now simply not sent to Kling, so the request must
+    # NOT carry an anti-static demand any more.
+    assert "must never go completely static" not in args["prompt"]
 
 
 def test_fal_video_kling_formats_aspect_ratio_and_duration(tmp_path):

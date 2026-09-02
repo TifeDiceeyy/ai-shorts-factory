@@ -15,7 +15,14 @@ from typing import Any
 
 DEFAULT_MIN_CONFIDENCE = 0.5
 MIN_CLAIMS_FOR_BRIEF = 4
-MAX_CLAIMS_FOR_BRIEF = 6
+# Raised 6 -> 15 on 2026-09-01 (user: videos should be busy, no slow
+# moments). One scene per claim, so this IS the scene count. 15 scenes
+# across the 40-50s window is a cut roughly every 3s, matching the
+# reference short's pacing. The citation stores comfortably support it:
+# roman_concrete has 63 verified claims, soap 66, concrete 50. A topic
+# with fewer simply yields fewer scenes — MIN_CLAIMS_FOR_BRIEF still
+# guards the floor.
+MAX_CLAIMS_FOR_BRIEF = 15
 
 
 class InsufficientVerifiedClaims(Exception):

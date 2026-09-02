@@ -41,10 +41,10 @@ NONVERBAL_CONTINUOUS_MOTION = (
     "own motion instruction calls for it — hand/arm gestures, movement of a hand-held prop, or a slight leg/"
     "weight-shift. The mouth must remain fully closed at all times — no opening, no talking, no mouthing "
     "words, no lip movement, and no jaw movement whatsoever. The character must not speak or lip-sync to the "
-    "narration under any circumstance: no talking mouth shapes. The frame overall must never go completely "
-    "static for the whole clip — but that continuous motion should come from breathing/blinking or an "
-    "animated prop/environment (per the scene's own motion instruction), not from the character bouncing, "
-    "hopping, or performing repeated idle movement."
+    "narration under any circumstance: no talking mouth shapes. Motion should be gentle and restrained: it is "
+    "better for the character to be nearly still than for the face to move. Any movement should come from "
+    "breathing/blinking or an animated prop/environment (per the scene's own motion instruction), not from "
+    "the character bouncing, hopping, or performing repeated idle movement."
 )
 
 
@@ -53,17 +53,28 @@ NONVERBAL_CONTINUOUS_MOTION = (
 # real generated clip — negative_prompt is a second, independent lever
 # (fal.ai's Kling docs list it separately from the main prompt) worth
 # stacking rather than relying on prompt wording alone.
+#
+# 2026-09-01: stacking those two levers ALSO failed, and measuring the clips
+# showed why — this list used to open with "static, frozen, still image,
+# motionless, no movement, paused", and cfg_scale was raised to 0.7 to force
+# compliance with it. So the request simultaneously demanded "never hold
+# still" and "mouth completely closed", with high prompt adherence, over a
+# source image whose mouth was already open. In a character close-up the
+# mouth is the most animatable thing in frame, so the anti-static half won
+# and the character talked. The anti-static terms were freeze-era
+# compensation from when Kling returned dead clips; scenes that genuinely
+# want no motion are now handled by not sending them to Kling at all, so the
+# pressure is removed here rather than fought with more words.
 KLING_NEGATIVE_PROMPT = (
-    "static, frozen, still image, motionless, frozen pose, no movement, paused, "
     "talking, speaking, open mouth, moving mouth, moving lips, lip sync, mouth movement, "
+    "jaw movement, teeth showing, singing, shouting, "
     "blur, distort, low quality"
 )
-# fal.ai's documented default is 0.5 (confirmed via API docs, 2026-08-27). Raising
-# it pushes the model to follow the motion prompt (NONVERBAL_CONTINUOUS_MOTION +
-# Mascot.build_scene_motion_prompt) more literally, at the cost of some prompt
-# creativity — an explicit trade we want here since under-animation (not
-# over-literalness) is the failure mode we've actually hit.
-KLING_CFG_SCALE = 0.7
+# fal.ai's documented default is 0.5 (confirmed via API docs, 2026-08-27).
+# Back to the default: 0.7 was raised to force literal compliance with the
+# anti-static wording above, and with that wording gone the high adherence
+# now mostly serves to over-drive facial motion.
+KLING_CFG_SCALE = 0.5
 
 
 def get_video_model_config(model: str) -> tuple[float, dict[str, Any]]:

@@ -467,3 +467,61 @@ def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     result = run_pipeline("soap", artifacts_root=tmp_path)
     assert result.mascot_id == "mascot_4"
     assert (tmp_path / "soap" / "soap.script.json").exists()
+
+
+def test_every_mascot_image_prompt_demands_a_closed_mouth():
+    """The lip-sync fix lives in the IMAGE prompt, not the video prompt.
+
+    Root cause found 2026-09-01: the generated hero and scene images carried
+    an open, teeth-showing grin, and Kling was then asked to animate them.
+    In a character close-up the mouth is the most animatable thing in frame,
+    so it moved, and the mascot appeared to lip-sync the narration. Two
+    earlier fixes only added wording to the Kling prompt and both failed.
+    The mouth has to be shut in the source image so there is nothing there
+    to animate — on the hero AND on every mascot scene, since scenes are
+    edited from the hero but re-state the expression themselves.
+    """
+    from shorts_factory.mascots import CLOSED_MOUTH_RULE
+
+    for mascot in MASCOTS.values():
+        assert CLOSED_MOUTH_RULE in mascot.hero_image_prompt, f"{mascot.id} hero"
+        for layout in ("centered", "split_bottom_left"):
+            prompt = mascot.build_scene_prompt(
+                scene_role="explainer", emotion="curious", layout=layout
+            )
+            assert CLOSED_MOUTH_RULE in prompt, f"{mascot.id} {layout}"
+
+
+def test_closed_mouth_rule_leads_the_prompt_and_avoids_bare_negation():
+    """Two real generations were lost to prompt mechanics, not to intent.
+
+    The rule was first APPENDED after the long style/background clauses and
+    was ignored outright — the model rendered the usual open grin. It was
+    also phrased as negations ("no open mouth, no teeth showing"), which
+    image models notoriously render rather than omit. Front-loading it and
+    restating it as a positive drawing instruction ("drawn as one simple
+    thin closed curved line") is what actually produced a closed mouth.
+    """
+    from shorts_factory.mascots import CLOSED_MOUTH_RULE
+
+    assert CLOSED_MOUTH_RULE.startswith("The mouth is drawn as"), (
+        "the rule must lead with what to DRAW, not with what to omit"
+    )
+    for mascot in MASCOTS.values():
+        assert mascot.hero_image_prompt.startswith(CLOSED_MOUTH_RULE), f"{mascot.id}"
+        assert mascot.build_scene_prompt(scene_role="x").startswith(CLOSED_MOUTH_RULE)
+
+
+def test_fear_scenes_do_not_ask_for_a_grimace():
+    """A cartoon grimace is drawn with bared, gritted teeth.
+
+    The fear expansion used to end in a "worried grimace" and a real
+    generation rendered exactly that — defeating the closed-mouth rule on
+    the alarmed/shocked scenes that open most videos.
+    """
+    from shorts_factory.mascots import _FEAR_EMOTION_KEYWORDS, _expand_emotion
+
+    for keyword in _FEAR_EMOTION_KEYWORDS:
+        expanded = _expand_emotion(keyword).lower()
+        for banned in ("grimace", "teeth", "gasp", "open mouth", "shout", "scream"):
+            assert banned not in expanded, f"{keyword!r} expansion still says {banned!r}"

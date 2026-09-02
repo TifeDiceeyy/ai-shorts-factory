@@ -27,13 +27,14 @@
           "source_claim_id": { "type": "string", "pattern": "^claim-[0-9]{2}$" },
           "camera": { "type": "string", "minLength": 1 },
           "sfx": { "type": ["string", "null"] },
-          "mascot_role": { "type": "string" },
-          "mascot_emotion": { "type": "string" },
-          "action": { "type": "string" },
+          "mascot_role": { "type": ["string", "null"] },
+          "mascot_emotion": { "type": ["string", "null"] },
+          "action": { "type": ["string", "null"] },
           "props": { "type": ["string", "null"] },
-          "layout": { "type": "string" },
+          "layout": { "type": ["string", "null"] },
           "scene_type": { "type": "string" },
-          "fx": { "type": ["string", "null"] }
+          "fx": { "type": ["string", "null"] },
+          "motion": { "type": ["string", "null"], "maxLength": 400 }
         }
       }
     }

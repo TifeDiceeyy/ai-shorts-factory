@@ -58,6 +58,19 @@ class Settings:
 
     telegram_bot_token: str
     telegram_allowed_user_ids: tuple[int, ...]
+    # Pinned rather than randomized per video — direct user instruction
+    # 2026-09-01 ("this should only be the caption style"), matching the bold
+    # orange Impact + heavy black stroke look they supplied. Has a default so
+    # existing Settings(...) constructions (tests included) keep working.
+    caption_style: str = "comic_punch_orange"
+    # Synthesized pops/whooshes under the narration. On by default: the
+    # reference short carries ~40 transients across 43s and the pop is what
+    # sells an ingredient appearing, since it snaps on with no motion path.
+    sfx_enabled: bool = True
+    # Rigged puppet mascot (mascot_rig.py). On by default, but every failure
+    # point falls back to the previous static behaviour, so a bad character
+    # sheet can never make output worse than it was.
+    mascot_rig_enabled: bool = True
     default_mascot_id: str = "mascot_4"
     # "sticker" (default, 2026-08-27): still images pop-in/hard-cut, motion-
     # graphics style — no video provider call, zero video spend. "ai_video":
@@ -220,6 +233,12 @@ def load_settings() -> Settings:
         search_api_key=search_api_key,
         fal_key=_env("FAL_KEY"),
         fal_llm_endpoint=_env("FAL_LLM_ENDPOINT", "openrouter/router"),
+        # Pinned, not randomized — direct user instruction 2026-09-01
+        # ("this should only be the caption style"), matching the
+        # bold orange Impact + heavy black stroke look they sent.
+        caption_style=_env("CAPTION_STYLE", "comic_punch_orange"),
+        sfx_enabled=_env("SFX_ENABLED", "true").strip().lower() not in ("0", "false", "no"),
+        mascot_rig_enabled=_env("MASCOT_RIG_ENABLED", "true").strip().lower() not in ("0", "false", "no"),
         tts_voice=_env("TTS_VOICE", "Rachel"),
         image_style=_env("IMAGE_STYLE", "digital_illustration/hand_drawn_outline"),
         llm_cost_per_script_usd=money("LLM_COST_PER_SCRIPT_USD"),

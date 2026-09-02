@@ -10,6 +10,7 @@ tests/test_determinism.py, which hashes two independent runs.
 from __future__ import annotations
 
 import json
+import math
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+import numpy as np
 from PIL import Image, ImageChops, ImageStat
 
 from .captions import (
@@ -57,6 +59,22 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     if result.returncode != 0:
         raise RuntimeError(f"command failed: {' '.join(cmd)}\nstderr:\n{result.stderr}")
     return result
+
+
+def _ffmpeg_bin() -> str:
+    """Resolve ffmpeg the same way every other call site does — a plain
+    "ffmpeg" off PATH when one is installed, otherwise the wheel-bundled
+    binary from imageio_ffmpeg (which is why the README says no separate
+    ffmpeg install is needed). Only the rawvideo-pipe writer needs the
+    resolved path explicitly; the _run() call sites can rely on PATH."""
+    import shutil
+
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
 
 
 def solid_color_frame(index: int) -> Image.Image:
@@ -104,41 +122,49 @@ class TimedCaptionOverlay:
     box: CaptionBox
 
 
+# Captions type themselves out word by word and clear every N words, rather
+# than showing one lone word at a time. Direct user instruction 2026-09-01:
+# a single word replaced on every beat vanishes too fast to read ("what about
+# slow readers"), so words accumulate into a short line and only then reset.
+CAPTION_WORDS_PER_LINE = 4
+
+
 def narration_caption_cues(
     narration: str,
     duration: float,
-    max_words: int = 3,
-    max_chars: int = 22,
+    words_per_line: int = CAPTION_WORDS_PER_LINE,
 ) -> list[CaptionCue]:
     """Split the exact narration into short, contiguous timed captions.
 
     Timing is proportional to spoken-character weight within the measured
     TTS duration. This keeps every displayed word identical to the voiceover
     without requiring a second speech-to-text provider call.
+
+    One cue per word, each showing the line accumulated so far — a typewriter
+    reveal that stays readable — clearing every words_per_line words. There is
+    no scale-punch: a new word cuts straight in rather than bouncing (see
+    _append_caption_cue_stage).
     """
     words = narration.split()
     if not words:
         return []
 
-    chunks: list[str] = []
-    current: list[str] = []
-    for word in words:
-        candidate = " ".join([*current, word])
-        if current and (len(current) >= max_words or len(candidate) > max_chars):
-            chunks.append(" ".join(current))
-            current = [word]
-        else:
-            current.append(word)
-    if current:
-        chunks.append(" ".join(current))
-
-    weights = [max(1, len(re.sub(r"[^A-Za-z0-9]", "", chunk))) for chunk in chunks]
-    total_weight = sum(weights)
-    cursor = 0.0
+    # One cue per word, but each cue shows the words ACCUMULATED so far
+    # within its line, so the line types itself out and a slow reader still
+    # has the whole phrase in front of them. Every CAPTION_WORDS_PER_LINE
+    # words the line clears and the next one starts building.
     cues: list[CaptionCue] = []
-    for index, (chunk, weight) in enumerate(zip(chunks, weights)):
-        end = duration if index == len(chunks) - 1 else cursor + duration * weight / total_weight
-        cues.append(CaptionCue(text=chunk, start=cursor, end=end))
+    cursor = 0.0
+    # Timing is weighted by each NEW word's own spoken length, not by the
+    # accumulated text — otherwise later words in a line would each be held
+    # progressively longer than they're actually spoken.
+    weights = [max(1, len(re.sub(r"[^A-Za-z0-9]", "", w))) for w in words]
+    total_weight = sum(weights)
+    for index, (word, weight) in enumerate(zip(words, weights)):
+        line_start = (index // words_per_line) * words_per_line
+        text = " ".join(words[line_start:index + 1])
+        end = duration if index == len(words) - 1 else cursor + duration * weight / total_weight
+        cues.append(CaptionCue(text=text, start=cursor, end=end))
         cursor = end
     return cues
 
@@ -294,13 +320,29 @@ _FREEZE_EVENT_RE = re.compile(
 # Beyond ~1.8x, stretching a short usable clip into slow motion starts
 # reading as barely-moving rather than as real playback speed.
 MAX_CLIP_STRETCH_FACTOR = 1.8
-# Zoom increment applied every output frame (30fps) by the always-on Ken
-# Burns pan in build_scene_video_segment_from_clip. Chosen empirically
-# (2026-08-27): a subtler rate (~0.0003-0.0006/frame) still reads as
-# perceptibly static over 1-2s windows on real footage — confirmed via direct
-# frame comparison, not just freezedetect. This rate produces clearly
-# noticeable zoom progression by 5s in.
-KEN_BURNS_ZOOM_PER_FRAME = 0.0012
+# Zoom increment applied every output frame (30fps) by the Ken Burns pan in
+# build_scene_video_segment_from_clip. 0 disables it entirely.
+#
+# Set to 0 on 2026-09-01. It was added (at 0.0012) as a MOTION FLOOR back when
+# Kling was returning frozen clips and every scene needed some movement from
+# somewhere. Kling now genuinely animates, so the floor is redundant — and
+# because the rate compounds per frame it had become the dominant motion in
+# the finished video: measured 11% growth over a 3s scene, 18% over 5s and
+# 29% over 8s, i.e. a constant creeping push-in on every single scene. That is
+# the "zooming in is too much" the output was flagged for.
+KEN_BURNS_ZOOM_PER_FRAME = 0.0
+
+# Whether the static cut-in beat pops in (0.70 -> 1.12 -> 1.00 over 8 frames)
+# or simply hard-cuts to the still at true size.
+#
+# Off since 2026-09-01, on direct user instruction ("remove the zoom too").
+# With scene selection now leaving a majority of scenes static, this pop was
+# firing on most shots in the video rather than occasionally, so what read as
+# a snap-in accent when it was rare read as yet another zoom once it was
+# common. Note this governs the ai_video path only — the sticker path's own
+# pop-in (POP_IN_EVERY_N_SCENES) is a separate, already-tuned behaviour and
+# is deliberately left alone.
+CUT_IN_POP_ZOOM = False
 # zoompan crops from an oversized source; the crop coordinates round to whole
 # pixels each frame, so too little headroom relative to clip length means
 # consecutive frames can round to the identical crop and look duplicated.
@@ -465,18 +507,29 @@ def build_scene_video_segment_from_clip(
 
         label = f"motion{clip_index}"
         motion_labels.append(label)
-        # A continuous slow zoom guarantees visible motion for a held tail
-        # (a held frame is not literally static on screen) and adds a small
-        # floor of motion even where a clip's own animation is too subtle
-        # to read as movement.
-        motion_filters.append(
+        head = (
             f"[{clip_index}:v]trim=start={skip_seconds:.3f}:duration={usable_duration:.3f},"
             f"setpts={stretch_factor:.8f}*(PTS-STARTPTS),"
-            f"scale={oversized_w}:{oversized_h},fps={FPS},"
-            f"zoompan=z='1.0+{KEN_BURNS_ZOOM_PER_FRAME}*on':"
-            "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-            f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1[{label}]"
         )
+        if KEN_BURNS_ZOOM_PER_FRAME > 0:
+            # A continuous slow zoom guarantees visible motion for a held tail
+            # (a held frame is not literally static on screen) and adds a small
+            # floor of motion even where a clip's own animation is too subtle
+            # to read as movement.
+            motion_filters.append(
+                head
+                + f"scale={oversized_w}:{oversized_h},fps={FPS},"
+                f"zoompan=z='1.0+{KEN_BURNS_ZOOM_PER_FRAME}*on':"
+                "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1[{label}]"
+            )
+        else:
+            # Zoom disabled: scale straight to output. Going via the oversized
+            # intermediate and a zoom of exactly 1.0 would be a pointless
+            # upscale-then-downscale that only costs sharpness.
+            motion_filters.append(
+                head + f"scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS},setsar=1[{label}]"
+            )
 
     pad_duration = remaining
     clips_used = len(motion_labels)
@@ -484,26 +537,50 @@ def build_scene_video_segment_from_clip(
 
     if use_cut_in:
         cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(image_path)])
-        motion_filters.append(
-            f"[{clips_used}:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
-            f"zoompan=z='{_pop_in_zoom_expr()}':"
-            "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-            f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1,"
-            f"trim=duration={pad_duration:.3f}[cutin0]"
-        )
+        if CUT_IN_POP_ZOOM:
+            motion_filters.append(
+                f"[{clips_used}:v]pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
+                f"zoompan=z='{_pop_in_zoom_expr()}':"
+                "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT},setsar=1,"
+                f"trim=duration={pad_duration:.3f}[cutin0]"
+            )
+        else:
+            # Hard cut to the still, held at true size with no scale move at
+            # all. See CUT_IN_POP_ZOOM.
+            motion_filters.append(
+                f"[{clips_used}:v]scale={FRAME_WIDTH}:{FRAME_HEIGHT},fps={FPS},setsar=1,"
+                f"trim=duration={pad_duration:.3f}[cutin0]"
+            )
         motion_labels.append("cutin0")
         clips_used += 1
     elif pad_duration > 0.05 and motion_filters:
         # Sub-threshold remainder (or no image_path given): extend the LAST
         # clip's own hold via tpad instead of a separate cut — a near-
-        # invisible extra cut isn't worth it. Insert right before that
-        # clip's zoompan stage so the Ken Burns floor also covers the hold.
+        # invisible extra cut isn't worth it.
+        #
+        # The hold goes before the chain's final stage. With the Ken Burns
+        # zoom enabled that stage is its zoompan, so the zoom also covers the
+        # held tail; with the zoom disabled there is no zoompan at all and
+        # setsar is the last stage instead. Looking up ",zoompan="
+        # unconditionally raised ValueError the moment the zoom was turned
+        # off.
         last_filter = motion_filters[-1]
-        insertion_point = last_filter.index(",zoompan=")
+        marker = ",zoompan=" if ",zoompan=" in last_filter else ",setsar=1"
+        insertion_point = last_filter.index(marker)
         motion_filters[-1] = (
             last_filter[:insertion_point]
             + f",tpad=stop_mode=clone:stop_duration={pad_duration:.3f}"
             + last_filter[insertion_point:]
+        )
+
+    if not motion_filters:
+        # Reachable only with no clips AND no image_path: a deliberately
+        # static scene (see pipeline.choose_animated_scenes) still needs its
+        # base image to render the held beat from. Fail with the reason
+        # rather than an IndexError on motion_filters[0].
+        raise ValueError(
+            f"scene {index} has no clips and no image_path — nothing to build a segment from"
         )
 
     if len(motion_labels) > 1:
@@ -549,6 +626,11 @@ def build_scene_video_segment_from_clip(
 # duration on 3 of 6 scenes even with aggressive motion prompting. A pop-in
 # on a still image is guaranteed to never read as static (it's not depending
 # on an AI model's motion at all) and costs zero video-generation spend.
+# Direct user instruction 2026-09-01: the whole-image pop "should not happen
+# on every scene". At 15 scenes that was 15 bounces in ~60s. Popping every
+# Nth scene keeps it as a deliberate beat (~1 per 12s) instead of a tic.
+POP_IN_EVERY_N_SCENES = 3
+
 POP_IN_UP_FRAMES = 5          # 0 -> overshoot, in output frames (30fps => 0.167s)
 POP_IN_SETTLE_FRAMES = 8      # overshoot -> rest, in output frames (30fps => 0.267s)
 POP_IN_START_SCALE = 0.70
@@ -571,25 +653,11 @@ def _pop_in_zoom_expr() -> str:
     )
 
 
-# Per-cue caption scale-punch: each caption cue briefly overshoots-then-
-# settles (same curve as the image pop-in) so captions read as "popping"
-# stickers rather than static karaoke text. Rendered as pre-baked PIL frames,
-# NOT an ffmpeg zoompan expression — a live test proved zoompan's crop
-# window clamps once the requested zoom-out exceeds the source's available
-# margin toward whichever edge the anchor is closer to, and this pipeline's
-# captions default to position="top" (close to the top edge), so the
-# effective anchor silently shifted and the caption visibly drifted down as
-# it scaled. Plain PIL resize+paste has no such source-bounds restriction:
-# verified directly (a top-positioned caption's alpha-bbox center moved by
-# <2px across the full 0.70x-1.12x scale range).
-CAPTION_PUNCH_FRAMES = POP_IN_SETTLE_FRAMES
-CAPTION_PUNCH_SECONDS = CAPTION_PUNCH_FRAMES / FPS
-# Below this cue length there isn't enough time left after the punch for a
-# meaningful hold — fall back to the plain static overlay instead.
-CAPTION_PUNCH_MIN_CUE_SECONDS = 0.45
-# Crop margin around the caption's own box so the overshoot scale (1.12x)
-# doesn't clip glyphs at the crop edge.
-CAPTION_PUNCH_CROP_MARGIN = 1.5
+# The per-cue caption scale-punch that used to live here was removed
+# 2026-08-31 on direct user instruction ("no more bounce"). Captions are now
+# one word per cue, cutting straight in — see narration_caption_cues and
+# _append_caption_cue_stage. _pop_scale_at_frame below survives because the
+# ingredient_grid staggered reveal still uses that curve for its quadrants.
 
 
 def _pop_scale_at_frame(frame_idx: int) -> float:
@@ -654,51 +722,6 @@ def _grid_reveal_frame_paths(image: Image.Image, out_dir: Path, prefix: str) -> 
     return paths
 
 
-def _caption_punch_frame_paths(overlay_image: Image.Image, box: CaptionBox, out_dir: Path, prefix: str) -> list[Path]:
-    """CAPTION_PUNCH_FRAMES full-canvas frames, each identical to
-    overlay_image except a crop around `box` (the caption's own bounding
-    box — NOT the whole canvas) is resized/re-pasted anchored on its own
-    center. Scaling only that crop, against a base canvas that's otherwise
-    an exact copy of overlay_image, means any unrelated content already
-    baked into overlay_image elsewhere (e.g. the last scene's Subscribe CTA,
-    which is composited near the bottom regardless of where the caption
-    itself sits) is carried over untouched rather than being dragged along
-    by the caption's own scale/anchor."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    cx = (box.left + box.right) / 2
-    cy = (box.top + box.bottom) / 2
-    half_w = (box.right - box.left) / 2 * CAPTION_PUNCH_CROP_MARGIN
-    half_h = (box.bottom - box.top) / 2 * CAPTION_PUNCH_CROP_MARGIN
-    crop_box = (
-        max(0, round(cx - half_w)), max(0, round(cy - half_h)),
-        min(overlay_image.width, round(cx + half_w)), min(overlay_image.height, round(cy + half_h)),
-    )
-    crop = overlay_image.crop(crop_box)
-    crop_cx = cx - crop_box[0]
-    crop_cy = cy - crop_box[1]
-    crop_w = crop_box[2] - crop_box[0]
-    crop_h = crop_box[3] - crop_box[1]
-
-    paths: list[Path] = []
-    for frame_idx in range(CAPTION_PUNCH_FRAMES):
-        scale = _pop_scale_at_frame(frame_idx)
-        new_w = max(1, round(crop.width * scale))
-        new_h = max(1, round(crop.height * scale))
-        resized = crop.resize((new_w, new_h), Image.LANCZOS)
-        canvas = overlay_image.copy()
-        # Clear the original (unscaled) crop region first — otherwise a
-        # smaller (scale<1) resized paste leaves the original larger content
-        # still visible underneath around its edges (ghosting).
-        canvas.paste(Image.new("RGBA", (crop_w, crop_h), (0, 0, 0, 0)), (crop_box[0], crop_box[1]))
-        paste_x = round(crop_box[0] + crop_cx - crop_cx * scale)
-        paste_y = round(crop_box[1] + crop_cy - crop_cy * scale)
-        canvas.paste(resized, (paste_x, paste_y), resized)
-        path = out_dir / f"{prefix}_{frame_idx:03d}.png"
-        canvas.save(path)
-        paths.append(path)
-    return paths
-
-
 def _append_caption_cue_stage(
     cmd: list[str],
     filters: list[str],
@@ -709,40 +732,22 @@ def _append_caption_cue_stage(
     index: int,
     next_input_index: int,
 ) -> tuple[str, int]:
-    """Appends the ffmpeg input(s) and filter stage that produce one caption
-    cue's own video branch (a scale-punch prefix + static hold, or a plain
-    static branch for cues too short to punch) — shared by
+    """Appends the ffmpeg input and filter stage that produce one caption
+    cue's own static video branch — shared by
     build_scene_video_segment_from_still and build_scene_video_segment_from_clip,
     which otherwise have separate overlay-compositing loops. Returns
     (output_label, next_input_index) for the caller to overlay onto its main
-    composite and keep tracking ffmpeg's positional input indices."""
+    composite and keep tracking ffmpeg's positional input indices.
+
+    No scale-punch: removed 2026-08-31 on direct user instruction that the
+    captions must not bounce any more. Each cue is now a single word (see
+    narration_caption_cues' max_words default) that simply cuts in on its
+    own beat, so the motion comes from the words changing in time with the
+    voiceover rather than from any per-word animation."""
     label = f"cue{cue_index}"
-    cue_duration = timed.end - timed.start
-
-    if cue_duration < CAPTION_PUNCH_MIN_CUE_SECONDS:
-        cmd.extend(["-loop", "1", "-i", str(overlay_path)])
-        filters.append(f"[{next_input_index}:v]format=rgba[{label}]")
-        return label, next_input_index + 1
-
-    punch_dir = segments_dir / "caption_punches"
-    prefix = f"punch_{index:02d}_{cue_index:02d}"
-    _caption_punch_frame_paths(timed.image, timed.box, punch_dir, prefix)
-    punch_pattern = punch_dir / f"{prefix}_%03d.png"
-
-    cmd.extend(["-framerate", str(FPS), "-i", str(punch_pattern)])
-    punch_input_index = next_input_index
-    next_input_index += 1
     cmd.extend(["-loop", "1", "-i", str(overlay_path)])
-    hold_input_index = next_input_index
-    next_input_index += 1
-
-    hold_duration = max(0.0, cue_duration - CAPTION_PUNCH_SECONDS)
-    filters.append(f"[{punch_input_index}:v]format=rgba[{label}_punch]")
-    filters.append(f"[{hold_input_index}:v]format=rgba,trim=duration={hold_duration:.3f}[{label}_hold]")
-    filters.append(
-        f"[{label}_punch][{label}_hold]concat=n=2:v=1:a=0,setpts=PTS+{timed.start:.3f}/TB[{label}]"
-    )
-    return label, next_input_index
+    filters.append(f"[{next_input_index}:v]format=rgba[{label}]")
+    return label, next_input_index + 1
 
 
 # Localized object animation — user request 2026-08-29: when narration
@@ -983,6 +988,367 @@ def _object_drift_y_expr(start: float) -> str:
     )
 
 
+# --- Mesh-warp object animation -------------------------------------------
+#
+# Replaces the old whole-mask translate (_object_drift_y_expr) and brightness
+# pulse for the drift/flicker categories. Those moved the mask as a RIGID
+# block, which is why prop motion never read as real: liquid, steam and fire
+# don't slide, they deform. Here the object is instead resampled through a
+# time-varying sine displacement field, so it licks/curls/sloshes.
+#
+# Displacement is scaled by the scene's own content mask (see _content_mask,
+# which already honours the split_canvas region and the mascot exclusion box),
+# so ONLY the masked prop deforms. Validated on a real generated scene
+# 2026-09-01: warping the whole frame visibly wobbled a steel road roller —
+# clearly wrong — while the mask-scaled version measured a mean delta of
+# 36.1 inside the poured-concrete region and exactly 0.000 on the roller.
+#
+# Period is deliberately short: at 15 scenes a scene runs ~3s, and a full
+# deformation cycle has to land at least twice inside that for the motion to
+# read as continuous rather than as a single drifting lurch.
+# Motion measured directly off the Russian reference short (2026-09-01),
+# frame by frame. Three findings drive everything below:
+#
+#  1. NOTHING DEFORMS. Tracking the mascot through a jump, its drawn height
+#     stayed at exactly 463px on every single frame while its centroid rose
+#     52px and fell back. The earlier mesh-warp approach (which deformed the
+#     artwork in place) was simply the wrong technique and has been removed.
+#     Subjects are rigid cutouts that TRANSLATE along keyframed paths.
+#  2. ANIMATION RUNS ON TWOS. Centroid values repeat in exact pairs and
+#     per-frame deltas alternate large/near-zero (8556px then 253px then
+#     7874px then 93px) — a new drawing every OTHER frame inside a 30fps
+#     container. Rendering on ones reads smoother and less like the target.
+#  3. INGREDIENTS POP, CONTAINERS MOVE. A new ingredient appeared as a
+#     single 4825px change in one compact box with no travel path, while
+#     pouring shots showed sustained change across 31 consecutive frames.
+ANIMATION_STEP_FRAMES = 2      # "on twos" — hold each drawing for 2 output frames
+
+# Jump arc, straight off the measurement: rise ~8% of frame height over
+# 0.40s, hang ~0.10s at the apex, fall in 0.25s.
+JUMP_RISE_SECONDS = 0.40
+JUMP_HANG_SECONDS = 0.10
+JUMP_FALL_SECONDS = 0.25
+JUMP_HEIGHT_FRACTION = 0.08
+
+# Idle sway, measured on the celebrating shot: centroid moved ~21px laterally
+# and ~31px vertically over a ~1.1s cycle, with the drawn size unchanged.
+SWAY_PERIOD_SECONDS = 1.1
+SWAY_X_PX = 10.0
+SWAY_Y_PX = 15.0
+
+# Containers/props under a continuous action (pouring, stirring, bubbling).
+CONTINUOUS_PERIOD_SECONDS = 0.9
+CONTINUOUS_X_PX = 4.0
+CONTINUOUS_Y_PX = 7.0
+
+# An ingredient snapping on: a 2-frame scale overshoot, no travel.
+POP_OVERSHOOT = 1.10
+POP_FRAMES = 4
+
+
+def _rigid_offset(style: str, local_t: float) -> tuple[float, float, float]:
+    """(dx, dy, scale) for a subject at `local_t` seconds into its motion.
+
+    Rigid by construction — scale is 1.0 for every style except the ingredient
+    pop, which is a brief snap rather than a deformation. Nothing here warps
+    the artwork; see this module's motion notes above for why.
+    """
+    if style == "jump":
+        cycle = JUMP_RISE_SECONDS + JUMP_HANG_SECONDS + JUMP_FALL_SECONDS
+        t = local_t % cycle
+        peak = JUMP_HEIGHT_FRACTION * FRAME_HEIGHT
+        if t < JUMP_RISE_SECONDS:
+            # ease-out on the way up: fast off the ground, slowing to the apex
+            p = t / JUMP_RISE_SECONDS
+            return 0.0, -peak * (1.0 - (1.0 - p) ** 2), 1.0
+        if t < JUMP_RISE_SECONDS + JUMP_HANG_SECONDS:
+            return 0.0, -peak, 1.0
+        p = (t - JUMP_RISE_SECONDS - JUMP_HANG_SECONDS) / JUMP_FALL_SECONDS
+        return 0.0, -peak * (1.0 - p * p), 1.0      # ease-in falling
+    if style == "sway":
+        ph = 2 * math.pi * local_t / SWAY_PERIOD_SECONDS
+        return SWAY_X_PX * math.sin(ph), SWAY_Y_PX * math.sin(2 * ph), 1.0
+    if style == "pop":
+        frame = int(local_t * FPS)
+        if frame >= POP_FRAMES:
+            return 0.0, 0.0, 1.0
+        p = frame / POP_FRAMES
+        return 0.0, 0.0, 1.0 + (POP_OVERSHOOT - 1.0) * (1.0 - p)
+    # "continuous" — pouring/stirring/bubbling props
+    ph = 2 * math.pi * local_t / CONTINUOUS_PERIOD_SECONDS
+    return CONTINUOUS_X_PX * math.sin(ph), CONTINUOUS_Y_PX * math.sin(ph * 1.3), 1.0
+
+
+def _write_animated_scene_video(
+    image_path: Path,
+    mask_path: Path,
+    duration: float,
+    start: float,
+    style: str,
+    out_path: Path,
+) -> Path:
+    """Animate a scene's prop by RIGIDLY MOVING it, never deforming it.
+
+    Replaces the earlier mesh warp, which measurement disproved: in the
+    reference short nothing deforms (the mascot's silhouette height held at
+    exactly 463px through an entire jump), and warping a rigid prop visibly
+    wobbled a steel road roller. Here the masked subject is lifted, the hole
+    filled with the house white, and the subject pasted back at an offset —
+    so the artwork keeps its shape and simply moves.
+
+    Held on twos (ANIMATION_STEP_FRAMES): the reference's per-frame deltas
+    alternate large/near-zero, a new drawing every OTHER frame. Frames stream
+    to mp4 through a rawvideo pipe rather than landing on disk as PNGs — a 3s
+    scene is 90 full-size frames, and writing those per scene per video is
+    what filled this machine's boot drive once already.
+
+    The frame is bit-identical to the source until `start`, because the offset
+    is gated rather than merely small.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    base = np.asarray(Image.open(image_path).convert("RGB"))
+    height, width = base.shape[:2]
+
+    mask_img = Image.open(mask_path).convert("L")
+    if mask_img.size != (width, height):
+        mask_img = mask_img.resize((width, height), Image.LANCZOS)
+    mask = np.asarray(mask_img) > 128
+
+    subject = Image.fromarray(base).convert("RGBA")
+    alpha = np.zeros((height, width), np.uint8)
+    alpha[mask] = 255
+    subject.putalpha(Image.fromarray(alpha))
+
+    # The plate is the scene with the moving subject removed, so translating
+    # the subject cannot smear a copy of itself across the background.
+    plate = base.copy()
+    plate[mask] = 255
+
+    total_frames = max(1, int(round(duration * FPS)))
+    cmd = [
+        _ffmpeg_bin(), "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{width}x{height}", "-r", str(FPS),
+        "-i", "-",
+        "-t", f"{duration:.3f}",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "medium", "-threads", "1",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact",
+        "-metadata", "creation_time=1970-01-01T00:00:00Z",
+        str(out_path),
+    ]
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert proc.stdin is not None
+    try:
+        held: np.ndarray | None = None
+        for frame_index in range(total_frames):
+            t = frame_index / FPS
+            if t < start:
+                proc.stdin.write(base.tobytes())
+                held = None
+                continue
+            if held is None or frame_index % ANIMATION_STEP_FRAMES == 0:
+                dx, dy, scale = _rigid_offset(style, t - start)
+                canvas = Image.fromarray(plate).convert("RGBA")
+                moved = subject
+                if abs(scale - 1.0) > 0.001:
+                    sw, sh = max(1, round(width * scale)), max(1, round(height * scale))
+                    moved = subject.resize((sw, sh), Image.LANCZOS)
+                    dx -= (sw - width) / 2
+                    dy -= (sh - height) / 2
+                canvas.alpha_composite(moved, (round(dx), round(dy)))
+                frame = np.asarray(canvas.convert("RGB"))
+                if style == "flicker":
+                    # Fire both moves AND glows; movement alone loses the glow.
+                    jitter = 1.0 + 0.10 * math.sin(2 * math.pi * (t - start) / 0.31)
+                    lit = frame.astype(np.float32).copy()
+                    lit[mask] = np.clip(lit[mask] * jitter, 0, 255)
+                    frame = lit.astype(np.uint8)
+                held = np.ascontiguousarray(frame)
+            proc.stdin.write(held.tobytes())
+        proc.stdin.close()
+        stderr = proc.stderr.read().decode("utf-8", errors="replace") if proc.stderr else ""
+        if proc.wait() != 0:
+            raise RuntimeError(f"animated scene encode failed: {stderr}")
+    except Exception:
+        proc.kill()
+        raise
+    return out_path
+
+
+def _write_rigged_scene_video(
+    background_path: Path,
+    parts: dict[str, "Image.Image"],
+    pose_name: str,
+    duration: float,
+    body_box: tuple[int, int, int, int],
+    out_path: Path,
+) -> Path:
+    """Composite an ARTICULATED mascot over a character-free scene background.
+
+    This is the piece that finally produces real character motion: legs
+    stepping, arms swinging, the body rising through a jump. Measurement of a
+    real reference short established that its mascot is genuinely redrawn
+    every frame (motion-compensating consecutive frames left a 64-104%
+    residual), which no amount of moving or deforming a single flat drawing
+    can imitate — see mascot_rig.py.
+
+    Frames stream to mp4 through a rawvideo pipe, and the rig holds each
+    drawing on twos, matching the reference's measured cadence.
+    """
+    from .mascot_rig import animation_frames
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    background = Image.open(background_path).convert("RGB")
+    if background.size != (FRAME_WIDTH, FRAME_HEIGHT):
+        background = background.resize((FRAME_WIDTH, FRAME_HEIGHT), Image.LANCZOS)
+
+    frames = animation_frames(parts, pose_name, duration, body_box, fps=FPS)
+    cmd = [
+        _ffmpeg_bin(), "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{FRAME_WIDTH}x{FRAME_HEIGHT}", "-r", str(FPS),
+        "-i", "-",
+        "-t", f"{duration:.3f}",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "medium", "-threads", "1",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact",
+        "-metadata", "creation_time=1970-01-01T00:00:00Z",
+        str(out_path),
+    ]
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert proc.stdin is not None
+    try:
+        cache: dict[int, bytes] = {}
+        for index, layer in enumerate(frames):
+            key = id(layer)
+            payload = cache.get(key)
+            if payload is None:
+                composed = background.copy()
+                composed.paste(layer, (0, 0), layer)
+                payload = np.ascontiguousarray(np.asarray(composed)).tobytes()
+                cache = {key: payload}          # frames repeat in pairs; keep one
+            proc.stdin.write(payload)
+        proc.stdin.close()
+        stderr = proc.stderr.read().decode("utf-8", errors="replace") if proc.stderr else ""
+        if proc.wait() != 0:
+            raise RuntimeError(f"rigged scene encode failed: {stderr}")
+    except Exception:
+        proc.kill()
+        raise
+    return out_path
+
+
+# Which rig pose a scene should play, chosen from what the script already
+# says about it. No new LLM field: mascot_emotion/action/scene_type are
+# already populated on every scene.
+_POSE_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("afraid", "scared", "alarmed", "terrified", "panick", "shocked", "sad", "worried"), "sad"),
+    (("celebrat", "excited", "happy", "triumph", "amazed", "proud", "cheer"), "dance"),
+    (("jump", "leap", "surprise"), "jump"),
+    (("walk", "carry", "travel", "move", "step"), "walk"),
+)
+
+
+def pose_for_scene(scene: dict[str, Any]) -> str:
+    """Pick a rig pose from the scene's own emotion/action text.
+
+    Defaults to "point" — the explaining-to-camera beat — which is what a
+    mascot scene is doing most of the time. "idle" is deliberately NOT the
+    default: a barely-moving character is the exact failure the rig exists
+    to fix.
+    """
+    haystack = " ".join(
+        str(scene.get(k) or "") for k in ("mascot_emotion", "action", "mascot_role", "narration")
+    ).lower()
+    for keywords, pose in _POSE_KEYWORDS:
+        if any(k in haystack for k in keywords):
+            return pose
+    return "point"
+
+
+def mascot_body_box(scene_type: str) -> tuple[int, int, int, int]:
+    """Where the mascot stands, per scene type.
+
+    The user's requirement is the RIGHT size in the right place, not one
+    fixed size — so this is resolved here in code rather than asked of the
+    image model, which has never followed a percentage instruction reliably
+    (the 60% -> 40% -> 28% prompt-tuning saga).
+    """
+    if scene_type == "split_canvas":
+        # Bottom corner, small, leaving the top half for the diagram/prop.
+        h = int(FRAME_HEIGHT * 0.30)
+        w = int(h * 0.42)
+        left = int(FRAME_WIDTH * 0.60)
+        top = int(FRAME_HEIGHT * 0.60)
+        return (left, top, left + w, top + h)
+    # Centred and larger for reaction/explainer beats.
+    h = int(FRAME_HEIGHT * 0.42)
+    w = int(h * 0.42)
+    left = (FRAME_WIDTH - w) // 2
+    top = int(FRAME_HEIGHT * 0.42)
+    return (left, top, left + w, top + h)
+
+
+# Measured against the reference short 2026-09-01: its artwork spans 97% of
+# frame width and 73% of height, ours spanned 54% x 39% — everything sat in a
+# small box with fat white margins, which is ALSO why our cut-detection score
+# never crossed 0.20 (too few pixels change between scenes) and why frame
+# motion measured 6x lower. Filling the frame is the single highest-impact
+# composition fix.
+CONTENT_TARGET_WIDTH_FRACTION = 0.92
+CONTENT_TARGET_HEIGHT_FRACTION = 0.70
+# Never blow a small drawing up past this — upscaling generated art too far
+# turns crisp ink outlines to mush.
+CONTENT_MAX_UPSCALE = 2.4
+
+
+def fill_frame(image_path: Path, out_path: Path) -> Path:
+    """Rescale a generated scene so its DRAWN CONTENT fills the frame.
+
+    The image model returns art with its own arbitrary white margins, so the
+    subject often occupied barely half the frame. This measures the actual
+    ink bounding box and scales it up to the target fractions, re-centred on
+    a white ground — deterministic, free, and independent of how much padding
+    the model happened to leave.
+    """
+    img = Image.open(image_path).convert("RGB")
+    if img.size != (FRAME_WIDTH, FRAME_HEIGHT):
+        img = img.resize((FRAME_WIDTH, FRAME_HEIGHT), Image.LANCZOS)
+    arr = np.asarray(img)
+    ink = (255 - arr.astype(int)).max(axis=2) > 28
+    if ink.sum() < 500:
+        img.save(out_path)
+        return out_path
+
+    ys, xs = np.where(ink)
+    box = (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+    content = img.crop(box)
+    scale = min(
+        FRAME_WIDTH * CONTENT_TARGET_WIDTH_FRACTION / max(1, content.width),
+        FRAME_HEIGHT * CONTENT_TARGET_HEIGHT_FRACTION / max(1, content.height),
+        CONTENT_MAX_UPSCALE,
+    )
+    if scale <= 1.02:
+        img.save(out_path)
+        return out_path
+
+    resized = content.resize(
+        (max(1, round(content.width * scale)), max(1, round(content.height * scale))),
+        Image.LANCZOS,
+    )
+    canvas = Image.new("RGB", (FRAME_WIDTH, FRAME_HEIGHT), (255, 255, 255))
+    # Sit the content just below the caption band rather than dead centre, so
+    # a large caption and large artwork do not fight for the same pixels.
+    top = int(FRAME_HEIGHT * 0.20) + max(
+        0, (int(FRAME_HEIGHT * 0.74) - resized.height) // 2
+    )
+    canvas.paste(resized, ((FRAME_WIDTH - resized.width) // 2, top))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out_path)
+    return out_path
+
+
 def build_scene_video_segment_from_still(
     image_path: Path,
     duration: float,
@@ -995,6 +1361,10 @@ def build_scene_video_segment_from_still(
     object_animation_exclude_region: tuple[int, int, int, int] | None = None,
     object_animation_style: str | None = None,
     grid_reveal: bool = False,
+    pop_in: bool = True,
+    rig_parts: dict[str, Any] | None = None,
+    rig_pose: str = "point",
+    rig_body_box: tuple[int, int, int, int] | None = None,
 ) -> Path:
     """Sticker-style scene segment: a still image pops in (scale-bounce
     overshoot, ~0.27s) then holds for the rest of the scene's duration —
@@ -1042,7 +1412,20 @@ def build_scene_video_segment_from_still(
     filters: list[str] = []
 
     base_source = "[0:v]"
-    if grid_reveal:
+    if rig_parts and rig_body_box is not None:
+        # An ARTICULATED mascot composited over a character-free background.
+        # Takes precedence over the prop-motion branch below: this scene's
+        # motion is the character itself, and layering a second whole-frame
+        # move on top would fight it.
+        rigged = _write_rigged_scene_video(
+            image_path, rig_parts, rig_pose, duration, rig_body_box,
+            segments_dir / f"rig_{index:02d}.mp4",
+        )
+        cmd.extend(["-i", str(rigged)])
+        filters.append(f"[{next_input_index}:v]format=rgba[rigged]")
+        next_input_index += 1
+        base_source = "[rigged]"
+    elif grid_reveal:
         reveal_dir = segments_dir / "grid_reveals"
         prefix = f"gridreveal_{index:02d}"
         source_image = Image.open(image_path).convert("RGB")
@@ -1068,31 +1451,46 @@ def build_scene_video_segment_from_still(
             exclude_region=object_animation_exclude_region,
         )
         if mask_path is not None:
-            cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(mask_path)])
-            mask_input_index = next_input_index
-            next_input_index += 1
-            filters.append("[0:v]format=rgba[objsrc]")
-            filters.append("[objsrc]split=2[objstatic][objtopulse]")
-            if object_animation_style == "drift":
-                y_expr = _object_drift_y_expr(object_animation_start)
-                filters.append(
-                    f"[objtopulse]zoompan=z=1.02:x='iw/2-(iw/zoom/2)':y='{y_expr}':"
-                    f"d=1:fps={FPS}:s={FRAME_WIDTH}x{FRAME_HEIGHT}[objpulsed]"
+            # Mesh warp (2026-09-01) replaces the old rigid whole-mask
+            # translate/brightness-pulse for the two real motion categories.
+            # The mask scales the displacement, so only the prop deforms —
+            # see _write_warped_scene_video's docstring for the measurement
+            # that established this. Any other style keeps the cheap
+            # brightness pulse: it's the "matched something, but nothing
+            # specific" fallback, where a gentle breathe is safer than
+            # deforming content we can't characterise.
+            # drift/flicker -> the prop MOVES (measured: pours and stirs run
+            # 31 consecutive changed frames). Anything else keeps the cheap
+            # brightness breathe as the "matched something unspecific" case.
+            if object_animation_style in ("drift", "flicker"):
+                warped = _write_animated_scene_video(
+                    image_path,
+                    mask_path,
+                    duration,
+                    object_animation_start,
+                    object_animation_style,
+                    segments_dir / f"objwarp_{index:02d}.mp4",
                 )
-            elif object_animation_style == "flicker":
-                flicker_expr = _object_flicker_brightness_expr(object_animation_start)
-                filters.append(f"[objtopulse]eq=eval=frame:brightness='{flicker_expr}'[objpulsed]")
+                cmd.extend(["-i", str(warped)])
+                filters.append(f"[{next_input_index}:v]format=rgba[objanimated]")
+                next_input_index += 1
+                base_source = "[objanimated]"
             else:
+                cmd.extend(["-loop", "1", "-framerate", str(FPS), "-i", str(mask_path)])
+                mask_input_index = next_input_index
+                next_input_index += 1
+                filters.append("[0:v]format=rgba[objsrc]")
+                filters.append("[objsrc]split=2[objstatic][objtopulse]")
                 pulse_expr = _object_pulse_brightness_expr(object_animation_start)
                 filters.append(f"[objtopulse]eq=eval=frame:brightness='{pulse_expr}'[objpulsed]")
-            # format=rgba, NOT gray — confirmed live 2026-08-29: this
-            # ffmpeg build's maskedmerge produced visibly wrong output
-            # (a flat gray blend instead of the correct base/overlay pixel
-            # colors) when the mask stream didn't match the base/overlay
-            # streams' own RGBA pixel format.
-            filters.append(f"[{mask_input_index}:v]format=rgba[objmaskv]")
-            filters.append("[objstatic][objpulsed][objmaskv]maskedmerge[objanimated]")
-            base_source = "[objanimated]"
+                # format=rgba, NOT gray — confirmed live 2026-08-29: this
+                # ffmpeg build's maskedmerge produced visibly wrong output
+                # (a flat gray blend instead of the correct base/overlay pixel
+                # colors) when the mask stream didn't match the base/overlay
+                # streams' own RGBA pixel format.
+                filters.append(f"[{mask_input_index}:v]format=rgba[objmaskv]")
+                filters.append("[objstatic][objpulsed][objmaskv]maskedmerge[objanimated]")
+                base_source = "[objanimated]"
 
     # Pop once per scene (when the image itself changes), not per caption
     # cue — reverted 2026-08-29 per direct user feedback watching a real
@@ -1106,7 +1504,24 @@ def build_scene_video_segment_from_still(
     # staggered per-quadrant pop already provides the "pop" motion, and
     # layering the outer zoom-bounce on top would double up into a
     # chaotic-looking combination rather than a single deliberate beat.
-    outer_zoom_expr = "1" if grid_reveal else f"'{_pop_in_zoom_expr()}'"
+    # pop_in is False on most scenes — see POP_IN_EVERY_N_SCENES. At 15
+    # scenes a pop on every one is a bounce every ~4s, which the user
+    # flagged as far too frequent; it works as occasional punctuation, not
+    # as a per-scene default.
+    # Zoom RESTS at STICKER_HEADROOM, not at 1.0.
+    #
+    # The frame is white-padded to STICKER_HEADROOM (1.6x) so the pop-in can
+    # scale down to 0.70 without running out of source pixels. But zooming
+    # back to 1.0 then displays that oversized canvas 1:1, i.e. the artwork
+    # at 1/1.6 = 62.5% of its true size. Measured on a real video: scene art
+    # spanning 97% of frame width in the source rendered at 54% in the
+    # output, with fat white margins — which also drove cut-detection below
+    # threshold and frame motion 6x under the reference. Resting at the
+    # headroom cancels the padding exactly and fills the frame.
+    if grid_reveal or not pop_in:
+        outer_zoom_expr = f"{STICKER_HEADROOM}"
+    else:
+        outer_zoom_expr = f"'{STICKER_HEADROOM}*({_pop_in_zoom_expr()})'"
     filters.append(
         f"{base_source}pad={oversized_w}:{oversized_h}:(ow-{FRAME_WIDTH})/2:(oh-{FRAME_HEIGHT})/2:color=white,"
         f"zoompan=z={outer_zoom_expr}:"
@@ -1149,6 +1564,10 @@ def assemble_stickers(
     caption_style: str | None = None,
     caution_text: str | None = None,
     subscribe_cta_text: str | None = None,
+    sfx_enabled: bool = False,
+    music_path: Path | None = None,
+    rig_parts: dict[str, Any] | None = None,
+    rig_scene_types: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Sticker/motion-graphics counterpart to assemble()/assemble_animated():
     image_source(index, scene) -> that scene's already-generated still image
@@ -1218,10 +1637,22 @@ def assemble_stickers(
             object_animation_exclude_region=object_animation_exclude_region,
             object_animation_style=object_animation_style,
             grid_reveal=grid_reveal,
+            pop_in=(i % POP_IN_EVERY_N_SCENES == 0),
+            rig_parts=rig_parts if scene_type in rig_scene_types else None,
+            rig_pose=pose_for_scene(scene),
+            rig_body_box=mascot_body_box(scene_type),
         )
         segment_paths.append(seg_path)
 
-    tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)
+    cues = None
+    if sfx_enabled:
+        from .sfx import scene_sfx_cues
+
+        cues = scene_sfx_cues(scenes, [a.duration for a in audio])
+    tail = concat_and_mux(
+        segment_paths, [a.path for a in audio], workdir, out_mp4,
+        sfx_cues=cues, music_path=music_path,
+    )
     return {
         "caption_boxes": caption_boxes,
         **tail,
@@ -1315,6 +1746,27 @@ def mux_final(video_path: Path, audio_path: Path, out_path: Path) -> None:
     _run(cmd)
 
 
+def narration_caption_lines(narration: str, duration: float,
+                            words_per_line: int = CAPTION_WORDS_PER_LINE) -> list[CaptionCue]:
+    """The LINE-level view of the same cues: one entry per completed line,
+    spanning that line's whole time range.
+
+    narration_caption_cues accumulates (a line types itself out word by
+    word), which is right for the burned-in caption but wrong for a subtitle
+    file — an SRT built from those cues repeats itself, "The / The Romans /
+    The Romans used". Collapsing each line to a single entry gives back
+    exactly the narration, in readable chunks, correctly timed.
+    """
+    cues = narration_caption_cues(narration, duration, words_per_line)
+    lines: list[CaptionCue] = []
+    for index in range(0, len(cues), words_per_line):
+        group = cues[index:index + words_per_line]
+        # The last cue of a group carries the fully-accumulated line text.
+        lines.append(CaptionCue(text=group[-1].text, start=group[0].start, end=group[-1].end))
+    return lines
+
+
+
 def write_captions_srt(scenes: list[dict[str, Any]], durations: list[float], out_path: Path) -> None:
     """durations must be the ACTUAL per-scene audio durations (SceneAudio.duration),
     not the script's nominal `duration` field — captions must track what's
@@ -1330,7 +1782,7 @@ def write_captions_srt(scenes: list[dict[str, Any]], durations: list[float], out
     cursor = 0.0
     cue_number = 1
     for scene, duration in zip(scenes, durations):
-        for cue in narration_caption_cues(scene["narration"], duration):
+        for cue in narration_caption_lines(scene["narration"], duration):
             lines.append(str(cue_number))
             lines.append(f"{fmt(cursor + cue.start)} --> {fmt(cursor + cue.end)}")
             lines.append(cue.text)
@@ -1523,6 +1975,8 @@ def assemble_animated(
     caution_text: str | None = None,
     image_source: Callable[[int, dict[str, Any]], Path] | None = None,
     subscribe_cta_text: str | None = None,
+    sfx_enabled: bool = False,
+    music_path: Path | None = None,
 ) -> dict[str, Any]:
     """Animated-scene counterpart to assemble(): clip_source(index, scene) ->
     an ordered list of one or more raw, uncaptioned animated clip paths for
@@ -1537,7 +1991,11 @@ def assemble_animated(
     keeps the older held-frame-only behavior for callers that don't have a
     scene image on hand.
     caution_text: see assemble()'s docstring — composited onto the LAST
-    scene only, on top of (never instead of) its real caption."""
+    scene only, on top of (never instead of) its real caption.
+    sfx_enabled/music_path: identical to assemble_stickers(). These were
+    originally wired into the sticker path only, so ai_video renders shipped
+    with no sound effects and no music bed at all — the audio was bare
+    narration that dropped to true silence between sentences."""
     segments_dir = workdir / "segments"
     workdir.mkdir(parents=True, exist_ok=True)
 
@@ -1569,7 +2027,15 @@ def assemble_animated(
         )
         segment_paths.append(seg_path)
 
-    tail = concat_and_mux(segment_paths, [a.path for a in audio], workdir, out_mp4)
+    cues = None
+    if sfx_enabled:
+        from .sfx import scene_sfx_cues
+
+        cues = scene_sfx_cues(scenes, [a.duration for a in audio])
+    tail = concat_and_mux(
+        segment_paths, [a.path for a in audio], workdir, out_mp4,
+        sfx_cues=cues, music_path=music_path,
+    )
     return {
         "caption_boxes": caption_boxes,
         **tail,
@@ -1581,6 +2047,8 @@ def concat_and_mux(
     audio_paths: list[Path],
     workdir: Path,
     out_mp4: Path,
+    sfx_cues: list[tuple[float, str]] | None = None,
+    music_path: Path | None = None,
 ) -> dict[str, Any]:
     """The reassembly tail shared by both a full assemble() run and a
     single-scene regeneration (Phase 4): concat all video segments, concat
@@ -1592,6 +2060,30 @@ def concat_and_mux(
 
     narration_raw = workdir / "narration_raw.wav"
     concat_audio(audio_paths, workdir, narration_raw)
+
+    # SFX and the music bed go in BEFORE loudnorm, so the whole mix is what
+    # gets normalized to target rather than the voice alone — otherwise
+    # adding a bed would quietly push the finished video off -14 LUFS.
+    # Both default to None, so every existing caller behaves exactly as
+    # before. See sfx.py for why these are synthesized rather than sampled.
+    if sfx_cues or music_path is not None:
+        from . import sfx as sfx_module
+
+        layered = workdir / "narration_layered.wav"
+        track = None
+        if sfx_cues:
+            total = sum(
+                float(subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                     "-of", "csv=p=0", str(p)], capture_output=True, text=True,
+                ).stdout.strip() or 0.0)
+                for p in audio_paths
+            )
+            track = sfx_module.build_sfx_track(sfx_cues, total, workdir / "sfx.wav")
+        mixed = sfx_module.mix_audio_layers(
+            narration_raw, layered, sfx=track, music=music_path,
+        )
+        narration_raw = mixed
 
     loudnorm_stats_pass1 = loudnorm_measure(narration_raw)
 

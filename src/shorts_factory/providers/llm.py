@@ -19,7 +19,28 @@ from ..cost_tracker import CostTracker
 from .fal import FalGateway
 
 TARGET_TOTAL_SECONDS = 45.0
-MIN_SCENE_SECONDS = 3.0
+# Measured on a real generated video 2026-09-01: 179 narration words rendered
+# to 57.9s of audio (with NARRATION_SPEED_FACTOR already applied) = 3.09
+# words/sec. Used to turn a scene's duration budget into a word budget the
+# model can actually act on.
+# Re-measured 2026-09-01 by least-squares across 11 real generated videos
+# (4-15 scenes): total audio = 0.3219s per word + 0.426s per scene, i.e. a
+# true speaking rate of 3.11 words/sec plus a FIXED per-scene overhead. The
+# overhead is the head/tail silence each separately-synthesized scene
+# carries, so it scales with scene COUNT, not with word count.
+NARRATION_WORDS_PER_SECOND = 3.1
+# Budgeting words as duration*rate with no overhead term is what pushed the
+# first 15-scene video to 50.6s against a 45s target and a 50s hard ceiling:
+# 15 scenes x 0.43s = 6.4s that the budget never accounted for, which is
+# essentially the entire overshoot. At 6 scenes the same omission is only
+# 2.6s and stayed inside the window, which is why it went unnoticed until
+# scene count trebled.
+SCENE_AUDIO_OVERHEAD_SECONDS = 0.43
+# Lowered 3.0 -> 2.5 alongside the 15-scene change: 15 x 3.0 lands on
+# exactly 45s with zero slack, so any per-scene rounding pushed the
+# total out of the 40-50s window and failed the whole script. 2.5 gives
+# the model room to vary pacing while still fitting.
+MIN_SCENE_SECONDS = 2.5
 MAX_SCENE_SECONDS = 9.5
 
 # Cycled by scene index for basic visual variety — a template default, not a
@@ -116,6 +137,7 @@ SCRIPT_SCENE_KEYS = {
     "layout",
     "scene_type",
     "fx",
+    "motion",
 }
 
 
@@ -169,7 +191,53 @@ def _normalize_generated_script(
         normalized_scenes.append(clean)
 
     normalized["scenes"] = normalized_scenes
+    _fit_script_duration(normalized_scenes)
     return normalized
+
+
+
+def _fit_script_duration(scenes: list[dict[str, Any]]) -> None:
+    """Rescale scene durations so the total lands inside the accepted window.
+
+    Real case 2026-09-01: a good paid 15-scene script came back totalling
+    50.50s and the strict validator threw the WHOLE thing away for being 0.5s
+    over, falling back to the deterministic stub. Hitting a 40-50s window
+    exactly is far harder across 15 scenes than across 6, and the durations
+    are only a pacing budget in the first place — every scene's real length
+    is overridden downstream by its MEASURED TTS audio (see
+    pipeline's actual_durations). So scale to fit rather than reject.
+
+    Scale, clamp to the per-scene bounds, then scale once more, because
+    clamping can itself push the total back out.
+    """
+    from ..schema_validate import SCRIPT_MAX_TOTAL_SECONDS, SCRIPT_MIN_TOTAL_SECONDS
+
+    usable = [s for s in scenes if isinstance(s.get("duration"), (int, float))]
+    if not usable:
+        return
+    # Only rescale when the window is actually REACHABLE with this many
+    # scenes. A 1-scene 8s script can never reach 40s (MAX_SCENE_SECONDS caps
+    # it at 9.5), so scaling would mangle the durations without fixing
+    # anything and would bury the real problem — let validation report
+    # "total 8s is outside the window" instead of silently rewriting data.
+    if not (
+        len(usable) * MIN_SCENE_SECONDS <= SCRIPT_MAX_TOTAL_SECONDS
+        and len(usable) * MAX_SCENE_SECONDS >= SCRIPT_MIN_TOTAL_SECONDS
+    ):
+        return
+    target = (SCRIPT_MIN_TOTAL_SECONDS + SCRIPT_MAX_TOTAL_SECONDS) / 2
+    for _ in range(2):
+        total = sum(float(s["duration"]) for s in usable)
+        if not total:
+            return
+        if SCRIPT_MIN_TOTAL_SECONDS <= total <= SCRIPT_MAX_TOTAL_SECONDS:
+            return
+        scale = target / total
+        for scene in usable:
+            scaled = float(scene["duration"]) * scale
+            scene["duration"] = round(
+                max(MIN_SCENE_SECONDS, min(MAX_SCENE_SECONDS, scaled)), 2
+            )
 
 
 def _visual_prompt(claim_text: str, visual_style: str) -> str:
@@ -378,12 +446,29 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
             "must still frame its claim through this same angle, not just default to a generic explainer."
         )
     n_claims = len(brief.get("claims") or []) or 1
-    avg_duration = 45.0 / n_claims
+    avg_duration = TARGET_TOTAL_SECONDS / n_claims
+    # Only the part of a scene that is actually SPEECH converts to words —
+    # the rest is the fixed per-scene head/tail silence.
+    speaking_seconds = max(0.6, avg_duration - SCENE_AUDIO_OVERHEAD_SECONDS)
+    target_words = max(5, round(speaking_seconds * NARRATION_WORDS_PER_SECOND))
+    min_words, max_words = max(4, target_words - 1), target_words + 1
     duration_instruction = (
         f" There are {n_claims} claims, so {n_claims} scenes. The SUM of every scene's duration must land "
         f"between 40 and 50 seconds total — with {n_claims} scenes that means roughly {avg_duration:.1f} "
-        "seconds per scene on average. Do not default every scene to the shortest end of the 3-9.5 second "
-        "range; undershooting the total is a common mistake, check your arithmetic before returning."
+        "seconds per scene on average. "
+        # A duration in seconds turned out to be something the model cannot
+        # map to a length it actually writes: measured 2026-09-01 on a real
+        # 15-scene script, narration ran 179 words against a 49s script and
+        # the finished video came out 57.9s. A WORD budget is directly
+        # actionable in a way "3.0 seconds" is not.
+        f"CRITICAL: every scene's narration must be between {min_words} and {max_words} words — count them. "
+        f"At {NARRATION_WORDS_PER_SECOND:.1f} spoken words per second that is what actually fits the scene. "
+        # A bare ceiling was read as "stay well under": a real 2026-09-01
+        # script asked for "at most 9" came back averaging 6.7 words and
+        # would have rendered ~34s, under the 40s floor. A RANGE is needed —
+        # too few words undershoots just as badly as too many overrun.
+        f"Aim for {target_words}. Going UNDER {min_words} is just as wrong as going over {max_words}: too "
+        "few words makes the video too short. Short punchy lines, but fill the line."
     )
     order_instruction = (
         " Order the scenes as a logical narrative — setup/context first, then process/mechanism in the "
@@ -450,7 +535,25 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "scene, e.g. 'pouring the lye solution into the melted fat' or 'stirring the mixture with a wooden "
         "paddle' — for process_action scenes this is the main content of the shot, not just a list of props), "
         "props (string or null), layout (string: 'centered', 'split_bottom_left', or 'split_bottom_right'), "
-        "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), and fx (string or null). "
+        "scene_type (string: 'mascot_reaction', 'ingredient_grid', 'process_action', or 'split_canvas'), fx (string or null), "
+        "and motion (string). "
+        # The motion directive is what makes image-to-video actually animate.
+        # Measured 2026-09-01: the previous approach matched a scene against 8
+        # generic keyword categories (smoke/water/fire/...) and handed Kling
+        # vague text like "steam gently rising", which described nothing
+        # actually in the shot — so clips came back frozen for their entire
+        # duration. The model writing this already knows the topic, the claim,
+        # the props and the action, so it is the only place that can say what
+        # specifically should move.
+        "MOTION is a directive for an image-to-video model animating THIS shot. Name each thing visible in "
+        "the shot and say exactly how it moves, in physical terms. Be concrete and specific to this topic — "
+        "never generic. Follow the observed grammar of this format: a CHARACTER acts with its body (steps, "
+        "gestures, leans, reacts, head turns) and its mouth stays closed; CONTAINERS and equipment carry "
+        "continuous action (liquid pours in a steady stream, a paddle stirs, a mixture bubbles, smoke curls "
+        "upward); an INGREDIENT or label that simply appears does NOT travel across frame — it settles into "
+        "place and stays. Say what stays still too. Example shape: 'The legionary leans in and taps the "
+        "stone slab twice with his stick; grey mortar slumps slowly off the trowel; dust drifts down. The "
+        "columns behind stay completely still.' "
         "The top-level object must contain exactly topic, language, visual_style, and scenes, with no other keys. "
         "Each scene must contain only the scene fields listed above; never add helper, reasoning, notes, index, "
         "or metadata fields. Every scene must use exactly one supplied source_claim_id; source_claim_id must "
@@ -500,7 +603,9 @@ def _mascot_design_prompt(topic: str, brief: dict[str, Any] | None) -> str:
         "cartoon illustration with bold black ink outlines (not a 3D render, not CGI, not photoreal), small "
         "and centered vertically in frame occupying no more than 28% of vertical height, with generous empty "
         "white space above, below, and on both sides (must NOT dominate the frame), a friendly explanatory "
-        "pose gesturing forward with one open palm, the character is FULLY CLOTHED with no bare skin visible "
+        "pose gesturing forward with one open palm, a CLOSED relaxed mouth in a gentle closed-lip smile with "
+        "no teeth showing and no open/gasping mouth (this image gets animated later, and an open mouth "
+        "becomes a talking mouth), the character is FULLY CLOTHED with no bare skin visible "
         "except face/forearms/calves and must explicitly state it is not shirtless or undressed, and a stark "
         "pure solid white background #FFFFFF with zero scenery and zero floor shadows, sticker framing), "
         "visual_style (a short paragraph naming the rendering technique — flat 2D cel-shaded cartoon "
@@ -545,7 +650,14 @@ class FalLLMProvider(LLMProvider):
                 "model": self.model,
                 "prompt": _script_prompt(brief, language, visual_style),
                 "temperature": 0.4,
-                "max_tokens": 2500,
+                # Raised from 2500 on 2026-09-01. At 15 scenes the script
+                # JSON runs past 9000 characters and 2500 tokens cut it off
+                # mid-string ("Unterminated string starting at line 183"), so
+                # EVERY real generation silently fell through to the
+                # deterministic stub fallback. Output tokens are only billed
+                # when the model actually uses them, so the headroom is
+                # effectively free insurance.
+                "max_tokens": 12000,
             },
         )
         actual_cost = float(data.get("usage", {}).get("cost", self.estimate))

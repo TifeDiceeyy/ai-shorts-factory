@@ -9,7 +9,7 @@ prompting.
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageStat
 
 from shorts_factory import assembly
 from shorts_factory.assembly import SceneAudio
@@ -66,8 +66,18 @@ def test_pop_in_produces_visible_size_change_then_holds_steady(tmp_path):
     assert ImageChops.difference(early.crop(region), settled_a.crop(region)).getbbox() is not None, (
         "no visible change between the pop-in's overshoot phase and its settled state"
     )
-    assert ImageChops.difference(settled_a.crop(region), settled_b.crop(region)).getbbox() is None, (
-        "the held phase must be pixel-stable once the pop-in settles (no drift/idle motion in v1)"
+    # Mean, not an exact getbbox() check. Word-for-word captions (2026-08-31)
+    # add one overlay stage per word, and the extra filter stages perturb a
+    # single h264 macroblock in an otherwise identical frame — measured
+    # mean 0.0000 / max 8 over one 8x8 block, i.e. encoder noise, while the
+    # image itself is genuinely still. Same reasoning as
+    # test_object_animation._mean_channel_diff.
+    held_diff = max(ImageStat.Stat(
+        ImageChops.difference(settled_a.crop(region), settled_b.crop(region))
+    ).mean)
+    assert held_diff < 1.0, (
+        f"the held phase must stay steady once the pop-in settles "
+        f"(no drift/idle motion in v1) — got mean delta {held_diff:.3f}"
     )
 
 
@@ -85,8 +95,8 @@ def test_pop_in_fires_once_per_scene_not_on_every_caption_cue(tmp_path):
     read as constant zooming/fidgeting, not a deliberate beat. The image
     must now pop exactly once, at scene start, and hold steady through
     every later cue boundary — the caption's own per-cue scale-punch
-    (test_caption_overlay_scale_punches_at_its_own_cue_start) is
-    unaffected and still fires per cue."""
+    was removed entirely on 2026-08-31 (see
+    test_caption_does_not_bounce_within_its_own_cue)."""
     img = _still_image(tmp_path)
     narration = "one two three four five six seven eight nine ten eleven twelve"
     overlays, _box = assembly.build_timed_caption_overlays(narration, 6.0)
@@ -109,31 +119,99 @@ def test_pop_in_fires_once_per_scene_not_on_every_caption_cue(tmp_path):
         )
 
 
-def test_caption_overlay_scale_punches_at_its_own_cue_start(tmp_path):
-    """Each caption cue must visibly grow/shrink (a "pop") right as it
-    appears, not just snap straight to full size and hold static — the
-    caption-side half of the editing-rhythm fix (the image side is covered
-    by test_pop_in_repeats_at_every_caption_cue_start_not_just_once).
-    Sampled right after the SECOND cue's start so a possible leftover
-    scale from the first cue's own pop can't be mistaken for it."""
+def test_caption_does_not_bounce_within_its_own_cue(tmp_path):
+    """Inverted 2026-08-31 on direct user instruction that captions must not
+    bounce any more. A caption used to scale-punch (overshoot then settle)
+    as it appeared; now each cue is a single word that cuts straight in and
+    holds perfectly still for its whole slot. Sampled twice WITHIN one cue —
+    across cues the word itself legitimately changes, which is the intended
+    motion and not what this test is about."""
     img = _still_image(tmp_path)
     narration = "one two three four five six seven eight nine ten eleven twelve"
     overlays, _box = assembly.build_timed_caption_overlays(narration, 6.0)
-    assert len(overlays) >= 2, "test needs a second cue to sample its own pop in isolation"
+    # Need a cue long enough to sample twice strictly inside it.
+    cue = next((c for c in overlays[1:] if (c.end - c.start) > 0.35), None)
+    assert cue is not None, "test needs a cue longer than 0.35s to sample inside"
     seg = assembly.build_scene_video_segment_from_still(
         img, 6.0, 0, tmp_path / "segments", timed_caption_overlays=overlays
     )
-    cue = overlays[1]
     pad = 60
     region = (
         max(0, cue.box.left - pad), max(0, cue.box.top - pad),
         min(FRAME_WIDTH, cue.box.right + pad), min(FRAME_HEIGHT, cue.box.bottom + pad),
     )
-    just_popped = _frame_at(seg, cue.start + 0.03, tmp_path / "cap_just_popped.png")
-    settled = _frame_at(seg, cue.start + 0.5, tmp_path / "cap_settled.png")
-    assert ImageChops.difference(just_popped.crop(region), settled.crop(region)).getbbox() is not None, (
-        "expected the caption to visibly scale-punch right at its cue start, not appear already settled"
+    early = _frame_at(seg, cue.start + 0.04, tmp_path / "cap_early.png").crop(region)
+    later = _frame_at(seg, cue.start + 0.30, tmp_path / "cap_later.png").crop(region)
+    # Mean, not max: a few h264-noisy glyph-edge pixels are expected even
+    # when nothing moved (same reasoning as test_object_animation's helper).
+    mean_diff = max(ImageStat.Stat(ImageChops.difference(early, later)).mean)
+    assert mean_diff < 2.0, (
+        f"caption must hold still inside its own cue (no bounce), got mean delta {mean_diff:.2f}"
     )
+
+
+def test_captions_type_out_word_by_word_then_clear_each_line(tmp_path):
+    """Typewriter reveal, per direct user instruction 2026-09-01: a lone word
+    replaced on every beat vanished too fast to read ("what about slow
+    readers"), so each word ADDS to the line and the line only clears every
+    CAPTION_WORDS_PER_LINE words.
+
+    Still one cue per word (the reveal is in step with the voiceover), the
+    words are still exactly the narration in order, and the cues still cover
+    the full scene duration."""
+    narration = "Roman concrete repairs itself when rain gets into a crack."
+    words = narration.split()
+    n = assembly.CAPTION_WORDS_PER_LINE
+    cues = assembly.narration_caption_cues(narration, 6.0)
+
+    assert len(cues) == len(words), "one cue per word"
+    for i, cue in enumerate(cues):
+        line_start = (i // n) * n
+        assert cue.text == " ".join(words[line_start:i + 1]), (
+            f"cue {i} should show the line accumulated so far, got {cue.text!r}"
+        )
+    # every word appears, in order, exactly once as a newly-added word
+    assert [c.text.split()[-1] for c in cues] == words
+    # a line grows to n words and then resets
+    assert len(cues[n - 1].text.split()) == n
+    assert len(cues[n].text.split()) == 1, "line must clear after CAPTION_WORDS_PER_LINE"
+    assert cues[0].start == 0.0 and abs(cues[-1].end - 6.0) < 1e-6
+
+
+def test_pop_in_does_not_fire_on_every_scene(tmp_path):
+    """Direct user instruction 2026-09-01: the whole-image pop "should not
+    happen on every scene" — at 15 scenes it was a bounce every ~4s. Only
+    every POP_IN_EVERY_N_SCENES-th scene pops; the rest open already settled.
+
+    Compared against a scene rendered WITH the pop, so this can't pass just
+    because both happen to look static."""
+    img = _still_image(tmp_path)
+    overlays, _box = assembly.build_timed_caption_overlays("a caption line here", 2.0)
+    region = (0, FRAME_HEIGHT // 2, FRAME_WIDTH, FRAME_HEIGHT)
+
+    def opening_movement(pop: bool, idx: int) -> float:
+        seg = assembly.build_scene_video_segment_from_still(
+            img, 2.0, idx, tmp_path / f"seg_{idx}",
+            timed_caption_overlays=overlays, pop_in=pop,
+        )
+        settled = _frame_at(seg, 1.2, tmp_path / f"s_{idx}.png").crop(region)
+        # Scan the whole pop window rather than one instant: ffmpeg's fast
+        # seek quantizes several early requests onto the same decoded frame,
+        # so a single sample can miss the overshoot entirely.
+        deltas = []
+        for t in (0.10, 0.15, 0.20, 0.25):
+            f = _frame_at(seg, t, tmp_path / f"e_{idx}_{t}.png").crop(region)
+            deltas.append(max(ImageStat.Stat(ImageChops.difference(f, settled)).mean))
+        return max(deltas)
+
+    popped = opening_movement(True, 0)
+    flat = opening_movement(False, 1)
+    # Measured separation on this fixture is ~0.89 vs exactly 0.000 — the
+    # subject is a small part of a mostly-white half-frame, so the mean is
+    # diluted. Absolute size doesn't matter; the two must be distinguishable.
+    assert popped > 0.3, f"a popping scene must visibly scale in, got {popped:.3f}"
+    assert flat < 0.05, f"a non-popping scene must open already settled, got {flat:.3f}"
+    assert popped > flat * 10, f"pop {popped:.3f} vs no-pop {flat:.3f}"
 
 
 def test_output_duration_matches_requested_duration(tmp_path):

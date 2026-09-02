@@ -16,7 +16,7 @@
     "claims": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 6,
+      "maxItems": 15,
       "items": {
         "type": "object",
         "required": ["id", "claim", "source"],

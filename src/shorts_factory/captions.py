@@ -73,7 +73,10 @@ FONT_FAMILIES: dict[str, list[str]] = {
     ],
 }
 
-DEFAULT_FONT_SIZE = 64
+# Each CaptionStyle carries its OWN font_size which overrides this, so
+# changing this alone does nothing — the catalog sizes below were raised
+# together with it.
+DEFAULT_FONT_SIZE = 96
 LINE_SPACING = 14
 PADDING = 24
 
@@ -140,7 +143,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "comic_punch_orange": CaptionStyle(
         name="comic_punch_orange",
         font_family="impact",
-        font_size=66,
+        font_size=99,
         text_color=(255, 107, 0, 255),      # Punchy Orange
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
@@ -151,7 +154,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "electric_neon_yellow": CaptionStyle(
         name="electric_neon_yellow",
         font_family="heavy_sans",
-        font_size=66,
+        font_size=99,
         text_color=(255, 230, 0, 255),      # Electric Neon Yellow
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
@@ -162,7 +165,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "cyber_cyan_ice": CaptionStyle(
         name="cyber_cyan_ice",
         font_family="technical_din",
-        font_size=64,
+        font_size=96,
         text_color=(0, 229, 255, 255),      # Vivid Cyan / Ice Aqua
         stroke_color=(0, 10, 25, 255),
         stroke_width=7,
@@ -173,7 +176,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "hot_magenta_fire": CaptionStyle(
         name="hot_magenta_fire",
         font_family="comic",
-        font_size=64,
+        font_size=96,
         text_color=(255, 0, 128, 255),      # Hot Magenta / Pink
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
@@ -184,7 +187,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "toxic_lime_surge": CaptionStyle(
         name="toxic_lime_surge",
         font_family="heavy_sans",
-        font_size=64,
+        font_size=96,
         text_color=(0, 255, 102, 255),      # Toxic Lime Green
         stroke_color=(0, 20, 10, 255),
         stroke_width=8,
@@ -195,7 +198,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "pure_white_punch": CaptionStyle(
         name="pure_white_punch",
         font_family="impact",
-        font_size=68,
+        font_size=102,
         text_color=(255, 255, 255, 255),    # Clean Pure White
         stroke_color=(0, 0, 0, 255),
         stroke_width=9,
@@ -206,7 +209,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "crimson_alert": CaptionStyle(
         name="crimson_alert",
         font_family="impact",
-        font_size=66,
+        font_size=99,
         text_color=(255, 45, 45, 255),      # Bright Crimson Alert
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
@@ -217,7 +220,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "highlighter_yellow_pill": CaptionStyle(
         name="highlighter_yellow_pill",
         font_family="heavy_sans",
-        font_size=64,
+        font_size=96,
         text_color=(255, 230, 0, 255),      # Bright Yellow text (was a pill background)
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
@@ -228,7 +231,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "dark_glass_badge": CaptionStyle(
         name="dark_glass_badge",
         font_family="modern_clean",
-        font_size=62,
+        font_size=93,
         text_color=(255, 255, 255, 255),    # Crisp White (was a glass-panel background)
         stroke_color=(0, 0, 0, 255),
         stroke_width=7,
@@ -239,7 +242,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "royal_blue_pill": CaptionStyle(
         name="royal_blue_pill",
         font_family="heavy_sans",
-        font_size=64,
+        font_size=96,
         text_color=(60, 140, 255, 255),     # Royal Blue text (was a pill background)
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
@@ -250,7 +253,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "danger_red_badge": CaptionStyle(
         name="danger_red_badge",
         font_family="impact",
-        font_size=64,
+        font_size=96,
         text_color=(255, 45, 45, 255),      # Crimson Red text (was a badge background)
         stroke_color=(0, 0, 0, 255),
         stroke_width=8,
@@ -261,7 +264,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "dual_tone_fire": CaptionStyle(
         name="dual_tone_fire",
         font_family="impact",
-        font_size=66,
+        font_size=99,
         text_color=(255, 255, 255, 255),    # Base White
         accent_color=(255, 107, 0, 255),    # Accent Orange first word
         stroke_color=(0, 0, 0, 255),
@@ -274,7 +277,7 @@ CAPTION_STYLES: dict[str, CaptionStyle] = {
     "dual_tone_electric": CaptionStyle(
         name="dual_tone_electric",
         font_family="heavy_sans",
-        font_size=66,
+        font_size=99,
         text_color=(255, 255, 255, 255),    # Base White
         accent_color=(255, 230, 0, 255),    # Accent Electric Yellow first word
         stroke_color=(0, 0, 0, 255),
@@ -556,7 +559,7 @@ def caption_overlay_png(
 CAUTION_BADGE_STYLE = CaptionStyle(
     name="caution_badge",
     font_family="modern_clean",
-    font_size=34,
+    font_size=51,
     text_color=(255, 255, 255, 255),
     stroke_color=(0, 0, 0, 255),
     stroke_width=5,
@@ -588,7 +591,7 @@ def caution_badge_overlay_png(text: str) -> tuple[Image.Image, CaptionBox]:
 SUBSCRIBE_CTA_STYLE = CaptionStyle(
     name="subscribe_cta",
     font_family="impact",
-    font_size=58,
+    font_size=87,
     text_color=(255, 45, 45, 255),   # bright red, standard "subscribe" urgency color
     stroke_color=(255, 255, 255, 255),
     stroke_width=8,
