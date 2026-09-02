@@ -493,6 +493,24 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         "order it actually happens, ending on the payoff or a memorable closing fact — not just the order "
         "the claims happen to be listed in below."
     )
+    # The language was accepted as a parameter and then never used — it was
+    # stamped onto the output JSON as metadata while the prompt itself said
+    # nothing, so asking for Russian produced English narration LABELLED
+    # Russian (found 2026-09-02). It has to be an instruction, and an
+    # emphatic one: the surrounding prompt is entirely in English, so the
+    # model's default is to answer in English.
+    language_instruction = ""
+    if language and language.strip().lower() not in ("english", "en", "en-us", "en-gb"):
+        language_instruction = (
+            f" CRITICAL LANGUAGE REQUIREMENT: write EVERY narration line and EVERY caption in "
+            f"{language}. Not English. The viewer speaks {language} and will not understand "
+            f"English. These instructions are written in English only because that is the "
+            f"working language of this prompt — the OUTPUT must be entirely in {language}. "
+            f"Keep the JSON field NAMES in English; only the human-readable values "
+            f"(narration, caption) are translated. Proper nouns and technical terms may stay in "
+            f"their original form where {language} would normally keep them."
+        )
+
     tone_instruction = (
         " Write every narration line the way a real person would SAY it out loud to a friend, not the way "
         "a textbook would print it. Short sentences. Contractions. No dense multi-clause chemistry-textbook "
@@ -547,6 +565,7 @@ def _script_prompt(brief: dict[str, Any], language: str, visual_style: str) -> s
         + duration_instruction
         + order_instruction
         + tone_instruction
+        + language_instruction
         + " Every scene must contain narration, caption (max 90 characters), duration (3-9.5 seconds), "
         "visual_prompt, source_claim_id, camera, sfx (string or null), mascot_role (string), "
         "mascot_emotion (string), action (string: the physical action/verb-phrase happening on screen this "

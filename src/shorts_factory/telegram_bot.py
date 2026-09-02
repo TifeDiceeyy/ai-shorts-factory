@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import sys
+import time
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, Router
@@ -39,6 +40,7 @@ from aiogram.types import (
 from .config import load_settings, require_budget_approval_if_paid
 from .cost_tracker import CostTracker
 from .dashboard import review_state
+from .languages import SUPPORTED_LANGUAGES, by_code
 from .pipeline import REPO_ROOT, PipelineResult, run_pipeline
 from .providers.fal import FalGateway
 from .providers.llm import get_llm_provider
@@ -60,6 +62,7 @@ class PlanningStates(StatesGroup):
     choosing_topic = State()
     confirming_new_topic = State()
     confirming_retrieval = State()
+    choosing_language = State()
     choosing_length = State()
     confirming_generate = State()
     reviewing_generated = State()
@@ -213,9 +216,13 @@ class TelegramController:
         return {"result": result, "spent": cost_tracker.total_spent_usd, "cap": settings.budget_cap_usd}
 
     def run_generate(
-        self, topic: str, idea: dict | None = None, target_seconds: float | None = None
+        self, topic: str, idea: dict | None = None, target_seconds: float | None = None,
+        progress=None, language: str | None = None,
     ) -> PipelineResult:
-        return run_pipeline(topic, idea=idea, target_seconds=target_seconds)
+        return run_pipeline(
+            topic, idea=idea, target_seconds=target_seconds, progress=progress,
+            language=language,
+        )
 
 
 HELP = (
@@ -240,6 +247,18 @@ LENGTH_CHOICES: tuple[tuple[int, str], ...] = (
 DEFAULT_LENGTH_SECONDS = 45
 
 
+def _language_kb() -> InlineKeyboardMarkup:
+    """Three per row — 11 languages in one column would push the confirm
+    step off screen on a phone."""
+    buttons = [
+        InlineKeyboardButton(text=lang.label, callback_data=f"lang_{lang.code}")
+        for lang in SUPPORTED_LANGUAGES
+    ]
+    rows = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
+    rows.append([InlineKeyboardButton(text="Cancel", callback_data="lang_cancel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def _length_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -248,6 +267,52 @@ def _length_kb() -> InlineKeyboardMarkup:
         ]
         + [[InlineKeyboardButton(text="Cancel", callback_data="length_cancel")]]
     )
+
+
+# How often the progress message is redrawn. Telegram rate-limits edits, and
+# the slowest stage (a Kling clip) takes minutes, so anything faster than
+# this just burns API calls to redraw the same text.
+PROGRESS_REFRESH_SECONDS = 8
+
+# Ordered so a reader can see how far through the run they are. The video
+# stage dominates the wall time; the rest are quick by comparison.
+PROGRESS_STAGES = (
+    "Starting",
+    "Recording narration",
+    "Timing captions to the audio",
+    "Composing the music bed",
+    "Drawing scenes",
+    "Drawing extra shots",
+    "Animating scenes",
+    "Assembling the video",
+)
+
+
+def _duration(seconds: float) -> str:
+    minutes, secs = divmod(int(max(0.0, seconds)), 60)
+    return f"{minutes}m {secs:02d}s" if minutes else f"{secs}s"
+
+
+def _progress_text(stage: str, done: int, total: int, elapsed: float) -> str:
+    """One line of overall progress, one of detail within the current stage.
+
+    The overall bar is stage-based rather than time-based on purpose: the
+    stages have wildly different durations, so a time estimate would be
+    confidently wrong. Position in the list is at least honest about what
+    is happening.
+    """
+    try:
+        index = PROGRESS_STAGES.index(stage)
+    except ValueError:
+        index = 0
+    filled = round((index / max(1, len(PROGRESS_STAGES) - 1)) * 12)
+    bar = "█" * filled + "░" * (12 - filled)
+
+    lines = [f"{bar}  {stage}"]
+    if total:
+        lines.append(f"   scene {min(done + 1, total)} of {total}")
+    lines.append(f"   {_duration(elapsed)} elapsed")
+    return "\n".join(lines)
 
 
 def _confirm_cancel_kb(prefix: str) -> InlineKeyboardMarkup:
@@ -296,6 +361,14 @@ def build_router(controller: TelegramController) -> Router:
     job_lock = asyncio.Lock()
     job_state = _JobState()
 
+    async def enter_language_choice(message: Message, state: FSMContext, topic: str) -> None:
+        await state.set_state(PlanningStates.choosing_language)
+        await state.update_data(topic=topic)
+        await message.answer(
+            f"What language should {topic!r} be in? Narration and captions both.",
+            reply_markup=_language_kb(),
+        )
+
     async def enter_length_choice(message: Message, state: FSMContext, topic: str) -> None:
         await state.set_state(PlanningStates.choosing_length)
         await state.update_data(topic=topic)
@@ -308,10 +381,11 @@ def build_router(controller: TelegramController) -> Router:
     async def enter_generate_confirm(message: Message, state: FSMContext, topic: str) -> None:
         stored = await state.get_data()
         seconds = stored.get("target_seconds") or DEFAULT_LENGTH_SECONDS
+        language = stored.get("language") or "English"
         await state.set_state(PlanningStates.confirming_generate)
         await state.update_data(topic=topic)
         await message.answer(
-            f"Ready to generate {topic!r} at ~{seconds}s — the mascot is chosen automatically from the "
+            f"Ready to generate {topic!r} in {language} at ~{seconds}s — the mascot is chosen automatically from the "
             "story. Real cost is ~$0.30/video once real providers are configured (stub providers cost $0) "
             "— enforced against BUDGET_CAP_USD either way. Generate now?",
             reply_markup=_confirm_cancel_kb("generate"),
@@ -331,7 +405,7 @@ def build_router(controller: TelegramController) -> Router:
             # length choosing. Jumping straight to the confirm step here
             # skipped the picker entirely for every previously-retrieved
             # topic — which is most of them.
-            await enter_length_choice(message, state, topic)
+            await enter_language_choice(message, state, topic)
 
     async def handle_topic_entry(message: Message, state: FSMContext, text: str) -> None:
         topic = text.strip()
@@ -394,28 +468,78 @@ def build_router(controller: TelegramController) -> Router:
             f"{result['verified_count']}/{result['citation_count']} verified. "
             f"Spent ${outcome['spent']:.4f} / ${outcome['cap']:.2f} cap."
         )
-        await enter_length_choice(message, state, topic)
+        await enter_language_choice(message, state, topic)
 
     async def run_locked_generate(
-        message: Message, state: FSMContext, topic: str, target_seconds: float | None = None
+        message: Message, state: FSMContext, topic: str, target_seconds: float | None = None,
+        language: str | None = None,
     ) -> None:
         if job_lock.locked():
             await message.answer(f"A job is already running ({job_state.topic}). Try again shortly.")
             return
         async with job_lock:
             job_state.topic = f"generate:{topic}"
-            await message.answer(f"Generating {topic!r}… this can take a few minutes.")
+            started = time.monotonic()
+            status = await message.answer(
+                f"Generating {topic!r}…\n{_progress_text('Starting', 0, 0, 0.0)}"
+            )
+
+            # run_pipeline runs on a worker thread, so its progress callback
+            # fires OFF the event loop and cannot await anything. It just
+            # records the latest stage; the async ticker below is what edits
+            # the message.
+            latest: dict[str, Any] = {"stage": "Starting", "done": 0, "total": 0}
+
+            def on_progress(stage: str, done: int, total: int) -> None:
+                latest.update(stage=stage, done=done, total=total)
+
+            async def tick() -> None:
+                """Edits one message in place rather than posting a new one
+                per update — a 20-minute run would otherwise bury the chat.
+                Telegram rejects an edit whose text is unchanged, so the last
+                rendered text is tracked and skipped."""
+                shown = None
+                while True:
+                    await asyncio.sleep(PROGRESS_REFRESH_SECONDS)
+                    text = (
+                        f"Generating {topic!r}…\n"
+                        + _progress_text(
+                            latest["stage"], latest["done"], latest["total"],
+                            time.monotonic() - started,
+                        )
+                    )
+                    if text == shown:
+                        continue
+                    shown = text
+                    try:
+                        await status.edit_text(text)
+                    except Exception:  # noqa: BLE001 - never let the UI kill the job
+                        pass
+
+            ticker = asyncio.create_task(tick())
             try:
                 result = await asyncio.to_thread(
-                    controller.run_generate, topic, None, target_seconds
+                    controller.run_generate, topic, None, target_seconds, on_progress, language
                 )
             except Exception as exc:
                 logger.exception("Telegram generation failed for topic %r", topic)
-                await message.answer(f"Refused: {exc}")
+                elapsed = time.monotonic() - started
+                await message.answer(
+                    f"❌ Generation FAILED for {topic!r} after {_duration(elapsed)}\n\n"
+                    f"Stage: {latest['stage']}\n"
+                    f"{type(exc).__name__}: {exc}"[:3500]
+                )
                 await state.clear()
                 return
             finally:
+                ticker.cancel()
                 job_state.topic = None
+            try:
+                await status.edit_text(
+                    f"Generated {topic!r} in {_duration(time.monotonic() - started)}."
+                )
+            except Exception:  # noqa: BLE001
+                pass
         if result.budget_approval_blocked:
             await message.answer(f"Refused: {result.budget_approval_block_reason}")
         elif result.blocked:
@@ -552,6 +676,23 @@ def build_router(controller: TelegramController) -> Router:
                     await run_locked_retrieval(message, state, topic)
                 elif data == "retrieval_cancel":
                     await message.answer("Skipped retrieval.")
+                    await enter_language_choice(message, state, topic)
+            elif current_state == PlanningStates.choosing_language.state:
+                stored = await state.get_data()
+                topic = stored.get("topic")
+                if data == "lang_cancel":
+                    await message.answer("Cancelled.")
+                    await state.clear()
+                elif data.startswith("lang_"):
+                    # Resolve through the registry rather than trusting the
+                    # payload: callback_data is attacker-controllable, and an
+                    # unrecognised language would reach the pipeline and be
+                    # refused there after the user had already committed.
+                    chosen = by_code(data.split("_", 1)[1])
+                    if chosen is None:
+                        await message.answer("Unrecognised language.")
+                        return
+                    await state.update_data(language=chosen.name)
                     await enter_length_choice(message, state, topic)
             elif current_state == PlanningStates.choosing_length.state:
                 stored = await state.get_data()
@@ -579,7 +720,8 @@ def build_router(controller: TelegramController) -> Router:
                 topic = stored.get("topic")
                 if data == "generate_confirm":
                     await run_locked_generate(
-                        message, state, topic, stored.get("target_seconds")
+                        message, state, topic, stored.get("target_seconds"),
+                        stored.get("language"),
                     )
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")

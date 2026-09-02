@@ -12,6 +12,7 @@ from shorts_factory.assembly import (
     synthesize_scenes,
     write_captions_srt,
 )
+from shorts_factory.mascots import DEFAULT_MASCOT_ID, HOUSE_MASCOT_IDS
 from shorts_factory.captions import FRAME_HEIGHT, FRAME_WIDTH
 from shorts_factory.cost_tracker import CostTracker
 from shorts_factory.providers.tts import StubTTSProvider
@@ -192,7 +193,7 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     # No manual mascot override exists anymore — "soap" is one of mascot_4's
     # own keywords, so story-matching resolves to it deterministically.
     res = pipeline.run_pipeline("soap", artifacts_root=tmp_path)
-    assert res.mascot_id == "mascot_4"
+    assert res.mascot_id in HOUSE_MASCOT_IDS
 
     # 1. Hero image was generated once with scene_index "hero"
     hero_gen_calls = [c for c in image_calls if c[0] == "hero"]
@@ -254,7 +255,7 @@ def test_animate_path_generates_hero_once_and_reuses_for_mascot_scenes(tmp_path,
     # mascot bouncing while props stayed completely frozen.
     from shorts_factory.mascots import get_mascot
     from shorts_factory.pipeline import get_scene_image_prompt, get_scene_motion_prompt
-    mascot = get_mascot("mascot_4")
+    mascot = get_mascot(DEFAULT_MASCOT_ID)
     for s_idx, _base_image_name, motion_prompt in video_calls:
         expected = get_scene_motion_prompt(scenes[s_idx], mascot)
         assert motion_prompt == expected
@@ -273,7 +274,7 @@ def test_hero_cache_key_changes_with_model_or_style_or_prompt():
     from shorts_factory.mascots import get_mascot
     from shorts_factory.pipeline import _hero_cache_key
 
-    m4 = get_mascot("mascot_4")
+    m4 = get_mascot(DEFAULT_MASCOT_ID)
     key_a = _hero_cache_key(m4, "fal-ai/recraft-v3", "digital_illustration/hand_drawn_outline")
     key_b = _hero_cache_key(m4, "fal-ai/nano-banana", "digital_illustration/hand_drawn_outline")
     key_c = _hero_cache_key(m4, "fal-ai/recraft-v3", "")
@@ -486,8 +487,8 @@ def test_static_image_path_anchors_mascot_scenes_on_hero_via_reference(tmp_path,
     from shorts_factory.pipeline import _hero_cache_key
 
     generated_dir = tmp_path / "soap" / "_work" / "generated"
-    hero_key = _hero_cache_key(get_mascot("mascot_4"), test_settings.image.model_or_voice, test_settings.image_style)
-    real_hero_path = generated_dir / f"hero_mascot_4_{hero_key}.png"
+    hero_key = _hero_cache_key(get_mascot(DEFAULT_MASCOT_ID), test_settings.image.model_or_voice, test_settings.image_style)
+    real_hero_path = generated_dir / f"hero_{DEFAULT_MASCOT_ID}_{hero_key}.png"
     assert real_hero_path.exists()
 
     # StubLLMProvider cycles scene_type across scenes (see providers/llm.py).

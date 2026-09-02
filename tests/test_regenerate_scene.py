@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from shorts_factory.mascots import HOUSE_MASCOT_IDS
 from shorts_factory.pipeline import regenerate_scene, run_pipeline
 
 
@@ -66,7 +67,7 @@ def test_run_pipeline_persists_the_auto_selected_mascot_and_regenerate_reads_it_
     explicit user request) — the mascot is always resolved automatically
     via select_mascot_for_story(topic, brief=...), using the brief's
     concept/angle/claims text, not just the bare topic string. "charcoal"
-    is one of mascot_4's own keywords (MASCOT_STORY_KEYWORDS), so this
+    is one of the house mascots' keywords (MASCOT_STORY_KEYWORDS), so this
     resolves deterministically rather than needing a seeded random pick.
     regenerate_scene must then read that same mascot back from script.json
     (history), not re-resolve it."""
@@ -83,7 +84,9 @@ def test_run_pipeline_persists_the_auto_selected_mascot_and_regenerate_reads_it_
     monkeypatch.setattr(pipeline, "select_mascot_for_story", spy_select)
 
     full = run_pipeline("charcoal", artifacts_root=tmp_path)
-    assert full.mascot_id == "mascot_4"
+    # A house mascot — see mascots.HOUSE_MASCOTS_ONLY. Which of the two is
+    # keyword-dependent, so assert the group rather than pinning one.
+    assert full.mascot_id in HOUSE_MASCOT_IDS
     assert len(calls) == 1
     assert calls[0][0] == "charcoal"
     assert calls[0][1] is not None  # the brief was passed, not just the bare topic
@@ -91,10 +94,10 @@ def test_run_pipeline_persists_the_auto_selected_mascot_and_regenerate_reads_it_
     script_file = tmp_path / "charcoal" / "charcoal.script.json"
     assert script_file.exists()
     script_data = json.loads(script_file.read_text(encoding="utf-8"))
-    assert script_data.get("mascot_id") == "mascot_4"
+    assert script_data.get("mascot_id") in HOUSE_MASCOT_IDS
 
     regen = regenerate_scene("charcoal", 0, artifacts_root=tmp_path)
-    assert regen.mascot_id == "mascot_4"
+    assert regen.mascot_id in HOUSE_MASCOT_IDS
 
 
 def test_run_pipeline_generates_a_custom_mascot_when_nothing_matches(tmp_path, monkeypatch):

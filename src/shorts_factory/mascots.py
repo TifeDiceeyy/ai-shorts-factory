@@ -159,9 +159,22 @@ class Mascot:
             # replaced, whose style and background clauses now live once in
             # _style_tail.
             prompt_parts.append("Split-canvas explainer composition.")
+            # Only place the character if the authored description hasn't
+            # already placed him. Stating both produced a prompt that asked
+            # for the mascot seven times in conflicting positions ("stands
+            # centered" AND "in the bottom-left quadrant"), and the model
+            # resolved it by drawing him TWICE in the same frame — visible
+            # in a real render 2026-09-02.
+            if not _mentions_character(subject):
+                prompt_parts.append(
+                    f"In the {corner} quadrant, the full-body {self.name} mascot (about 40% of frame "
+                    f"height, clearly visible, not tiny) stands looking and pointing up."
+                )
+            else:
+                prompt_parts.append(
+                    f"Show him once only, small in the {corner} area — exactly ONE character in the image."
+                )
             prompt_parts += [
-                f"In the {corner} quadrant, the full-body {self.name} mascot (about 40% of frame height, "
-                f"clearly visible, not tiny) stands looking and pointing up.",
                 # Role and emotion as their own clauses: interpolating them
                 # mid-sentence produced "pointing up with thoughtful as
                 # Discovery", since the raw values are adjectives and
@@ -183,9 +196,17 @@ class Mascot:
             return " ".join(prompt_parts)
         else:
             prompt_parts = [p for p in (subject,) if p]
+            # Same rule as the split branch: don't place the character twice.
+            if not _mentions_character(subject):
+                prompt_parts.append(
+                    f"Full-body {self.name} mascot centered vertically in frame, small — no more than 28% "
+                    f"of frame height, with generous empty space all around it."
+                )
+            else:
+                prompt_parts.append(
+                    "Show him once only, centered and small in frame — exactly ONE character in the image."
+                )
             prompt_parts += [
-                f"Full-body {self.name} mascot centered vertically in frame, small — no more than 28% "
-                f"of frame height, with generous empty space all around it.",
                 f"Role: {scene_role or 'explainer'}. Emotion: {_expand_emotion(emotion) or 'friendly enthusiastic expression'}.",
             ]
             if action:
@@ -424,9 +445,14 @@ _STYLE_DEDUPE_RE = re.compile(
 )
 
 
+# Widened 2026-09-02 after a real render: the list had neither "elder" nor
+# any possessive, so "The Red-Cap Elder stands centered, demonstrating with
+# HIS stick" read as character-free and the template placed him a second
+# time — the model then drew two of him in one frame.
 _CHARACTER_WORDS = re.compile(
     r"\b(mascot|legionary|character|figure|person|man|woman|dwarf|engineer|"
-    r"explorer|alchemist|builder|hands?|he|she|they)\b",
+    r"explorer|alchemist|builder|elder|grandpa|presenter|guide|hands?|"
+    r"he|she|they|him|her|his|their|hers|theirs)\b",
     re.IGNORECASE,
 )
 
@@ -670,15 +696,153 @@ MASCOT_5 = Mascot(
     ),
 )
 
+# --- The two general-purpose mascots -------------------------------------
+#
+# Supplied by the user as reference art (2026-09-02) and intended as the
+# HOUSE characters: rather than inventing a new mascot per topic, these two
+# are cast into whatever role the story needs, keeping one recognisable
+# presenter across every video. That is what the reference short does, and
+# it is why its channel reads as a single series rather than a pile of
+# unrelated clips.
+#
+# Their keyword lists are deliberately broad — they are meant to win by
+# default on any topic, not to wait for a themed match like mascots 1-3 do.
+
+# Background: PURE WHITE, stated first and without alternatives. The first
+# version described the reference art's faint speckled off-white and the
+# model produced solid coloured backgrounds instead (olive green, cream) —
+# and every downstream stage here assumes white sticker framing. The
+# speckle texture is dropped entirely: it is barely visible at video size
+# and it was what invited the model to invent a background at all.
+_ELDER_SHARED_STYLE = (
+    "The background is STARK PURE SOLID WHITE (#FFFFFF) — a plain white sticker background with absolutely "
+    "no scenery, no ground line, no floor shadow, and no background colour of any kind. "
+    "Flat 2D hand-drawn cartoon illustration with bold black ink outlines and flat matte fills — explicitly "
+    "NOT a 3D render, NOT CGI, NOT Pixar-style, NOT photoreal, NOT glossy. "
+    "His arms and legs are drawn as SIMPLE THIN BLACK LINES, not sleeves or trousers, ending in small "
+    "mitten-shaped black gloves and simple solid black boot shapes. "
+    "Do not render any text, words, letters, labels, or signs in the base image."
+)
+
+MASCOT_6 = Mascot(
+    id="mascot_6",
+    name="Mascot 6: Red-Cap Elder (House Mascot)",
+    short_desc="Kindly white-moustached elder in a rust-red bobble beanie and navy coat with a mustard collar, carrying a thin pointer stick",
+    hero_prompt=(
+        "Full-body FLAT 2D hand-drawn cartoon illustration of a friendly elderly man mid-stride, walking. "
+        "Bold black ink outlines, flat matte fills — NOT a 3D render, NOT CGI, NOT Pixar-style, NOT photoreal, NOT glossy. "
+        "The character is small and centered vertically in frame, occupying no more than 30% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or fill the frame. "
+        "He wears a rust-red knitted beanie with a rolled brim and a round bobble on top, with a little white hair showing beneath it at the sides. "
+        "He has a large bushy pure-white walrus moustache and a clean shaven chin — moustache only, NO full beard. "
+        "Small round black dot eyes, pale peach skin, soft round pink blush circles on both cheeks, thin white eyebrows. "
+        "He wears a navy-blue buttoned work coat with a mustard-yellow collar and two small brass buttons down the front. "
+        "His arms and legs are drawn as simple thin dark lines rather than sleeves or trousers, ending in small mitten-shaped black gloves and simple solid black boots. "
+        # The reference art gives him a raised teaching pointer, but three
+        # generations in a row turned it into a walking cane resting on the
+        # ground — the model's "elderly man + stick" prior is stronger than
+        # any wording tried (raised beside head / never a cane / explicit
+        # upper-half geometry). A cane reads as infirm rather than as a
+        # presenter, so the hero simply holds nothing and per-scene `action`
+        # introduces a pointer on the shots that actually need one.
+        "Both hands are empty and free, one gesturing naturally as he walks. "
+        "Stark pure solid white background (#FFFFFF) only, zero background details, zero scenery, zero floor shadows, sticker framing."
+    ),
+    visual_style=(
+        "Flat 2D hand-drawn cartoon illustration of a kindly elderly presenter with a rust-red bobble beanie, "
+        "white walrus moustache, navy coat with mustard collar, thin black stick limbs and a black pointer "
+        "stick. " + _ELDER_SHARED_STYLE
+    ),
+    motion_instruction=(
+        "For every scene's `visual_prompt`, describe the Red-Cap Elder's whole-body action and gesture — he is "
+        "a walking, pointing presenter, so favour strides, turns, and the pointer stick indicating things "
+        "(e.g. 'the elder walks in from the left and taps the floating object with his pointer stick', or "
+        "'the elder plants his feet and raises the pointer overhead with wide eyes'). "
+        "Keep him isolated on the speckled off-white background."
+    ),
+    scene_role_template=(
+        "Cast the Red-Cap Elder into a role for each story beat while preserving his rust-red bobble beanie, "
+        "white moustache, navy-and-mustard coat and pointer stick DNA: "
+        "Hook=the elder striding in and pointing at the surprising thing; "
+        "Discovery=the elder leaning in to inspect a raw material closely; "
+        "Process=the elder demonstrating the steps with his pointer stick; "
+        "Challenge=the elder bracing or reacting to the difficult part; "
+        "Payoff=the elder presenting the finished result with a proud closed-mouth smile."
+    ),
+)
+
+MASCOT_7 = Mascot(
+    id="mascot_7",
+    name="Mascot 7: Green-Cap Elder (House Mascot)",
+    short_desc="Kindly full-bearded elder in an olive-green bobble beanie and dark brown coat, carrying a thin pointer stick",
+    hero_prompt=(
+        "Full-body FLAT 2D hand-drawn cartoon illustration of a friendly elderly man mid-stride, walking. "
+        "Bold black ink outlines, flat matte fills — NOT a 3D render, NOT CGI, NOT Pixar-style, NOT photoreal, NOT glossy. "
+        "The character is small and centered vertically in frame, occupying no more than 30% of vertical height, "
+        "with generous empty white space above, below, and on both sides — the character must NOT dominate or fill the frame. "
+        "He wears an olive moss-green knitted beanie with a rolled brim and a round bobble on top, with a little white hair showing beneath it at the sides. "
+        "He has a LARGE full bushy pure-white beard covering his chin and jaw, together with a white moustache. "
+        "Small round black dot eyes, pale peach skin, soft round pink blush circles on both cheeks, thin white eyebrows. "
+        "He wears a dark chocolate-brown buttoned work coat with two small amber buttons down the front. "
+        "His arms and legs are drawn as simple thin dark lines rather than sleeves or trousers, ending in small mitten-shaped black gloves and simple solid black boots. "
+        # The reference art gives him a raised teaching pointer, but three
+        # generations in a row turned it into a walking cane resting on the
+        # ground — the model's "elderly man + stick" prior is stronger than
+        # any wording tried (raised beside head / never a cane / explicit
+        # upper-half geometry). A cane reads as infirm rather than as a
+        # presenter, so the hero simply holds nothing and per-scene `action`
+        # introduces a pointer on the shots that actually need one.
+        "Both hands are empty and free, one gesturing naturally as he walks. "
+        "Stark pure solid white background (#FFFFFF) only, zero background details, zero scenery, zero floor shadows, sticker framing."
+    ),
+    visual_style=(
+        "Flat 2D hand-drawn cartoon illustration of a kindly elderly presenter with an olive-green bobble "
+        "beanie, full white beard, dark brown coat, thin black stick limbs and a black pointer stick. "
+        + _ELDER_SHARED_STYLE
+    ),
+    motion_instruction=(
+        "For every scene's `visual_prompt`, describe the Green-Cap Elder's whole-body action and gesture — he "
+        "is a walking, pointing presenter, so favour strides, turns, and the pointer stick indicating things "
+        "(e.g. 'the bearded elder walks across and points his stick at the steaming pot', or 'the bearded "
+        "elder stops, strokes his beard and tilts his head at the diagram'). "
+        "Keep him isolated on the speckled off-white background."
+    ),
+    scene_role_template=(
+        "Cast the Green-Cap Elder into a role for each story beat while preserving his olive bobble beanie, "
+        "full white beard, dark brown coat and pointer stick DNA: "
+        "Hook=the bearded elder striding in and pointing at the surprising thing; "
+        "Discovery=the bearded elder stroking his beard over a raw material; "
+        "Process=the bearded elder walking the viewer through the steps with his pointer; "
+        "Challenge=the bearded elder bracing or reacting to the difficult part; "
+        "Payoff=the bearded elder presenting the finished result with a proud closed-mouth smile."
+    ),
+)
+
 MASCOTS: dict[str, Mascot] = {
     "mascot_1": MASCOT_1,
     "mascot_2": MASCOT_2,
     "mascot_3": MASCOT_3,
     "mascot_4": MASCOT_4,
     "mascot_5": MASCOT_5,
+    "mascot_6": MASCOT_6,
+    "mascot_7": MASCOT_7,
 }
 
-DEFAULT_MASCOT_ID = "mascot_4"
+# The house presenter. Changed from mascot_4 on 2026-09-02: the two elder
+# mascots are the ones the channel is actually built around, so they win
+# ties and carry any topic that doesn't specifically match another.
+DEFAULT_MASCOT_ID = "mascot_6"
+
+# The general-purpose pair. Kept as a named group because the point of them
+# is that they are cast into EVERY story rather than waiting for a themed
+# keyword match — see HOUSE_MASCOT_KEYWORDS below.
+HOUSE_MASCOT_IDS = ("mascot_6", "mascot_7")
+
+# When true, select_mascot_for_story() only ever returns one of the two
+# house mascots. Mascots 1-5 stay in the registry so older artifacts that
+# name them still resolve, but nothing selects them any more, and no run
+# pays to design a custom mascot.
+HOUSE_MASCOTS_ONLY = True
 
 
 def load_custom_mascots() -> dict[str, dict]:
@@ -790,6 +954,21 @@ MASCOT_STORY_KEYWORDS: dict[str, list[str]] = {
     "mascot_3": ["vinegar", "food", "preservation", "ferment", "salt", "drying", "cider", "apple"],
     "mascot_4": ["soap", "charcoal", "stone", "mineral", "mining", "smelt", "furnace", "ash", "lye"],
     "mascot_5": ["water filtration", "filter", "distill", "alchemist", "chemistry", "herb", "purify"],
+    # Broad on purpose. Mascots 1-5 wait for their own theme; these two are
+    # the house presenters and are meant to fit anything explanatory, so
+    # their keywords cover the vocabulary almost every how-it-works story
+    # uses. Between them, mascot_6 (moustache, red cap) leans modern/urban
+    # and mascot_7 (full beard, green cap) leans wilderness/traditional.
+    "mascot_6": [
+        "how", "make", "made", "build", "built", "invent", "discovery", "science",
+        "history", "ancient", "modern", "city", "machine", "electricity", "power",
+        "engine", "factory", "material", "technology", "explain", "work", "works",
+    ],
+    "mascot_7": [
+        "survival", "wild", "forest", "woods", "winter", "snow", "fire", "camp",
+        "hunt", "forage", "farm", "crop", "brew", "ferment", "wood", "craft",
+        "traditional", "old", "village", "homestead", "bushcraft", "shelter",
+    ],
 }
 
 
@@ -825,6 +1004,25 @@ def select_mascot_for_story(
                 search_text += f" {claim.get('claim', '')} {claim.get('narrative_role', '')}".lower()
             elif isinstance(claim, str):
                 search_text += f" {claim}".lower()
+
+    if HOUSE_MASCOTS_ONLY:
+        # The two house presenters carry EVERY story (user decision,
+        # 2026-09-02): one recognisable presenter across the channel is the
+        # point, so the themed mascots and the generate-a-custom-one path
+        # are both bypassed. Only the lean between the two is decided by
+        # keywords, and DEFAULT_MASCOT_ID breaks the tie — so this never
+        # returns None and a run can never be charged for designing a new
+        # mascot it does not want.
+        house_scores = {m_id: 0 for m_id in HOUSE_MASCOT_IDS}
+        topic_lower = topic.lower()
+        for m_id in HOUSE_MASCOT_IDS:
+            for kw in MASCOT_STORY_KEYWORDS.get(m_id, []):
+                if kw in search_text:
+                    house_scores[m_id] += 2 if kw in topic_lower else 1
+        best = max(house_scores.values())
+        leaders = [m_id for m_id, sc in house_scores.items() if sc == best]
+        chosen = DEFAULT_MASCOT_ID if DEFAULT_MASCOT_ID in leaders else leaders[0]
+        return MASCOTS[chosen]
 
     custom = load_custom_mascots()
     all_keywords: dict[str, list[str]] = dict(MASCOT_STORY_KEYWORDS)

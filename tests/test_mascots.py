@@ -2,6 +2,9 @@ import json
 import pytest
 
 from shorts_factory.mascots import (
+    DEFAULT_MASCOT_ID,
+    HOUSE_MASCOTS_ONLY,
+    HOUSE_MASCOT_IDS,
     MASCOTS,
     custom_mascot_slug,
     generate_custom_mascot,
@@ -112,10 +115,16 @@ def test_get_mascot_aliases_and_fallback():
     assert get_mascot("mascot_5").id == "mascot_5"
     assert get_mascot("5").id == "mascot_5"
     # Fallback to default Mascot 4
-    assert get_mascot(None).id == "mascot_4"
-    assert get_mascot("unknown_mascot").id == "mascot_4"
+    assert get_mascot(None).id == DEFAULT_MASCOT_ID
+    assert get_mascot("unknown_mascot").id == DEFAULT_MASCOT_ID
 
 
+@pytest.mark.skipif(
+    HOUSE_MASCOTS_ONLY,
+    reason="HOUSE_MASCOTS_ONLY: the two house mascots carry every story, so themed "
+           "keyword selection and the custom-mascot fallback are bypassed by design. "
+           "This test describes the themed path and applies again if the flag is cleared.",
+)
 def test_select_mascot_for_story_matches_topic_keywords():
     # Direct topic keyword hits (see MASCOT_STORY_KEYWORDS) — deterministic
     # since a single-candidate match never reaches the random tie-break.
@@ -125,6 +134,12 @@ def test_select_mascot_for_story_matches_topic_keywords():
     assert select_mascot_for_story("apple cider vinegar").id == "mascot_3"
 
 
+@pytest.mark.skipif(
+    HOUSE_MASCOTS_ONLY,
+    reason="HOUSE_MASCOTS_ONLY: the two house mascots carry every story, so themed "
+           "keyword selection and the custom-mascot fallback are bypassed by design. "
+           "This test describes the themed path and applies again if the flag is cleared.",
+)
 def test_select_mascot_for_story_uses_brief_text_too_not_just_topic():
     # A generic/ambiguous topic string alone matches nothing, but the
     # brief's concept/angle/claims carry the real thematic signal — must be
@@ -137,6 +152,12 @@ def test_select_mascot_for_story_uses_brief_text_too_not_just_topic():
     assert select_mascot_for_story("ancient engineering", brief=brief).id == "mascot_1"
 
 
+@pytest.mark.skipif(
+    HOUSE_MASCOTS_ONLY,
+    reason="HOUSE_MASCOTS_ONLY: the two house mascots carry every story, so themed "
+           "keyword selection and the custom-mascot fallback are bypassed by design. "
+           "This test describes the themed path and applies again if the flag is cleared.",
+)
 def test_select_mascot_for_story_returns_none_when_nothing_matches_at_all():
     # No keyword hits at all -> None, signaling the caller (run_pipeline) to
     # generate a brand-new custom mascot instead of forcing an unrelated one
@@ -145,6 +166,12 @@ def test_select_mascot_for_story_returns_none_when_nothing_matches_at_all():
         assert select_mascot_for_story("xyzzy nonsense topic", seed=seed) is None
 
 
+@pytest.mark.skipif(
+    HOUSE_MASCOTS_ONLY,
+    reason="HOUSE_MASCOTS_ONLY: the two house mascots carry every story, so themed "
+           "keyword selection and the custom-mascot fallback are bypassed by design. "
+           "This test describes the themed path and applies again if the flag is cleared.",
+)
 def test_select_mascot_for_story_main_mascot_wins_ties():
     # Mascot 4 ("Main Mascot") wins ties among the 5 registered mascots
     # instead of a random pick — an exact tie: "soap" (mascot_4, +1, only in
@@ -209,6 +236,12 @@ def test_generate_custom_mascot_uses_llm_and_registers_it(tmp_path, monkeypatch)
     assert on_disk[mascot.id]["keywords"]
 
 
+@pytest.mark.skipif(
+    HOUSE_MASCOTS_ONLY,
+    reason="HOUSE_MASCOTS_ONLY: the two house mascots carry every story, so themed "
+           "keyword selection and the custom-mascot fallback are bypassed by design. "
+           "This test describes the themed path and applies again if the flag is cleared.",
+)
 def test_select_mascot_for_story_reuses_a_previously_generated_custom_mascot(tmp_path, monkeypatch):
     """Regression test: the whole point of persisting a custom mascot is
     that a FUTURE similar topic finds and reuses it via the same
@@ -465,7 +498,9 @@ def test_pipeline_records_chosen_mascot(tmp_path, monkeypatch):
     # keywords (MASCOT_STORY_KEYWORDS), so it deterministically resolves to
     # mascot_4 rather than needing a seeded random pick.
     result = run_pipeline("soap", artifacts_root=tmp_path)
-    assert result.mascot_id == "mascot_4"
+    # A house mascot, not a themed one — see HOUSE_MASCOTS_ONLY. Which of
+    # the two depends on the topic's keyword lean, so assert the group.
+    assert result.mascot_id in HOUSE_MASCOT_IDS
     assert (tmp_path / "soap" / "soap.script.json").exists()
 
 
@@ -578,3 +613,54 @@ def test_split_canvas_role_and_emotion_are_grammatical():
         assert "up with " not in prompt, "role/emotion must not be spliced mid-sentence"
         assert "Role: Discovery." in prompt
         assert "Emotion: " in prompt
+
+
+def test_the_character_is_never_placed_twice():
+    """A real render came back with TWO mascots in one frame (2026-09-02).
+
+    The script's own visual_prompt already says where the character is
+    ("The Red-Cap Elder stands centered"), and the layout template then
+    placed him again somewhere else ("in the bottom-left quadrant"). The
+    prompt asked for the mascot seven times in conflicting positions and
+    the model drew him twice.
+    """
+    mascot = get_mascot("mascot_6")
+    authored = "The Red-Cap Elder stands centered, demonstrating with his stick"
+
+    for layout in ("split_bottom_left", "centered"):
+        prompt = mascot.build_scene_prompt(
+            scene_role="Process", emotion="demonstrative", layout=layout,
+            props="a rotating coil", subject=authored,
+        )
+        assert "exactly ONE character" in prompt, layout
+        assert "stands looking and pointing up" not in prompt, (
+            f"{layout}: the template placed the character a second time"
+        )
+
+    # With no authored description the template MUST still place him,
+    # otherwise a character-free prompt would render an empty frame.
+    plain = mascot.build_scene_prompt(scene_role="Process", layout="split_bottom_left")
+    assert "quadrant" in plain and "exactly ONE character" not in plain
+
+
+def test_character_detection_covers_names_and_possessives():
+    """The first version of this list had neither "elder" nor any
+    possessive, so a description naming the character read as
+    character-free and the double-placement bug slipped through."""
+    from shorts_factory.mascots import _mentions_character
+
+    for text in (
+        "The Red-Cap Elder stands centered",
+        "demonstrating with his stick",
+        "the presenter points at it",
+        "she raises a hand",
+        "their hands are visible",
+    ):
+        assert _mentions_character(text), text
+
+    for text in (
+        "A rotating coil of wire with a magnet inside",
+        "A simple kiln with limestone entering",
+        "four ingredients arranged in a grid",
+    ):
+        assert not _mentions_character(text), text

@@ -210,3 +210,61 @@ def test_every_route_to_generation_passes_through_the_length_picker():
     assert "enter_generate_confirm(" in picker_block[1].split("confirming_generate.state")[0], (
         "the only call must sit in the choosing_length branch"
     )
+
+
+def test_progress_reporting_can_never_break_a_run():
+    """A generation costs real money and takes ~20 minutes. A slip in the
+    REPORTING path — a formatting error, a dropped Telegram call — must not
+    lose it, so every callback failure is swallowed deliberately."""
+    from shorts_factory.pipeline import _progress_reporter
+
+    exploding = _progress_reporter(lambda *args: 1 / 0)
+    exploding("Drawing scenes", 1, 15)          # must not raise
+
+    seen = []
+    _progress_reporter(lambda s, d, t: seen.append((s, d, t)))("Animating scenes", 4, 9)
+    assert seen == [("Animating scenes", 4, 9)]
+
+    _progress_reporter(None)("no callback configured")   # must not raise
+
+
+def test_every_reported_stage_is_known_to_the_progress_bar():
+    """The bar positions itself by finding the stage in PROGRESS_STAGES. A
+    stage the pipeline reports but the bar doesn't know silently renders as
+    0% for its whole duration."""
+    import inspect
+    import re
+
+    from shorts_factory import pipeline
+    from shorts_factory.telegram_bot import PROGRESS_STAGES
+
+    reported = set(re.findall(r'report\(\s*"([^"]+)"', inspect.getsource(pipeline)))
+    assert reported, "no progress calls found in the pipeline"
+    unknown = reported - set(PROGRESS_STAGES)
+    assert not unknown, f"pipeline reports stages the bar doesn't know: {sorted(unknown)}"
+
+
+def test_progress_text_shows_stage_scene_and_elapsed():
+    from shorts_factory.telegram_bot import _duration, _progress_text
+
+    text = _progress_text("Animating scenes", 4, 9, 626)
+    assert "Animating scenes" in text
+    assert "5 of 9" in text, "scene counter should be 1-based for a reader"
+    assert "10m 26s" in text
+    assert "█" in text and "░" in text
+
+    # A stage with no per-item count omits the counter line entirely.
+    assert "of" not in _progress_text("Assembling the video", 0, 0, 10).split("\n")[1]
+
+    assert _duration(0) == "0s"
+    assert _duration(59) == "59s"
+    assert _duration(61) == "1m 01s"
+
+
+def test_bar_advances_monotonically_through_the_stages():
+    """A bar that jumps backwards reads as a failure."""
+    from shorts_factory.telegram_bot import PROGRESS_STAGES, _progress_text
+
+    filled = [_progress_text(s, 0, 0, 0).count("█") for s in PROGRESS_STAGES]
+    assert filled == sorted(filled), filled
+    assert filled[0] == 0 and filled[-1] == 12

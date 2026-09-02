@@ -13,12 +13,14 @@ import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 from . import assembly, verify
 from .config import BudgetApprovalRequired, load_settings, require_budget_approval_if_paid
 from .cost_tracker import BudgetExceeded, CostTracker
 from .dashboard import review_state
+from .languages import DEFAULT_LANGUAGE, is_supported, unsupported_reason
 from .mascots import Mascot, generate_custom_mascot, get_mascot, select_mascot_for_story
 from .providers.image import get_image_provider
 from .providers.llm import LLMResponseFormatError, StubLLMProvider, get_llm_provider
@@ -174,6 +176,23 @@ def _get_or_create_hero_image(image_provider, mascot: Mascot, hero_path: Path, c
         hero_path.parent.mkdir(parents=True, exist_ok=True)
         image_provider.generate_scene_image({"visual_prompt": mascot.hero_image_prompt}, "hero", hero_path, cost_tracker)
     return hero_path
+
+
+def _progress_reporter(progress):
+    """Wraps the caller's progress callback so it can never break a run.
+
+    A generation costs real money and takes ~20 minutes; a formatting slip
+    or a dropped network call in the REPORTING path must not lose it. Every
+    failure is swallowed deliberately.
+    """
+    def report(stage: str, done: int = 0, total: int = 0) -> None:
+        if progress is None:
+            return
+        try:
+            progress(stage, done, total)
+        except Exception:  # noqa: BLE001 - reporting is never fatal
+            pass
+    return report
 
 
 def _align_scene_captions(settings, scene_audio, cost_tracker) -> list[list] | None:
@@ -540,6 +559,8 @@ def run_pipeline(
     idea: dict[str, Any] | None = None,
     artifacts_root: Path | None = None,
     target_seconds: float | None = None,
+    progress: "Callable[[str, int, int], None] | None" = None,
+    language: str | None = None,
 ) -> PipelineResult:
     """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
     steers script framing (brief_builder.build_brief_from_citations), never
@@ -557,10 +578,21 @@ def run_pipeline(
     the exact same directory and silently clobber each other (confirmed:
     this happened for real 2026-08-17, a stub test run overwrote a $1.72
     real animated video with a free demo one)."""
+    report = _progress_reporter(progress)
     result = PipelineResult()
     result.topic = topic
 
     settings = load_settings()
+    # Resolve and CHECK the language before anything is spent. Captions are
+    # burned into the frame, so a language the caption font cannot draw
+    # yields a finished, paid-for video whose text is empty boxes — refusing
+    # up front is the only honest option (see languages.py).
+    output_language = (language or settings.output_language or DEFAULT_LANGUAGE).strip()
+    if not is_supported(output_language):
+        result.blocked = True
+        result.block_reason = unsupported_reason(output_language)
+        return result
+
 
     # --- Budget-approval gate: a real (non-stub) provider must never run
     # against a silently-defaulted budget cap. Must run before the safety
@@ -725,7 +757,7 @@ def run_pipeline(
         )
         stage = "script_generation"
         script, script_warning, rejected_script = _generate_script_with_fallback(
-            llm, brief, settings.output_language, effective_visual_style, cost_tracker
+            llm, brief, output_language, effective_visual_style, cost_tracker
         )
         if rejected_script is not None:
             rejected_out = artifacts_dir / f"{topic}.script.rejected.json"
@@ -785,18 +817,21 @@ def run_pipeline(
                 gateway=FalGateway(settings.fal_key) if uses_fal else None,
             )
 
+        report("Recording narration", 0, len(script["scenes"]))
         scene_audio = assembly.synthesize_scenes(make_tts_provider, script["scenes"], workdir / "audio", cost_tracker)
 
         # Caption timing from the actual audio, where an STT provider is
         # configured. Falls back silently to the length-weighted estimate:
         # slightly-off captions are worth far more than a failed render, so
         # nothing here is allowed to break the run.
+        report("Timing captions to the audio")
         scene_word_timings = _align_scene_captions(settings, scene_audio, cost_tracker)
 
         # One music bed per topic, cached in the topic's own workdir. The
         # reference runs a continuous bed under the whole voiceover, and
         # that bed is also what gives it a 1.7 LU loudness range where ours
         # measures 3.5 (verified 2026-09-02).
+        report("Composing the music bed")
         music_bed_path = _get_or_create_music_bed(settings, topic, workdir, cost_tracker)
         actual_durations = [a.duration for a in scene_audio]
         scripted_durations = [a.scripted_duration for a in scene_audio]
@@ -978,7 +1013,9 @@ def run_pipeline(
             # falls through to the pop-in-and-hold beat on the scene's own
             # base image (the same visual language the sticker path uses).
             animate_scene = choose_animated_scenes(script["scenes"])
+            animated_total = sum(animate_scene)
 
+            report("Drawing scenes", 0, len(script["scenes"]))
             base_image_paths = [
                 _scene_base_image_path(
                     image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
@@ -992,6 +1029,7 @@ def run_pipeline(
             # against a reference whose shots run 0.7-2.0s. Each extra image
             # is one more paid call (~$0.04), so they are only bought for
             # scenes that are actually static and long enough to cut.
+            report("Drawing extra shots")
             scene_shot_paths: list[list[Path]] = [[p] for p in base_image_paths]
             for i, scene in enumerate(script["scenes"]):
                 if animate_scene[i]:
@@ -1040,8 +1078,13 @@ def run_pipeline(
                     executor.submit(render_clip, i, scene): i
                     for i, scene in enumerate(script["scenes"])
                 }
+                # Per-clip reporting: video is ~90% of the wall time, so
+                # this is the only stage where a silent wait is unbearable.
+                done = 0
                 for future in as_completed(pending):
                     clip_paths_per_scene[pending[future]] = future.result()
+                    done += 1
+                    report("Animating scenes", done, animated_total)
 
             def clip_source(i: int, _scene: dict[str, Any]) -> list[Path]:
                 paths = clip_paths_per_scene[i]
@@ -1049,6 +1092,7 @@ def run_pipeline(
                     raise RuntimeError(f"animated clip {i} did not complete")
                 return paths
 
+            report("Assembling the video")
             generated_result = assembly.assemble_animated(
                 scenes=script["scenes"],
                 clip_source=clip_source,
