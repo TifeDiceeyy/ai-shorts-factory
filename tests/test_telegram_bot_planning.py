@@ -177,3 +177,36 @@ def test_no_requested_length_keeps_the_original_behaviour():
             SCRIPT_MIN_TOTAL_SECONDS,
             SCRIPT_MAX_TOTAL_SECONDS,
         )
+
+
+def test_every_route_to_generation_passes_through_the_length_picker():
+    """A topic that already has verified sources skips retrieval — and used
+    to skip the length picker with it, jumping straight to the confirm
+    step. That silently affected MOST topics, since anything retrieved
+    before takes that branch (found in real use 2026-09-02).
+
+    Asserted structurally: enter_generate_confirm is reachable only from
+    the length-picker callback, never called directly by a routing helper.
+    """
+    import inspect
+    import re
+
+    from shorts_factory import telegram_bot
+
+    source = inspect.getsource(telegram_bot)
+    # Calls to enter_generate_confirm, excluding its own definition.
+    calls = [
+        line.strip()
+        for line in source.splitlines()
+        if "enter_generate_confirm(" in line and "async def" not in line
+    ]
+    assert len(calls) == 1, (
+        f"enter_generate_confirm should be reached from exactly one place "
+        f"(the length callback); found {len(calls)}: {calls}"
+    )
+    # And that one place must be inside the choosing_length handling.
+    picker_block = source.split("choosing_length.state", 1)
+    assert len(picker_block) == 2, "the length-picker state handler is missing"
+    assert "enter_generate_confirm(" in picker_block[1].split("confirming_generate.state")[0], (
+        "the only call must sit in the choosing_length branch"
+    )

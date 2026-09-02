@@ -327,7 +327,11 @@ def build_router(controller: TelegramController) -> Router:
                 reply_markup=_confirm_cancel_kb("retrieval"),
             )
         else:
-            await enter_generate_confirm(message, state, topic)
+            # A topic that already has verified sources still needs its
+            # length choosing. Jumping straight to the confirm step here
+            # skipped the picker entirely for every previously-retrieved
+            # topic — which is most of them.
+            await enter_length_choice(message, state, topic)
 
     async def handle_topic_entry(message: Message, state: FSMContext, text: str) -> None:
         topic = text.strip()
