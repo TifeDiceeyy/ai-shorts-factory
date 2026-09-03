@@ -19,6 +19,7 @@ so a future similar topic reuses it instead of paying to generate another.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import re
@@ -108,6 +109,7 @@ class Mascot:
                 f"Each item is cleanly isolated, flat-shaded, simplified — an "
                 f"illustrated icon, not a rendered photograph. "
                 f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — objects only. "
+                f"{CAPTION_SAFE_ZONE_RULE} "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
                 f"No text or labels rendered directly on the image."
             )
@@ -462,6 +464,19 @@ def _mentions_character(text: str) -> bool:
     return bool(_CHARACTER_WORDS.search(text or ""))
 
 
+# Captions are burned in at a FIXED position — measured on a real render,
+# the band runs from 12% to 26% of frame height. Nothing told the image
+# model to keep that area clear, so artwork drifted into it: 5 of 10 sampled
+# frames of a finished video had the mascot or a prop behind the words
+# (2026-09-02). "Generous empty white space above" was too vague to act on;
+# this names the fraction and says what it is for.
+CAPTION_SAFE_ZONE_RULE = (
+    "IMPORTANT COMPOSITION RULE: the top 30% of the image must be completely empty white space — "
+    "no character, no object, no part of any drawing may enter that upper band. Place the entire "
+    "illustration in the lower two-thirds of the frame."
+)
+
+
 def _style_tail(visual_style: str) -> str:
     """The one and only style/background/no-text clause of a scene prompt.
 
@@ -475,6 +490,7 @@ def _style_tail(visual_style: str) -> str:
     """
     trimmed = _STYLE_DEDUPE_RE.sub("", visual_style).strip().rstrip(".")
     parts = [p for p in (trimmed,) if p]
+    parts.append(CAPTION_SAFE_ZONE_RULE.rstrip("."))
     parts.append("Pure solid white background (#FFFFFF), no scenery, no shadows, sticker framing")
     parts.append("No text, words, letters or numbers anywhere in the image")
     return "Style: " + ". ".join(parts) + "."
@@ -727,7 +743,7 @@ _ELDER_SHARED_STYLE = (
 MASCOT_6 = Mascot(
     id="mascot_6",
     name="Mascot 6: Red-Cap Elder (House Mascot)",
-    short_desc="Kindly white-moustached elder in a rust-red bobble beanie and navy coat with a mustard collar, carrying a thin pointer stick",
+    short_desc="Fair-skinned white-moustached elder in a rust-red bobble beanie and navy coat with a mustard collar",
     hero_prompt=(
         "Full-body FLAT 2D hand-drawn cartoon illustration of a friendly elderly man mid-stride, walking. "
         "Bold black ink outlines, flat matte fills — NOT a 3D render, NOT CGI, NOT Pixar-style, NOT photoreal, NOT glossy. "
@@ -774,7 +790,7 @@ MASCOT_6 = Mascot(
 MASCOT_7 = Mascot(
     id="mascot_7",
     name="Mascot 7: Green-Cap Elder (House Mascot)",
-    short_desc="Kindly full-bearded elder in an olive-green bobble beanie and dark brown coat, carrying a thin pointer stick",
+    short_desc="Weathered full-bearded elder with warm tanned skin, olive-green bobble beanie and dark brown coat",
     hero_prompt=(
         "Full-body FLAT 2D hand-drawn cartoon illustration of a friendly elderly man mid-stride, walking. "
         "Bold black ink outlines, flat matte fills — NOT a 3D render, NOT CGI, NOT Pixar-style, NOT photoreal, NOT glossy. "
@@ -782,7 +798,7 @@ MASCOT_7 = Mascot(
         "with generous empty white space above, below, and on both sides — the character must NOT dominate or fill the frame. "
         "He wears an olive moss-green knitted beanie with a rolled brim and a round bobble on top, with a little white hair showing beneath it at the sides. "
         "He has a LARGE full bushy pure-white beard covering his chin and jaw, together with a white moustache. "
-        "Small round black dot eyes, pale peach skin, soft round pink blush circles on both cheeks, thin white eyebrows. "
+        "Small round black dot eyes, WARM TANNED SUN-WEATHERED SKIN in a deep golden-amber tone — noticeably darker and warmer than pale, like a face that has spent years outdoors — with soft rounded ruddy blush on both cheeks and thin white eyebrows. "
         "He wears a dark chocolate-brown buttoned work coat with two small amber buttons down the front. "
         "His arms and legs are drawn as simple thin dark lines rather than sleeves or trousers, ending in small mitten-shaped black gloves and simple solid black boots. "
         # The reference art gives him a raised teaching pointer, but three
@@ -1013,15 +1029,17 @@ def select_mascot_for_story(
         # keywords, and DEFAULT_MASCOT_ID breaks the tie — so this never
         # returns None and a run can never be charged for designing a new
         # mascot it does not want.
-        house_scores = {m_id: 0 for m_id in HOUSE_MASCOT_IDS}
-        topic_lower = topic.lower()
-        for m_id in HOUSE_MASCOT_IDS:
-            for kw in MASCOT_STORY_KEYWORDS.get(m_id, []):
-                if kw in search_text:
-                    house_scores[m_id] += 2 if kw in topic_lower else 1
-        best = max(house_scores.values())
-        leaders = [m_id for m_id, sc in house_scores.items() if sc == best]
-        chosen = DEFAULT_MASCOT_ID if DEFAULT_MASCOT_ID in leaders else leaders[0]
+        # Chosen at random, but SEEDED BY THE TOPIC, so the pick varies
+        # across the library while the same topic always gets the same
+        # elder. A fresh coin-flip per run would swap the presenter when a
+        # video is regenerated and would break the determinism tests, which
+        # require one script to produce one identical render.
+        #
+        # Keyword lean was tried first and came out lopsided — nearly every
+        # topic scored for the modern/technical list, so one mascot carried
+        # almost everything.
+        digest = hashlib.sha256(topic.strip().lower().encode("utf-8")).hexdigest()
+        chosen = HOUSE_MASCOT_IDS[int(digest, 16) % len(HOUSE_MASCOT_IDS)]
         return MASCOTS[chosen]
 
     custom = load_custom_mascots()

@@ -341,6 +341,13 @@ MAX_REAL_CLIPS_PER_SCENE = 2
 # ThreadPoolExecutor above it — lighter/faster calls than video generation,
 # so a higher cap than that one's is reasonable.
 IMAGE_MAX_WORKERS = 3
+# Video generation is the wall clock. Measured on a real 11-scene run
+# (2026-09-02): 1041s of a 1536s total — 68% — spent animating, at 2 workers.
+# Each Kling clip takes ~3-9 minutes and is almost entirely provider-side
+# waiting, so the limit is the provider's concurrency, not ours. Raised
+# 2 -> 4; the per-call budget check still runs before every clip, so more
+# workers cannot spend past the cap.
+VIDEO_MAX_WORKERS = 4
 TTS_MAX_WORKERS = 3
 
 
@@ -1002,11 +1009,16 @@ def run_pipeline(
             hero_cache_key = _hero_cache_key(mascot, settings.image.model_or_voice, settings.image_style)
             hero_path = generated_dir / f"hero_{mascot.id}_{hero_cache_key}.png"
 
-            # Build base images serially so the shared hero reference is
-            # created exactly once, then animate two scenes concurrently.
-            # Video generation dominates wall time (the six real clips in a
-            # measured run took ~34 minutes serially); bounded parallelism
-            # roughly halves that without flooding the provider.
+            # The hero is created ONCE, up front, before any parallel work
+            # starts. These images used to be built serially purely to force
+            # that (concurrent workers would each miss the cache and pay for
+            # their own hero), which cost 163s of a 1536s run for 11 images.
+            # Creating it here removes the reason for the serialisation.
+            if any(
+                s.get("scene_type", "mascot") not in ("ingredient_grid", "process_action")
+                for s in script["scenes"]
+            ):
+                _get_or_create_hero_image(image_provider, mascot, hero_path, cost_tracker)
             # Not every scene earns a paid clip — see choose_animated_scenes.
             # A scene left static still renders: assemble_animated hands an
             # empty clip list to build_scene_video_segment_from_clip, which
@@ -1015,33 +1027,57 @@ def run_pipeline(
             animate_scene = choose_animated_scenes(script["scenes"])
             animated_total = sum(animate_scene)
 
-            report("Drawing scenes", 0, len(script["scenes"]))
-            base_image_paths = [
-                _scene_base_image_path(
-                    image_provider, mascot, hero_path, scene, i, generated_dir, cost_tracker
-                )
-                for i, scene in enumerate(script["scenes"])
-            ]
-
-            # Extra SHOTS for the scenes that get no clip. A static scene
-            # used to hold one image for its whole length — measured 19.5s
-            # of a 47.5s render with nothing changing on screen at all,
-            # against a reference whose shots run 0.7-2.0s. Each extra image
-            # is one more paid call (~$0.04), so they are only bought for
-            # scenes that are actually static and long enough to cut.
-            report("Drawing extra shots")
-            scene_shot_paths: list[list[Path]] = [[p] for p in base_image_paths]
+            # Every image this render needs — the scene's own, plus the extra
+            # SHOTS a static scene is cut into — planned up front so they can
+            # all be drawn at once. Extra shots exist because a static scene
+            # used to hold ONE image for its whole length: 19.5s of a 47.5s
+            # render with nothing changing, against a reference whose shots
+            # run 0.7-2.0s. Each is a paid call (~$0.04), so only scenes that
+            # are actually static and long enough to cut get them.
+            image_jobs: list[tuple[int, int]] = []
             for i, scene in enumerate(script["scenes"]):
+                image_jobs.append((i, 0))
                 if animate_scene[i]:
                     continue
                 wanted = len(assembly.plan_shot_durations(scene_audio[i].duration))
                 for shot in range(1, min(wanted, len(SHOT_FRAMING_VARIANTS))):
-                    scene_shot_paths[i].append(
-                        _scene_base_image_path(
-                            image_provider, mascot, hero_path, scene, i, generated_dir,
-                            cost_tracker, shot_index=shot,
-                        )
-                    )
+                    image_jobs.append((i, shot))
+
+            report("Drawing scenes", 0, len(image_jobs))
+
+            def render_image(job: tuple[int, int]) -> tuple[tuple[int, int], Path]:
+                scene_index, shot_index = job
+                # One gateway per worker: fal_client's synchronous client is
+                # not safe to share across threads.
+                worker_provider = get_image_provider(
+                    settings.image.provider,
+                    settings.credential_for(settings.image),
+                    settings.image.model_or_voice,
+                    settings.image_cost_per_image_usd,
+                    gateway=FalGateway(settings.fal_key),
+                    visual_style="" if mascot else settings.visual_style,
+                    style_preset=settings.image_style,
+                )
+                return job, _scene_base_image_path(
+                    worker_provider, mascot, hero_path, script["scenes"][scene_index],
+                    scene_index, generated_dir, cost_tracker, shot_index=shot_index,
+                )
+
+            rendered: dict[tuple[int, int], Path] = {}
+            with ThreadPoolExecutor(
+                max_workers=min(IMAGE_MAX_WORKERS, len(image_jobs))
+            ) as executor:
+                pending = {executor.submit(render_image, job): job for job in image_jobs}
+                for done_count, future in enumerate(as_completed(pending), start=1):
+                    job, path = future.result()
+                    rendered[job] = path
+                    report("Drawing scenes", done_count, len(image_jobs))
+
+            base_image_paths = [rendered[(i, 0)] for i in range(len(script["scenes"]))]
+            scene_shot_paths: list[list[Path]] = [
+                [rendered[(i, shot)] for (si, shot) in sorted(image_jobs) if si == i]
+                for i in range(len(script["scenes"]))
+            ]
             # Worst case, per scene: MAX_REAL_CLIPS_PER_SCENE clips (see
             # _render_scene_clips) — an early sanity check against that
             # ceiling, not the only guard: check_budget() also runs before
@@ -1073,18 +1109,26 @@ def run_pipeline(
                 )
 
             clip_paths_per_scene: list[list[Path] | None] = [None] * len(script["scenes"])
-            with ThreadPoolExecutor(max_workers=min(2, len(script["scenes"]))) as executor:
+            with ThreadPoolExecutor(
+                max_workers=min(VIDEO_MAX_WORKERS, len(script["scenes"]))
+            ) as executor:
                 pending = {
                     executor.submit(render_clip, i, scene): i
                     for i, scene in enumerate(script["scenes"])
                 }
                 # Per-clip reporting: video is ~90% of the wall time, so
                 # this is the only stage where a silent wait is unbearable.
+                # Count only the scenes that actually bought a clip. Every
+                # scene is submitted (static ones return []), so counting
+                # completed futures produced "11/7" in a real run — a
+                # counter past its own total, which reads as a bug.
                 done = 0
                 for future in as_completed(pending):
-                    clip_paths_per_scene[pending[future]] = future.result()
-                    done += 1
-                    report("Animating scenes", done, animated_total)
+                    index = pending[future]
+                    clip_paths_per_scene[index] = future.result()
+                    if animate_scene[index]:
+                        done += 1
+                        report("Animating scenes", done, animated_total)
 
             def clip_source(i: int, _scene: dict[str, Any]) -> list[Path]:
                 paths = clip_paths_per_scene[i]

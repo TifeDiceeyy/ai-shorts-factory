@@ -139,3 +139,69 @@ def test_pop_brightness_matches_the_reference_transients():
     freqs = np.fft.rfftfreq(len(x), 1 / sfx.SAMPLE_RATE)
     centroid = float((spectrum * freqs).sum() / spectrum.sum())
     assert 2300 <= centroid <= 6900, f"pop centroid {centroid:.0f} Hz is outside the reference band"
+
+
+def test_every_sfx_hint_the_model_actually_writes_resolves():
+    """Collected from every script this project has generated.
+
+    Measured 2026-09-02: 20 of the 33 distinct hints resolved to nothing, so
+    those scenes fell back to the generic cut whoosh and 85% of a finished
+    video's cues ended up being the same sound.
+    """
+    observed = [
+        "whoosh", "ding", "pop", "bubbling", "sparkle", "sizzle", "tada", "splash",
+        "clink", "pouring", "buzz", "crumble_impact", "coin_jingle", "cheer",
+        "stirring", "crumble", "magnify", "pour", "crack", "crackling", "clank",
+        "thud", "electric_arc", "electric_hum", "power_up", "grating", "zap",
+        "hum", "gurgle", "click",
+    ]
+    unresolved = [h for h in observed if sfx.resolve_sfx_name(h) is None]
+    assert not unresolved, f"hints the model writes but we ignore: {unresolved}"
+
+
+def test_hints_resolve_by_meaning_not_by_substring():
+    """Naive `in` matching resolved "grating" to a bell (it contains "ting")
+    and "crackling" to a thud (it contains "crack")."""
+    assert sfx.resolve_sfx_name("grating") == "sizzle"
+    assert sfx.resolve_sfx_name("crackling") == "sizzle"
+    assert sfx.resolve_sfx_name("crack") == "thud"
+    assert sfx.resolve_sfx_name("electric_arc") == "zap"
+    assert sfx.resolve_sfx_name("pouring") == "splash"
+
+
+def test_human_vocalisations_stay_silent():
+    """We synthesize no voice. Substituting a mechanical sound for "gasp" is
+    worse than leaving the scene unaccented."""
+    for hint in ("gasp", "sigh", "laugh", "scream", "none", "null", ""):
+        assert sfx.resolve_sfx_name(hint) is None, hint
+
+
+def test_a_scene_with_its_own_sound_does_not_also_get_a_transition():
+    """Whooshing every cut regardless of content is what made the track
+    monotonous — the scene's authored effect was there but buried under a
+    transition it didn't need. The reference accents 7 of its 14 cuts."""
+    scenes = [
+        {"narration": "a", "sfx": "zap"},
+        {"narration": "b", "sfx": "splash"},
+        {"narration": "c"},                      # no sound of its own
+    ]
+    cues = sfx.scene_sfx_cues(scenes, [3.0, 3.0, 3.0])
+    kinds = [k for _t, k in cues]
+    assert "zap" in kinds and "splash" in kinds
+    # Scene 1 brings its own sound, so its cut is NOT also whooshed; scene 2
+    # brings nothing, so its cut is.
+    assert kinds.count("whoosh") < len(scenes), kinds
+
+
+def test_the_track_is_not_dominated_by_one_sound():
+    """The finished videos were 85-87% whoosh. Variety is the point."""
+    from collections import Counter
+
+    scenes = [
+        {"narration": "x", "sfx": s}
+        for s in ("whoosh", "ding", "zap", "splash", "hum", "pop", "sparkle", "tada", "sizzle", "thud")
+    ]
+    cues = sfx.scene_sfx_cues(scenes, [3.0] * len(scenes))
+    counts = Counter(k for _t, k in cues)
+    assert len(counts) >= 6, f"only {len(counts)} distinct sounds: {dict(counts)}"
+    assert max(counts.values()) / len(cues) < 0.5, dict(counts)

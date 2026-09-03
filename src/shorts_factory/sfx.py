@@ -16,6 +16,7 @@ sentences, and ours did.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import wave
 from pathlib import Path
@@ -144,6 +145,59 @@ def sparkle(duration: float = 0.40) -> np.ndarray:
     return out.astype(np.float32)
 
 
+def zap(duration: float = 0.22) -> np.ndarray:
+    """Electric arc/spark — buzzing crackle with a bright snap."""
+    n = int(SAMPLE_RATE * duration)
+    t = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+    rng = np.random.default_rng(17)          # fixed seed: audio is deterministic
+    # A fast square-ish buzz gives the electrical character; noise bursts on
+    # top give the crackle.
+    buzz = np.sign(np.sin(2 * np.pi * 140.0 * t)) * 0.4
+    crackle = rng.standard_normal(n).astype(np.float32) * np.exp(-t * 14.0)
+    high = np.sin(2 * np.pi * 3200.0 * t) * np.exp(-t * 30.0) * 0.6
+    return ((buzz + crackle + high) * _envelope(n, 0.005, 0.20)).astype(np.float32)
+
+
+def splash(duration: float = 0.35) -> np.ndarray:
+    """Liquid — pouring, splashing, gurgling. Filtered noise with a wobble."""
+    n = int(SAMPLE_RATE * duration)
+    t = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+    rng = np.random.default_rng(23)
+    noise = rng.standard_normal(n).astype(np.float32)
+    out = np.zeros(n, dtype=np.float32)
+    acc = 0.0
+    # Cutoff wobbles, which is what separates "liquid" from flat hiss.
+    sweep = 0.10 + 0.06 * np.sin(2 * np.pi * 11.0 * t)
+    for i in range(n):
+        acc += sweep[i] * (noise[i] - acc)
+        out[i] = acc
+    return (out * _envelope(n, 0.08, 0.5) * 4.0).astype(np.float32)
+
+
+def hum(duration: float = 0.5, pitch: float = 110.0) -> np.ndarray:
+    """Steady electrical/mechanical drone — a machine running."""
+    n = int(SAMPLE_RATE * duration)
+    t = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+    tone = np.sin(2 * np.pi * pitch * t) + 0.4 * np.sin(2 * np.pi * pitch * 2 * t)
+    tone += 0.2 * np.sin(2 * np.pi * pitch * 3 * t)
+    # Slow tremolo so it reads as a running machine, not a test tone.
+    tone *= 1.0 + 0.15 * np.sin(2 * np.pi * 6.0 * t)
+    return (tone * _envelope(n, 0.12, 0.8)).astype(np.float32)
+
+
+def tada(duration: float = 0.6) -> np.ndarray:
+    """Short rising fanfare — the payoff / it worked."""
+    n = int(SAMPLE_RATE * duration)
+    out = np.zeros(n, dtype=np.float32)
+    # A major triad arpeggio: the cheapest thing that reads as "success".
+    for k, pitch in enumerate((523.25, 659.25, 783.99, 1046.5)):
+        start = int(n * 0.13 * k)
+        note = ding(duration=0.30, pitch=pitch)
+        end = min(n, start + len(note))
+        out[start:end] += note[: end - start] * (0.7 + 0.1 * k)
+    return out.astype(np.float32)
+
+
 def _normalized(fn):
     """Each effect peaks at exactly 1.0 before gain.
 
@@ -167,36 +221,96 @@ SFX_LIBRARY = {
     "ding": _normalized(ding),
     "sizzle": _normalized(sizzle),
     "sparkle": _normalized(sparkle),
+    "zap": _normalized(zap),
+    "splash": _normalized(splash),
+    "hum": _normalized(hum),
+    "tada": _normalized(tada),
 }
 
 # The script's own per-scene `sfx` field is free text written by the model,
-# so it names sounds we don't synthesize. Map the words it actually uses onto
-# the closest thing we have rather than dropping the cue: measured 2026-09-02,
-# a real 5-scene script asked for whoosh/ding/sizzle/pop/sparkle and every one
-# of those hints was being ignored outright.
+# so it names sounds we don't synthesize. This maps what it ACTUALLY writes —
+# collected from every script this project has generated — onto the closest
+# effect we have.
+#
+# Measured 2026-09-02: 20 of the 33 distinct hints the model had written
+# resolved to nothing, so those scenes fell back to the generic cut whoosh
+# and 85% of a finished video's cues were the same sound. Two more resolved
+# WRONGLY because matching was naive substring: "grating" matched "ting"
+# inside it and became a bell; "crackling" became a thud.
 _SFX_ALIASES = {
-    "ding": "ding", "chime": "ding", "bell": "ding", "ting": "ding", "sparkle": "sparkle",
-    "twinkle": "sparkle", "shimmer": "sparkle", "magic": "sparkle", "reveal": "sparkle",
-    "sizzle": "sizzle", "hiss": "sizzle", "fizz": "sizzle", "burn": "sizzle",
-    "crackle": "sizzle", "fire": "sizzle", "steam": "sizzle", "bubble": "sizzle",
-    "pop": "pop", "click": "pop", "tap": "pop", "snap": "pop", "appear": "pop",
+    # transitions
     "whoosh": "whoosh", "swoosh": "whoosh", "swipe": "whoosh", "wind": "whoosh",
-    "transition": "whoosh", "rush": "whoosh",
+    "transition": "whoosh", "rush": "whoosh", "sweep": "whoosh",
+    # bright accents / a point landing
+    "ding": "ding", "chime": "ding", "bell": "ding", "ting": "ding", "clink": "ding",
+    "clang": "ding", "coin": "ding", "coin_jingle": "ding", "jingle": "ding",
+    "magnify": "ding", "reveal_tone": "ding",
+    # appearance / small impacts
+    "pop": "pop", "click": "pop", "tap": "pop", "snap": "pop", "appear": "pop",
+    "blip": "pop", "plop": "pop",
+    # shimmer / discovery
+    "sparkle": "sparkle", "twinkle": "sparkle", "shimmer": "sparkle",
+    "magic": "sparkle", "reveal": "sparkle", "glow": "sparkle", "power_up": "sparkle",
+    "powerup": "sparkle",
+    # heat / reaction / texture
+    "sizzle": "sizzle", "hiss": "sizzle", "fizz": "sizzle", "burn": "sizzle",
+    "crackle": "sizzle", "crackling": "sizzle", "fire": "sizzle", "steam": "sizzle",
+    "bubble": "sizzle", "bubbling": "sizzle", "boil": "sizzle", "boiling": "sizzle",
+    "grate": "sizzle", "grating": "sizzle", "scrape": "sizzle", "stir": "sizzle",
+    "stirring": "sizzle", "rustle": "sizzle",
+    # heavy impacts
     "thud": "thud", "thump": "thud", "boom": "thud", "crash": "thud", "impact": "thud",
-    "bang": "thud", "crack": "thud", "rumble": "thud", "land": "thud",
+    "bang": "thud", "crack": "thud", "crumble": "thud", "crumble_impact": "thud",
+    "rumble": "thud", "land": "thud", "clank": "thud", "clunk": "thud", "drop": "thud",
+    # electricity
+    "zap": "zap", "spark": "zap", "electric": "zap", "electric_arc": "zap",
+    "arc": "zap", "buzz": "zap", "static": "zap", "shock": "zap", "current": "zap",
+    # liquid
+    "splash": "splash", "pour": "splash", "pouring": "splash", "gurgle": "splash",
+    "water": "splash", "drip": "splash", "liquid": "splash", "flow": "splash",
+    "trickle": "splash",
+    # machinery drone
+    "hum": "hum", "humming": "hum", "electric_hum": "hum", "drone": "hum",
+    "motor": "hum", "engine": "hum", "whir": "hum", "whirr": "hum", "vibrate": "hum",
+    # success
+    "tada": "tada", "fanfare": "tada", "success": "tada", "cheer": "tada",
+    "applause": "tada", "win": "tada", "triumph": "tada", "celebrate": "tada",
 }
+
+# Hints that name a HUMAN vocalisation. Deliberately unmapped: we synthesize
+# no voice, and substituting a mechanical sound for "gasp" is worse than
+# staying silent — the scene simply gets no accent of its own.
+_IGNORED_SFX_HINTS = frozenset({"gasp", "sigh", "laugh", "scream", "shout", "breath", "none", "null", "silence"})
 
 
 def resolve_sfx_name(raw: str | None) -> str | None:
-    """Map a script's free-text sfx hint onto an effect we can synthesize."""
+    """Map a script's free-text sfx hint onto an effect we can synthesize.
+
+    Matches on whole word-ish TOKENS, longest first, rather than raw
+    substrings: naive `in` matching turned "grating" into a bell (it
+    contains "ting") and "crackling" into a thud.
+    """
     text = (raw or "").strip().lower()
-    if not text:
+    if not text or text in _IGNORED_SFX_HINTS:
         return None
     if text in SFX_LIBRARY:
         return text
-    for word, effect in _SFX_ALIASES.items():
-        if word in text:
-            return effect
+    if text in _SFX_ALIASES:
+        return _SFX_ALIASES[text]
+
+    tokens = [t for t in re.split(r"[^a-z]+", text) if t]
+    if any(t in _IGNORED_SFX_HINTS for t in tokens):
+        return None
+    for token in tokens:
+        if token in SFX_LIBRARY:
+            return token
+        if token in _SFX_ALIASES:
+            return _SFX_ALIASES[token]
+    # Last resort: a token that STARTS with a known alias ("bubbles" ->
+    # "bubble"). Longest alias first so "crackling" cannot match "crack".
+    for alias in sorted(_SFX_ALIASES, key=len, reverse=True):
+        if any(t.startswith(alias) for t in tokens):
+            return _SFX_ALIASES[alias]
     return None
 
 
@@ -311,10 +425,16 @@ def scene_sfx_cues(scenes: list[dict], durations: list[float]) -> list[tuple[flo
     cues: list[tuple[float, str]] = []
     cursor = 0.0
     for scene, duration in zip(scenes, durations):
-        if cursor > 0.0:
+        authored = resolve_sfx_name(scene.get("sfx"))
+
+        # Accent the cut ONLY when the scene brings no sound of its own.
+        # Whooshing every cut regardless is what made 85% of a finished
+        # video's cues the same sound (measured 2026-09-02) — the scene's
+        # own authored effect was there, but buried under a transition it
+        # didn't need. The reference accents 7 of its 14 cuts, not all 14.
+        if cursor > 0.0 and not authored:
             cues.append((cursor, "whoosh"))
 
-        authored = resolve_sfx_name(scene.get("sfx"))
         if authored:
             # Offset so it doesn't collide with the transition whoosh on the
             # same frame, where the two would just sum into one louder hit.
@@ -329,13 +449,16 @@ def scene_sfx_cues(scenes: list[dict], durations: list[float]) -> list[tuple[flo
         if not scene.get("stickers"):
             from .assembly import plan_shot_durations
 
+            # Internal cuts echo the scene's OWN sound where it has one, and
+            # fall back to the transition whoosh where it doesn't. Using
+            # whoosh for all of them made 85% of a finished track the same
+            # noise; dropping them entirely fixed the variety but halved the
+            # density to 0.33 hits/sec against the reference's ~0.9. Echoing
+            # keeps both: the scene gets a motif rather than a transition.
             shot_at = cursor
             for shot_duration in plan_shot_durations(duration)[:-1]:
                 shot_at += shot_duration
-                # A cut, so it gets the cut sound. Using "pop" here would
-                # conflate it with the ingredient-appeared sound and make a
-                # grid seem to have more items than it does.
-                cues.append((shot_at, "whoosh"))
+                cues.append((shot_at, authored or "whoosh"))
 
         stickers = scene.get("stickers") or []
         if stickers:
