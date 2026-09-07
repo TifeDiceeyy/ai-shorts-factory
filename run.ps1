@@ -11,7 +11,7 @@ Set-Location $PSScriptRoot
 
 $python = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
-    Write-Error "no .venv found — run: python -m venv .venv; .venv\Scripts\pip install -r requirements.txt"
+    Write-Error "no .venv found - run: python -m venv .venv; .venv\Scripts\pip install -r requirements.txt"
     exit 1
 }
 

@@ -1,0 +1,7 @@
+# PowerShell 5.1 (the version shipped with Windows) assumes CP1252 for a .ps1
+# with no BOM, so a single non-ASCII byte breaks parsing before the script
+# runs. Found on a real Windows deployment 2026-09-07: all five wrappers were
+# unrunnable because of em-dashes in their comments. Keep them ASCII, and
+# never let git rewrite their line endings either.
+*.ps1 text eol=crlf working-tree-encoding=UTF-8
+*.bat text eol=crlf
