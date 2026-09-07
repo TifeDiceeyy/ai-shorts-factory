@@ -62,6 +62,7 @@ class PlanningStates(StatesGroup):
     choosing_topic = State()
     confirming_new_topic = State()
     confirming_retrieval = State()
+    choosing_keywords = State()
     choosing_language = State()
     choosing_length = State()
     confirming_generate = State()
@@ -217,11 +218,11 @@ class TelegramController:
 
     def run_generate(
         self, topic: str, idea: dict | None = None, target_seconds: float | None = None,
-        progress=None, language: str | None = None,
+        progress=None, language: str | None = None, keywords: str = "",
     ) -> PipelineResult:
         return run_pipeline(
             topic, idea=idea, target_seconds=target_seconds, progress=progress,
-            language=language,
+            language=language, keywords=keywords,
         )
 
 
@@ -361,6 +362,19 @@ def build_router(controller: TelegramController) -> Router:
     job_lock = asyncio.Lock()
     job_state = _JobState()
 
+    async def enter_keyword_entry(message: Message, state: FSMContext, topic: str) -> None:
+        await state.set_state(PlanningStates.choosing_keywords)
+        await state.update_data(topic=topic)
+        await message.answer(
+            f"Any keywords for {topic!r}? They steer WHICH parts of the books get used — "
+            f"e.g. 'lightning static shock' pulls different passages than 'generator turbine'.\n\n"
+            f"Send a few words, or tap Skip.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="Skip", callback_data="kw_skip"),
+                InlineKeyboardButton(text="Cancel", callback_data="kw_cancel"),
+            ]]),
+        )
+
     async def enter_language_choice(message: Message, state: FSMContext, topic: str) -> None:
         await state.set_state(PlanningStates.choosing_language)
         await state.update_data(topic=topic)
@@ -405,7 +419,7 @@ def build_router(controller: TelegramController) -> Router:
             # length choosing. Jumping straight to the confirm step here
             # skipped the picker entirely for every previously-retrieved
             # topic — which is most of them.
-            await enter_language_choice(message, state, topic)
+            await enter_keyword_entry(message, state, topic)
 
     async def handle_topic_entry(message: Message, state: FSMContext, text: str) -> None:
         topic = text.strip()
@@ -468,11 +482,11 @@ def build_router(controller: TelegramController) -> Router:
             f"{result['verified_count']}/{result['citation_count']} verified. "
             f"Spent ${outcome['spent']:.4f} / ${outcome['cap']:.2f} cap."
         )
-        await enter_language_choice(message, state, topic)
+        await enter_keyword_entry(message, state, topic)
 
     async def run_locked_generate(
         message: Message, state: FSMContext, topic: str, target_seconds: float | None = None,
-        language: str | None = None,
+        language: str | None = None, keywords: str = "",
     ) -> None:
         if job_lock.locked():
             await message.answer(f"A job is already running ({job_state.topic}). Try again shortly.")
@@ -519,7 +533,8 @@ def build_router(controller: TelegramController) -> Router:
             ticker = asyncio.create_task(tick())
             try:
                 result = await asyncio.to_thread(
-                    controller.run_generate, topic, None, target_seconds, on_progress, language
+                    controller.run_generate, topic, None, target_seconds, on_progress,
+                    language, keywords,
                 )
             except Exception as exc:
                 logger.exception("Telegram generation failed for topic %r", topic)
@@ -604,6 +619,17 @@ def build_router(controller: TelegramController) -> Router:
             await handle_topic_entry(message, state, text)
             return
 
+        # Keywords are TYPED, not tapped — the Skip/Cancel buttons are
+        # handled with the other callbacks. Capped because this only steers
+        # a search query; a paragraph would drown the topic itself.
+        if current_state == PlanningStates.choosing_keywords.state and not text.startswith("/"):
+            stored = await state.get_data()
+            keywords = " ".join(text.split())[:120]
+            await state.update_data(keywords=keywords)
+            await message.answer(f"Using keywords: {keywords!r}")
+            await enter_language_choice(message, state, stored.get("topic"))
+            return
+
         command, _, arguments = text.partition(" ")
         command = command.split("@", 1)[0].lower()
         reply_markup = None
@@ -676,6 +702,15 @@ def build_router(controller: TelegramController) -> Router:
                     await run_locked_retrieval(message, state, topic)
                 elif data == "retrieval_cancel":
                     await message.answer("Skipped retrieval.")
+                    await enter_keyword_entry(message, state, topic)
+            elif current_state == PlanningStates.choosing_keywords.state:
+                stored = await state.get_data()
+                topic = stored.get("topic")
+                if data == "kw_cancel":
+                    await message.answer("Cancelled.")
+                    await state.clear()
+                elif data == "kw_skip":
+                    await state.update_data(keywords="")
                     await enter_language_choice(message, state, topic)
             elif current_state == PlanningStates.choosing_language.state:
                 stored = await state.get_data()
@@ -721,7 +756,7 @@ def build_router(controller: TelegramController) -> Router:
                 if data == "generate_confirm":
                     await run_locked_generate(
                         message, state, topic, stored.get("target_seconds"),
-                        stored.get("language"),
+                        stored.get("language"), stored.get("keywords", ""),
                     )
                 elif data == "generate_cancel":
                     await message.answer("Cancelled.")

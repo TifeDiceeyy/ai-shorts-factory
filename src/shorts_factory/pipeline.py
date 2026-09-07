@@ -344,10 +344,15 @@ IMAGE_MAX_WORKERS = 3
 # Video generation is the wall clock. Measured on a real 11-scene run
 # (2026-09-02): 1041s of a 1536s total — 68% — spent animating, at 2 workers.
 # Each Kling clip takes ~3-9 minutes and is almost entirely provider-side
-# waiting, so the limit is the provider's concurrency, not ours. Raised
-# 2 -> 4; the per-call budget check still runs before every clip, so more
+# waiting, so the limit is the provider's concurrency, not ours.
+#
+# Raised 2 -> 6. A typical 30-60s video animates 6-12 scenes, so this puts
+# most runs in one or two waves instead of three to six. Safe to raise only
+# because FalGateway now retries a rate limit with backoff — without that a
+# single 429 would abort the run and throw away every image already paid
+# for. The per-call budget check still runs before every clip, so more
 # workers cannot spend past the cap.
-VIDEO_MAX_WORKERS = 4
+VIDEO_MAX_WORKERS = 6
 TTS_MAX_WORKERS = 3
 
 
@@ -568,6 +573,7 @@ def run_pipeline(
     target_seconds: float | None = None,
     progress: "Callable[[str, int, int], None] | None" = None,
     language: str | None = None,
+    keywords: str = "",
 ) -> PipelineResult:
     """idea, if given, is a {concept, angle, chosen_hook, payoff} dict that
     steers script framing (brief_builder.build_brief_from_citations), never
@@ -664,7 +670,9 @@ def run_pipeline(
 
             brain = load_brain()
             if brain is not None:
-                covered, research = brain_covers_topic(brain, topic)
+                # keywords steer WHICH passages the books yield, never what
+                # they say — every fact still comes from the index.
+                covered, research = brain_covers_topic(brain, topic, keywords)
                 if covered:
                     brief = build_brief_from_brain(
                         topic, research, safety_class.value, caution=caution_line(topic), idea=idea,
@@ -824,6 +832,14 @@ def run_pipeline(
                 gateway=FalGateway(settings.fal_key) if uses_fal else None,
             )
 
+        # The music bed depends only on the TOPIC, so it does not have to
+        # wait for narration, captions or images. Measured on a real run it
+        # cost 37s of sequential wall time for no reason; started here it
+        # overlaps everything below and is collected just before assembly.
+        music_future = ThreadPoolExecutor(max_workers=1).submit(
+            _get_or_create_music_bed, settings, topic, workdir, cost_tracker
+        )
+
         report("Recording narration", 0, len(script["scenes"]))
         scene_audio = assembly.synthesize_scenes(make_tts_provider, script["scenes"], workdir / "audio", cost_tracker)
 
@@ -834,12 +850,10 @@ def run_pipeline(
         report("Timing captions to the audio")
         scene_word_timings = _align_scene_captions(settings, scene_audio, cost_tracker)
 
-        # One music bed per topic, cached in the topic's own workdir. The
-        # reference runs a continuous bed under the whole voiceover, and
-        # that bed is also what gives it a 1.7 LU loudness range where ours
-        # measures 3.5 (verified 2026-09-02).
-        report("Composing the music bed")
-        music_bed_path = _get_or_create_music_bed(settings, topic, workdir, cost_tracker)
+        # Collect the bed started above. _get_or_create_music_bed already
+        # swallows its own failures and returns None, so this cannot raise
+        # and cannot lose the run.
+        music_bed_path = music_future.result()
         actual_durations = [a.duration for a in scene_audio]
         scripted_durations = [a.scripted_duration for a in scene_audio]
         actual_total = sum(actual_durations)

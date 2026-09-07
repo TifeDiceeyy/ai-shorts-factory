@@ -243,5 +243,22 @@
     ],
     "safety_class": "green",
     "caution": null
+  },
+  "how to make soap": {
+    "queries": [
+      "safe homemade soap making lye safety",
+      "cold process soap making beginner guide"
+    ],
+    "keywords": [
+      "lye",
+      "sodium hydroxide",
+      "saponification",
+      "caustic",
+      "safety gear",
+      "cold process",
+      "soap making"
+    ],
+    "safety_class": "yellow",
+    "caution": "Always wear appropriate personal protective equipment, including gloves and eye protection, and work in a well-ventilated area when handling lye."
   }
 }

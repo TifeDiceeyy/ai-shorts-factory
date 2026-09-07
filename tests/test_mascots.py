@@ -292,7 +292,9 @@ def test_mascot_build_scene_prompt_split_canvas_and_centered():
         props="bubbling glass beaker with amber lye",
         layout="split_bottom_left",
     )
-    assert "Split-canvas" in prompt_split
+    # "Split-canvas"/"quadrant" were removed: the model drew them as literal
+    # comic panels. The two-part layout is now named without that word.
+    assert "Two elements on ONE open canvas" in prompt_split
     assert "bottom-left" in prompt_split
     assert "upper-right" in prompt_split
     assert "bubbling glass beaker" in prompt_split
@@ -640,7 +642,8 @@ def test_the_character_is_never_placed_twice():
     # With no authored description the template MUST still place him,
     # otherwise a character-free prompt would render an empty frame.
     plain = mascot.build_scene_prompt(scene_role="Process", layout="split_bottom_left")
-    assert "quadrant" in plain and "exactly ONE character" not in plain
+    assert "Toward the bottom-left stands" in plain
+    assert "exactly ONE character" not in plain
 
 
 def test_character_detection_covers_names_and_possessives():
@@ -664,3 +667,55 @@ def test_character_detection_covers_names_and_possessives():
         "four ingredients arranged in a grid",
     ):
         assert not _mentions_character(text), text
+
+
+def test_prompts_do_not_ask_for_comic_panels():
+    """A real render came back as bordered comic panels with the mascot in a
+    box (2026-09-02). The prompt said "In the bottom-left QUADRANT ... in the
+    upper-right QUADRANT" and the model drew the cells literally."""
+    prompt = get_mascot("mascot_6").build_scene_prompt(
+        scene_role="Process", props="a coil of wire", layout="split_bottom_left",
+    )
+    assert "quadrant" not in prompt.lower()
+    assert "no panels, frames, boxes or dividing lines" in prompt
+
+
+def test_prompts_ask_for_objects_not_diagrams():
+    """The reference draws recognisable physical things — a bucket, a clock.
+    Ours returned arrow diagrams and labelled block schematics, which is
+    most of what "the visuals look unrealistic" meant."""
+    mascot = get_mascot("mascot_6")
+    for kwargs in (
+        dict(scene_role="x"),
+        dict(scene_role="x", props="a coil", layout="split_bottom_left"),
+        dict(scene_type="process_action", action="pouring"),
+        dict(scene_type="ingredient_grid", grid_items=["a", "b", "c"]),
+    ):
+        prompt = mascot.build_scene_prompt(**kwargs)
+        assert "never diagrams, charts, arrows or symbols" in prompt, kwargs
+
+
+def test_scene_prompts_stay_short_enough_to_be_read():
+    """Measured 2026-09-02: at 301 words the actual subject of the shot was
+    about 20 of them and the model returned generic images. Every rule added
+    since has to earn its place — this is the budget that keeps the subject
+    the largest thing in the prompt.
+    """
+    mascot = get_mascot("mascot_6")
+    for kwargs in (
+        dict(scene_role="Process", emotion="curious"),
+        dict(scene_role="Process", props="a coil of wire", layout="split_bottom_left"),
+        dict(scene_type="process_action", action="pouring lime into a mould"),
+    ):
+        words = len(mascot.build_scene_prompt(**kwargs).split())
+        assert words <= 185, f"{kwargs} -> {words} words"
+
+
+def test_visual_style_does_not_restate_the_background():
+    """visual_style is repeated in EVERY scene prompt, so anything it says
+    twice is paid for on every shot. It once carried the white-background
+    and limb description too — 132 words of a 244-word prompt."""
+    for mascot in (get_mascot("mascot_6"), get_mascot("mascot_7")):
+        assert len(mascot.visual_style.split()) <= 45, mascot.id
+        lowered = mascot.visual_style.lower()
+        assert "background" not in lowered, f"{mascot.id}: _style_tail already says this"

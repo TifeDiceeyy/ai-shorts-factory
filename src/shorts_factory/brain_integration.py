@@ -82,13 +82,24 @@ def _clean_facts(facts: list[str]) -> list[str]:
     ]
 
 
-def brain_covers_topic(brain, topic: str) -> tuple[bool, dict[str, Any] | None]:
+def brain_covers_topic(
+    brain, topic: str, keywords: str = ""
+) -> tuple[bool, dict[str, Any] | None]:
     """Queries the brain for `topic` and judges whether the result is
     strong enough to fully replace external retrieval for this run. Returns
     (covered, research) — research is brain.research_brief()'s own return
     value (with key_facts already noise-filtered) when covered, else
-    (False, None)."""
-    research = brain.research_brief(topic, top_k=10)
+    (False, None).
+
+    `keywords` is optional free text from whoever asked for the video. It is
+    appended to the query so the retrieval leans toward the angle they want
+    — "electricity" and "electricity static shock lightning" pull different
+    passages out of the same books. It only steers WHICH passages are found;
+    every fact still comes from the indexed books, so this cannot invent
+    anything.
+    """
+    query = f"{topic} {keywords}".strip() if keywords else topic
+    research = brain.research_brief(query, top_k=10)
     facts = _clean_facts(research.get("key_facts", []))
     if len(facts) < MIN_CLAIMS_FOR_BRIEF:
         return False, None

@@ -109,7 +109,7 @@ class Mascot:
                 f"Each item is cleanly isolated, flat-shaded, simplified — an "
                 f"illustrated icon, not a rendered photograph. "
                 f"NO people, NO characters, NO figures, NO hands, NO faces anywhere in the image — objects only. "
-                f"{CAPTION_SAFE_ZONE_RULE} "
+                f"{CONCRETE_OBJECT_RULE} {CAPTION_SAFE_ZONE_RULE} "
                 f"Stark pure solid white background (#FFFFFF) only, zero background scenery, zero floor shadows. "
                 f"No text or labels rendered directly on the image."
             )
@@ -160,7 +160,9 @@ class Mascot:
             # Name the composition — two words, not the 40-word block this
             # replaced, whose style and background clauses now live once in
             # _style_tail.
-            prompt_parts.append("Split-canvas explainer composition.")
+            prompt_parts.append(
+                "Two elements on ONE open canvas — no panels, frames, boxes or dividing lines."
+            )
             # Only place the character if the authored description hasn't
             # already placed him. Stating both produced a prompt that asked
             # for the mascot seven times in conflicting positions ("stands
@@ -169,12 +171,12 @@ class Mascot:
             # in a real render 2026-09-02.
             if not _mentions_character(subject):
                 prompt_parts.append(
-                    f"In the {corner} quadrant, the full-body {self.name} mascot (about 40% of frame "
-                    f"height, clearly visible, not tiny) stands looking and pointing up."
+                    f"Toward the {corner} stands the full-body {self.name} mascot at about 40% of frame "
+                    f"height, looking and pointing up."
                 )
             else:
                 prompt_parts.append(
-                    f"Show him once only, small in the {corner} area — exactly ONE character in the image."
+                    f"Show him once only, toward the {corner} of the sheet — exactly ONE character in the image."
                 )
             prompt_parts += [
                 # Role and emotion as their own clauses: interpolating them
@@ -186,7 +188,7 @@ class Mascot:
             ]
             if props:
                 prompt_parts.append(
-                    f"In the {opp_corner} quadrant, a large floating illustrated object shows {props}."
+                    f"Toward the {opp_corner}, a large unframed object: {props}."
                 )
                 prompt_parts.extend(_no_text_depiction_hint(props))
             if fx:
@@ -441,7 +443,8 @@ _PICTORIAL_DEPICTIONS = {
 
 
 _STYLE_DEDUPE_RE = re.compile(
-    r"[^.]*\b(?:white background|zero (?:background )?scenery|zero (?:floor )?shadows|"
+    r"[^.]*\b(?:white(?: sticker)? background|background is stark|zero (?:background )?scenery|"
+    r"no scenery|zero (?:floor )?shadows|no (?:floor )?shadows?|sticker framing|"
     r"do not render any text|no text)\b[^.]*\.\s*",
     re.IGNORECASE,
 )
@@ -470,10 +473,18 @@ def _mentions_character(text: str) -> bool:
 # frames of a finished video had the mascot or a prop behind the words
 # (2026-09-02). "Generous empty white space above" was too vague to act on;
 # this names the fraction and says what it is for.
+# The reference draws recognisable PHYSICAL OBJECTS — a bucket, a clock, a
+# sack of grain — never schematics. Ours came back with arrow diagrams,
+# labelled block diagrams and abstract flow charts (a real render, 2026-09-02),
+# which is most of what "the visuals look unrealistic" meant: an engineering
+# diagram of a concept instead of a drawing of the thing itself.
+CONCRETE_OBJECT_RULE = (
+    "Draw real physical objects you could pick up — never diagrams, charts, arrows or symbols."
+)
+
+
 CAPTION_SAFE_ZONE_RULE = (
-    "IMPORTANT COMPOSITION RULE: the top 30% of the image must be completely empty white space — "
-    "no character, no object, no part of any drawing may enter that upper band. Place the entire "
-    "illustration in the lower two-thirds of the frame."
+    "Leave the top 30% of the frame completely empty; put all artwork below it."
 )
 
 
@@ -490,6 +501,7 @@ def _style_tail(visual_style: str) -> str:
     """
     trimmed = _STYLE_DEDUPE_RE.sub("", visual_style).strip().rstrip(".")
     parts = [p for p in (trimmed,) if p]
+    parts.append(CONCRETE_OBJECT_RULE.rstrip("."))
     parts.append(CAPTION_SAFE_ZONE_RULE.rstrip("."))
     parts.append("Pure solid white background (#FFFFFF), no scenery, no shadows, sticker framing")
     parts.append("No text, words, letters or numbers anywhere in the image")
@@ -765,9 +777,9 @@ MASCOT_6 = Mascot(
         "Stark pure solid white background (#FFFFFF) only, zero background details, zero scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "Flat 2D hand-drawn cartoon illustration of a kindly elderly presenter with a rust-red bobble beanie, "
-        "white walrus moustache, navy coat with mustard collar, thin black stick limbs and a black pointer "
-        "stick. " + _ELDER_SHARED_STYLE
+        "Flat 2D hand-drawn cartoon, bold black ink outlines and flat matte fills — not 3D, not photoreal. "
+        "A kindly elderly presenter: rust-red bobble beanie, white walrus moustache, navy coat with a "
+        "mustard collar, thin black stick limbs."
     ),
     motion_instruction=(
         "For every scene's `visual_prompt`, describe the Red-Cap Elder's whole-body action and gesture — he is "
@@ -812,9 +824,9 @@ MASCOT_7 = Mascot(
         "Stark pure solid white background (#FFFFFF) only, zero background details, zero scenery, zero floor shadows, sticker framing."
     ),
     visual_style=(
-        "Flat 2D hand-drawn cartoon illustration of a kindly elderly presenter with an olive-green bobble "
-        "beanie, full white beard, dark brown coat, thin black stick limbs and a black pointer stick. "
-        + _ELDER_SHARED_STYLE
+        "Flat 2D hand-drawn cartoon, bold black ink outlines and flat matte fills — not 3D, not photoreal. "
+        "A weathered elderly presenter with warm tanned skin: olive-green bobble beanie, full white beard, "
+        "dark brown coat, thin black stick limbs."
     ),
     motion_instruction=(
         "For every scene's `visual_prompt`, describe the Green-Cap Elder's whole-body action and gesture — he "

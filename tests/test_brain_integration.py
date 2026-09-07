@@ -167,3 +167,42 @@ def test_real_brain_does_not_cover_a_clearly_unrelated_topic():
     assert brain is not None
     covered, research = brain_covers_topic(brain, "wifi routers")
     assert covered is False
+
+
+def test_keywords_steer_which_passages_the_books_yield():
+    """Keywords narrow the retrieval query, not the source.
+
+    Every fact still comes out of the indexed books — this only changes
+    WHICH passages rank highest, so it cannot introduce anything the books
+    don't say. Verified against the real brain: the same topic with
+    different keywords returns different leading facts.
+    """
+    from shorts_factory.brain_integration import brain_covers_topic, load_brain
+
+    brain = load_brain()
+    if brain is None:
+        import pytest
+
+        pytest.skip("no brain index built in this environment")
+
+    plain_ok, plain = brain_covers_topic(brain, "electricity")
+    steered_ok, steered = brain_covers_topic(brain, "electricity", "static shock lightning storms")
+    assert plain_ok and steered_ok
+    assert plain["key_facts"] != steered["key_facts"], (
+        "keywords made no difference to what the brain returned"
+    )
+
+
+def test_no_keywords_behaves_exactly_as_before():
+    """An empty keyword string must not perturb the query at all — most
+    runs won't supply one."""
+    from shorts_factory.brain_integration import brain_covers_topic, load_brain
+
+    brain = load_brain()
+    if brain is None:
+        import pytest
+
+        pytest.skip("no brain index built in this environment")
+
+    baseline = brain_covers_topic(brain, "soap")
+    assert brain_covers_topic(brain, "soap", "") == baseline

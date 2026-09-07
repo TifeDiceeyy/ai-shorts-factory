@@ -481,3 +481,57 @@ def test_fal_video_budget_refuses_before_gateway_call(tmp_path):
         provider.generate_scene_video({"visual_prompt": "x"}, hero_path, 0, tmp_path / "clip.mp4", CostTracker(0.1))
     assert fal.client.calls == []
     assert fal.client.uploaded == []
+
+
+def test_gateway_retries_a_rate_limit_but_not_a_real_error():
+    """Concurrency was raised from 2 to 6 video workers, which makes a rate
+    limit likely. Without a retry a single 429 aborts the run and throws
+    away every image already paid for.
+
+    Deliberately narrow: a 429 or a 5xx means the request was REJECTED, not
+    started, so retrying cannot double-charge. Auth, validation and
+    exhausted-balance errors are real answers and must surface at once.
+    """
+    from shorts_factory.providers.fal import FalGateway
+
+    class FlakyClient:
+        def __init__(self, failures, message):
+            self.calls = 0
+            self.failures = failures
+            self.message = message
+
+        def subscribe(self, *args, **kwargs):
+            self.calls += 1
+            if self.calls <= self.failures:
+                raise RuntimeError(self.message)
+            return {"ok": True}
+
+    for transient in ("429 Too Many Requests", "503 Service Unavailable", "connection reset"):
+        gateway = FalGateway("key", client=FlakyClient(2, transient))
+        gateway.RETRY_BACKOFF_SECONDS = 0.001
+        assert gateway.run("endpoint", {}) == {"ok": True}, transient
+        assert gateway.client.calls == 3, transient
+
+    for fatal in ("422 validation error", "401 unauthorized", "User is locked. Reason: TOP_UP."):
+        gateway = FalGateway("key", client=FlakyClient(1, fatal))
+        gateway.RETRY_BACKOFF_SECONDS = 0.001
+        with pytest.raises(Exception):
+            gateway.run("endpoint", {})
+        assert gateway.client.calls == 1, f"{fatal} must not be retried"
+
+
+def test_gateway_gives_up_rather_than_retrying_forever():
+    from shorts_factory.providers.fal import FalGateway
+
+    class AlwaysFails:
+        calls = 0
+
+        def subscribe(self, *args, **kwargs):
+            AlwaysFails.calls += 1
+            raise RuntimeError("429 Too Many Requests")
+
+    gateway = FalGateway("key", client=AlwaysFails())
+    gateway.RETRY_BACKOFF_SECONDS = 0.001
+    with pytest.raises(RuntimeError, match="still failing after"):
+        gateway.run("endpoint", {})
+    assert AlwaysFails.calls == FalGateway.MAX_ATTEMPTS
